@@ -1,0 +1,18 @@
+[versions]
+jdk = "21"
+
+kotlin = "2.2.10"
+kotlinx-coroutines = "1.10.2"
+
+ktor = "3.2.1"
+whyoleg-crypto = "0.5.0"
+
+spotless = "7.0.2"
+
+[libraries]
+whyoleg-secureRandom = { module = "dev.whyoleg.cryptography:cryptography-random", version.ref = "whyoleg-crypto"}
+
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-plugin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
