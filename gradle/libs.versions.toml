@@ -1,18 +1,51 @@
 [versions]
 jdk = "21"
 
-kotlin = "2.2.10"
+# Kotlin
+kotlin = "2.2.20"
 kotlinx-coroutines = "1.10.2"
+kotlinx-serialisation = "1.9.0"
+buildkonfig = "0.17.1"
 
 ktor = "3.2.1"
 whyoleg-crypto = "0.5.0"
 
-spotless = "7.0.2"
+
+# Testing
+kotest = "6.0.3"
+konsist = "0.17.3"
+spotless = "7.2.1"
+ktlint = "1.7.1"
 
 [libraries]
+# Kotlin
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-coreJs = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-js", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialisation" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialisation" }
+
+# Ktor
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor"}
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor"}
+ktor-client-engine-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor"}
+ktor-client-engine-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor"}
+ktor-io = { module = "io.ktor:ktor-io", version.ref = "ktor"}
+ktor-http = { module = "io.ktor:ktor-http", version.ref = "ktor"}
+ktor-network = { module = "io.ktor:ktor-network", version.ref = "ktor"}
+ktor-network-tls = { module = "io.ktor:ktor-network-tls", version.ref = "ktor"}
+ktor-utils = { module = "io.ktor:ktor-utils", version.ref = "ktor"}
+
+# Crypto
 whyoleg-secureRandom = { module = "dev.whyoleg.cryptography:cryptography-random", version.ref = "whyoleg-crypto"}
 
+# Testing
+kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
+konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-kotlin-plugin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+
+buildkonfig = {id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig"}
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

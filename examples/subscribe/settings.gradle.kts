@@ -1,4 +1,3 @@
-rootProject.name = "nats"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -16,12 +15,13 @@ dependencyResolutionManagement {
         mavenCentral()
         google()
     }
+    versionCatalogs {
+        create("libs") {
+            from(files("../../gradle/libs.versions.toml"))
+        }
+    }
 }
 
-include("architecture")
-include("core")
-include("core:common")
-include("core:transport-tcp")
-include("core:transport-ws")
-include("nuid")
-include("nkeys")
+
+
+includeBuild("../../")

@@ -17,8 +17,6 @@ kotlin {
 
     wasmJs {
         browser()
-    }
-    wasmWasi {
         nodejs()
     }
 
