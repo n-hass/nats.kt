@@ -53,7 +53,7 @@ internal class ProtocolEngineImpl(
 	private var rttMeasureStart: Instant? = null
 
 	override suspend fun send(op: ClientOperation) {
-		val msg = parser.encode(op).toByteArray()
+		val msg = parser.encode(op)
 
 		if (transport == null) {
 			throw IllegalStateException("cannot send with no connection open")
@@ -75,8 +75,8 @@ internal class ProtocolEngineImpl(
 			}
 
 		val incoming = transport!!.incoming
-		val info = incoming.readUTF8Line().orEmpty()
-		when (parser.parseOrNull(info)) {
+
+		when (parser.parse(incoming)) {
 			is ServerOperation.InfoOp -> {
 				val connect =
 					ClientOperation.ConnectOp(
@@ -92,7 +92,7 @@ internal class ProtocolEngineImpl(
 						sig = null,
 						jwt = null,
 						noResponders = null,
-						headers = null,
+						headers = true,
 						nkey = null,
 					)
 				send(connect)
@@ -103,22 +103,28 @@ internal class ProtocolEngineImpl(
 			}
 		}
 
-		val ok = incoming.readUTF8Line().orEmpty()
-		when (parser.parseOrNull(ok)) {
+		when (parser.parse(incoming)) {
 			is Operation.Ok -> {
 				_state.update { phase = ConnectionPhase.Connected }
 			}
 			else -> {
-				_closed.complete(CloseReason.ProtocolError("server did not respond OK to CONNECT"))
+				_closed.complete(CloseReason.ProtocolError("Server did not respond OK to CONNECT"))
 				return
 			}
 		}
 		scope.launch {
-			var line: String
+			var op: Operation?
+			
+			send(
+				ClientOperation.SubOp(
+					subject = "test.echo",
+					queueGroup = null,
+					sid = "11",
+				),
+			)
+			
 			while (!incoming.isClosedForRead) {
-				line = incoming.readUTF8Line().orEmpty()
-
-				val op = parser.parseOrNull(line)
+				op = parser.parse(incoming)
 
 				if (op !is ServerOperation) {
 					when (op) {
@@ -139,9 +145,19 @@ internal class ProtocolEngineImpl(
 							_state.update {
 								lastPingAt = Clock.System.now().toEpochMilliseconds()
 							}
+
+							send(
+								ClientOperation.PubOp(
+									subject = "test.echo",
+									replyTo = null,
+									payload = "this is a test message on ping".encodeToByteArray(),
+								),
+							)
 						}
-						Operation.Err -> TODO()
-						Operation.Ok -> TODO()
+						is Operation.Err -> {
+							logger.error { "received a protocol error response: ${(op as Operation.Err).message}" }
+						}
+						Operation.Ok -> { }
 						else -> {
 							logger.error { "idk: $op" }
 						}

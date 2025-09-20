@@ -77,6 +77,11 @@ kotlin {
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.engine.cio)
         }
+
+		jvmTest.dependencies {
+			implementation(kotlin("test"))
+			implementation(libs.kotlinx.coroutines.test)
+		}
     }
 }
 

@@ -28,6 +28,7 @@ internal data class ClientConfiguration(
 	 */
 	val maxReconnects: Int?,
 	val connectTimeoutMs: Int = 5000,
+	val maxControlLineBytes: Int = 1024,
 	/**
 	 * The NUID generator to use.
 	 */

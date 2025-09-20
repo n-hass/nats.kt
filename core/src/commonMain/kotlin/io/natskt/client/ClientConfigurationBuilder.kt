@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 internal interface ClientConfigurationValues {
 	val servers: Collection<String>?
 	val maxReconnects: Int?
+	val maxControlLineBytes: Int?
 	val connectTimeoutMs: Int?
 	val transport: TransportFactory?
 	val scope: CoroutineScope?
@@ -19,6 +20,7 @@ public class ClientConfigurationBuilder : ClientConfigurationValues {
 	public var server: String? = null
 	public override var servers: Collection<String>? = null
 	public override var maxReconnects: Int? = null
+	public override var maxControlLineBytes: Int? = null
 	public override var connectTimeoutMs: Int? = null
 	public override var transport: TransportFactory? = null
 	public override var scope: CoroutineScope? = null

@@ -64,6 +64,7 @@ internal class ConnectionManager(
 
 										allServers.addAll(newServers)
 									}
+									else -> { }
 								}
 								logger.debug { ("event: $it") }
 							}

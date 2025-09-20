@@ -26,6 +26,9 @@ internal class NatsClientImpl(
 				logger.debug { "Connection status change: $it" }
 			}
 		}
+		CoroutineScope(currentCoroutineContext()).launch {
+			connectionManager
+		}
 	}
 
 	override suspend fun subscribe(

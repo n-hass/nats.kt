@@ -1,7 +1,11 @@
 package io.natskt.api.internal
 
-internal interface OperationSerializer {
-	fun parseOrNull(line: String): Operation?
+import io.ktor.utils.io.ByteReadChannel
 
-	fun encode(op: ClientOperation): String
+internal interface OperationSerializer {
+	suspend fun parse(channel: ByteReadChannel): Operation?
+
+	fun encode(op: ClientOperation): ByteArray
 }
+
+internal const val DEFAULT_MAX_LINE_BYTES: Long = 1024 * 1024 * 5 // 5 KB

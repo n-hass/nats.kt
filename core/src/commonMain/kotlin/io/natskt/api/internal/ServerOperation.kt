@@ -1,5 +1,6 @@
 package io.natskt.api.internal
 
+import io.natskt.internal.Subject
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -44,4 +45,78 @@ internal sealed interface ServerOperation : Operation {
 		val domain: String?,
 		val xkey: String?,
 	) : ServerOperation
+
+	@Serializable
+	data class MsgOp(
+		val subject: String,
+		val sid: String,
+		@SerialName("reply-to")
+		val replyTo: String?,
+		val bytes: Int,
+		val payload: ByteArray?,
+	) : ServerOperation {
+		override fun equals(other: Any?): Boolean {
+			if (this === other) return true
+			if (other == null || this::class != other::class) return false
+
+			other as MsgOp
+
+			if (bytes != other.bytes) return false
+			if (subject != other.subject) return false
+			if (sid != other.sid) return false
+			if (replyTo != other.replyTo) return false
+			if (!payload.contentEquals(other.payload)) return false
+
+			return true
+		}
+
+		override fun hashCode(): Int {
+			var result = bytes
+			result = 31 * result + subject.hashCode()
+			result = 31 * result + sid.hashCode()
+			result = 31 * result + (replyTo?.hashCode() ?: 0)
+			result = 31 * result + (payload?.contentHashCode() ?: 0)
+			return result
+		}
+	}
+
+	@Serializable
+	data class HMsgOp(
+		val subject: String,
+		val sid: String,
+		@SerialName("reply-to")
+		val replyTo: String?,
+		val headerBytes: Int,
+		val totalBytes: Int,
+		val headers: Map<String, List<String>>?,
+		val payload: ByteArray?,
+	) : ServerOperation {
+		override fun equals(other: Any?): Boolean {
+			if (this === other) return true
+			if (other == null || this::class != other::class) return false
+
+			other as HMsgOp
+
+			if (headerBytes != other.headerBytes) return false
+			if (totalBytes != other.totalBytes) return false
+			if (subject != other.subject) return false
+			if (sid != other.sid) return false
+			if (replyTo != other.replyTo) return false
+			if (headers != other.headers) return false
+			if (!payload.contentEquals(other.payload)) return false
+
+			return true
+		}
+
+		override fun hashCode(): Int {
+			var result = headerBytes
+			result = 31 * result + totalBytes
+			result = 31 * result + subject.hashCode()
+			result = 31 * result + sid.hashCode()
+			result = 31 * result + (replyTo?.hashCode() ?: 0)
+			result = 31 * result + (headers?.hashCode() ?: 0)
+			result = 31 * result + (payload?.contentHashCode() ?: 0)
+			return result
+		}
+	}
 }

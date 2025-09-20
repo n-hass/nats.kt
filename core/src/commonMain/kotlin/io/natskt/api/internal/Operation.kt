@@ -3,7 +3,9 @@ package io.natskt.api.internal
 internal sealed interface Operation {
 	data object Ok : Operation
 
-	data object Err : Operation
+	data class Err(
+		val message: String?,
+	) : Operation
 
 	data object Ping : Operation, ClientOperation
 
