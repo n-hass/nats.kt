@@ -3,6 +3,7 @@
 > **A fully multiplatform, Ktor-kased NATS client in pure Kotlin**
 
 [![Kotlin](https://img.shields.io/badge/kotlin-multiplatform-blue.svg?logo=kotlin)](https://kotlinlang.org/docs/multiplatform.html)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.2.20-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![Ktor](https://img.shields.io/badge/powered%20by-ktor-blue.svg)](https://ktor.io)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-active%20development-yellow.svg)](#development-status)
