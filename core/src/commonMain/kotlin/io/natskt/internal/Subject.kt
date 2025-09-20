@@ -4,5 +4,5 @@ import kotlin.jvm.JvmInline
 
 @JvmInline
 public value class Subject(
-    public val raw: String,
+	public val raw: String,
 )

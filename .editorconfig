@@ -1,0 +1,20 @@
+root = true
+
+[*]
+indent_style = tab
+
+[*.nix]
+indent_style = space
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_name_count_to_use_star_import = 999
+ij_kotlin_name_count_to_use_star_import_for_members = 999
+ij_java_names_count_to_use_import_on_demand = 999
+max_line_length = 180

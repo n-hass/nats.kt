@@ -11,29 +11,29 @@ import kotlin.contracts.contract
 
 @OptIn(ExperimentalContracts::class)
 public fun NatsClient(block: ClientConfigurationBuilder.() -> Unit): NatsClient {
-    contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
-    }
+	contract {
+		callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+	}
 
-    val config =
-        ClientConfigurationBuilder()
-            .apply(block)
-            .build()
+	val config =
+		ClientConfigurationBuilder()
+			.apply(block)
+			.build()
 
-    val client = NatsClient(config)
+	val client = NatsClient(config)
 
-    return client
+	return client
 }
 
 @OptIn(ExperimentalContracts::class)
 public fun NatsClient(uri: String): NatsClient {
-    val config =
-        ClientConfigurationBuilder()
-            .apply {
-                server = uri
-            }.build()
+	val config =
+		ClientConfigurationBuilder()
+			.apply {
+				server = uri
+			}.build()
 
-    val client = NatsClient(config)
+	val client = NatsClient(config)
 
-    return client
+	return client
 }

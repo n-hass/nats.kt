@@ -16,72 +16,72 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.launch
 
 internal class ConnectionManager(
-    val config: ClientConfiguration,
+	val config: ClientConfiguration,
 ) {
-    private val scope: CoroutineScope =
-        config.scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("ConnectionManager"))
+	private val scope: CoroutineScope =
+		config.scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("ConnectionManager"))
 
-    val connectionStatus: StateFlow<ConnectionState>
-        get() = _connectionStatus
-    private val _connectionStatus = MutableStateFlow(ConnectionState.Uninitialised)
+	val connectionStatus: StateFlow<ConnectionState>
+		get() = _connectionStatus
+	private val _connectionStatus = MutableStateFlow(ConnectionState.Uninitialised)
 
-    private val allServers = mutableSetOf<NatsServerAddress>().apply { addAll(config.servers) }
+	private val allServers = mutableSetOf<NatsServerAddress>().apply { addAll(config.servers) }
 
-    private var failureCount = 0
+	private var failureCount = 0
 
-    fun start() {
-        scope.launch {
-            while (config.maxReconnects == null || failureCount < config.maxReconnects) {
-                val address = allServers.shuffled().first()
-                val connection =
-                    ProtocolEngineImpl(
-                        config.transportFactory,
-                        address,
-                        config.parser,
-                        scope,
-                    )
+	fun start() {
+		scope.launch {
+			while (config.maxReconnects == null || failureCount < config.maxReconnects) {
+				val address = allServers.shuffled().first()
+				val connection =
+					ProtocolEngineImpl(
+						config.transportFactory,
+						address,
+						config.parser,
+						scope,
+					)
 
-                scope
-                    .launch {
-                        _connectionStatus.emitAll(connection.state)
-                    }.invokeOnCompletion {
-                        println("complete 1")
-                    }
+				scope
+					.launch {
+						_connectionStatus.emitAll(connection.state)
+					}.invokeOnCompletion {
+						println("complete 1")
+					}
 
-                scope
-                    .launch {
-                        connection.events.collect {
-                            when (it) {
-                                is ServerOperation.InfoOp -> {
-                                    val newServers =
-                                        it.connectUrls
-                                            ?.map { url ->
-                                                NatsServerAddress(Url(url))
-                                            }.orEmpty()
+				scope
+					.launch {
+						connection.events.collect {
+							when (it) {
+								is ServerOperation.InfoOp -> {
+									val newServers =
+										it.connectUrls
+											?.map { url ->
+												NatsServerAddress(Url(url))
+											}.orEmpty()
 
-                                    allServers.addAll(newServers)
-                                }
-                            }
-                            println("event: $it")
-                        }
-                    }.invokeOnCompletion {
-                        println("complete 2")
-                    }
+									allServers.addAll(newServers)
+								}
+							}
+							println("event: $it")
+						}
+					}.invokeOnCompletion {
+						println("complete 2")
+					}
 
-                connection.start()
+				connection.start()
 
-                if (!connection.closed.isCompleted) {
-                    connection.ping()
-                }
+				if (!connection.closed.isCompleted) {
+					connection.ping()
+				}
 
-                val closed = connection.closed.await()
-                println("closed. reason: $closed")
-                when (closed) {
-                    is CloseReason.IoError, CloseReason.HandshakeRejected -> failureCount++
-                    else -> failureCount = 0
-                }
-            }
-            println("maxReconnects exceeded")
-        }
-    }
+				val closed = connection.closed.await()
+				println("closed. reason: $closed")
+				when (closed) {
+					is CloseReason.IoError, CloseReason.HandshakeRejected -> failureCount++
+					else -> failureCount = 0
+				}
+			}
+			println("maxReconnects exceeded")
+		}
+	}
 }

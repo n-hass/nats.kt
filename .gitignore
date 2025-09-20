@@ -221,3 +221,4 @@ gradle-app.setting
 .idea/dataSources.xml
 
 local.properties
+.pre-commit-config.yaml

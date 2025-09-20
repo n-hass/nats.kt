@@ -26,109 +26,109 @@ import kotlin.jvm.JvmInline
 
 @ConsistentCopyVisibility
 public data class WebSocketTransport internal constructor(
-    private val httpClient: HttpClient,
-    private val address: NatsServerAddress,
-    val session: DefaultClientWebSocketSession,
+	private val httpClient: HttpClient,
+	private val address: NatsServerAddress,
+	val session: DefaultClientWebSocketSession,
 ) : Transport,
-    CoroutineScope by session {
-    @JvmInline
-    public value class Factory(
-        public val httpClient: HttpClient,
-    ) : TransportFactory {
-        public constructor(engine: HttpClientEngineFactory<*>) : this(
-            HttpClient(engine) {
-                install(WebSockets)
-            },
-        )
+	CoroutineScope by session {
+	@JvmInline
+	public value class Factory(
+		public val httpClient: HttpClient,
+	) : TransportFactory {
+		public constructor(engine: HttpClientEngineFactory<*>) : this(
+			HttpClient(engine) {
+				install(WebSockets)
+			},
+		)
 
-        override suspend fun connect(
-            address: NatsServerAddress,
-            context: CoroutineContext,
-        ): Transport =
-            WebSocketTransport(
-                httpClient,
-                address,
-                httpClient.webSocketSession {
-                    url(address.url)
-                },
-            )
-    }
+		override suspend fun connect(
+			address: NatsServerAddress,
+			context: CoroutineContext,
+		): Transport =
+			WebSocketTransport(
+				httpClient,
+				address,
+				httpClient.webSocketSession {
+					url(address.url)
+				},
+			)
+	}
 
-    private val outgoing =
-        session
-            .reader {
-                val buf = ByteArray(8192)
-                while (isActive) {
-                    val n = channel.readAvailable(buf, 0, buf.size)
-                    when (n) {
-                        -1 -> {
-                            println("writer closed")
-                            break
-                        }
-                        0 -> {
-                            if (!channel.awaitContent()) break
-                            continue
-                        }
-                        else -> {
-                            session.send(Frame.Binary(fin = true, data = buf.copyOf(n)))
-                        }
-                    }
-                }
-            }.channel
+	private val outgoing =
+		session
+			.reader {
+				val buf = ByteArray(8192)
+				while (isActive) {
+					val n = channel.readAvailable(buf, 0, buf.size)
+					when (n) {
+						-1 -> {
+							println("writer closed")
+							break
+						}
+						0 -> {
+							if (!channel.awaitContent()) break
+							continue
+						}
+						else -> {
+							session.send(Frame.Binary(fin = true, data = buf.copyOf(n)))
+						}
+					}
+				}
+			}.channel
 
-    override val incoming: ByteReadChannel =
-        session
-            .writer(autoFlush = true) {
-                while (true) {
-                    val frame =
-                        try {
-                            session.incoming.receive()
-                        } catch (ex: CancellationException) {
-                            channel.close(ex)
-                            break
-                        }
+	override val incoming: ByteReadChannel =
+		session
+			.writer(autoFlush = true) {
+				while (true) {
+					val frame =
+						try {
+							session.incoming.receive()
+						} catch (ex: CancellationException) {
+							channel.close(ex)
+							break
+						}
 
-                    when (frame) {
-                        is Frame.Binary, is Frame.Text -> {
-                            channel.writeFully(frame.data)
-                            channel.flush()
-                        }
-                        is Frame.Close -> {
-                            channel.flushAndClose()
-                            break
-                        }
-                        else -> {
-                            // Ping/Pong/other control frames -> ignore for stream
-                        }
-                    }
-                }
-            }.channel
+					when (frame) {
+						is Frame.Binary, is Frame.Text -> {
+							channel.writeFully(frame.data)
+							channel.flush()
+						}
+						is Frame.Close -> {
+							channel.flushAndClose()
+							break
+						}
+						else -> {
+							// Ping/Pong/other control frames -> ignore for stream
+						}
+					}
+				}
+			}.channel
 
-    override val isClosed: Boolean get() = !session.isActive
+	override val isClosed: Boolean get() = !session.isActive
 
-    override suspend fun close() {
-        session.close()
-    }
+	override suspend fun close() {
+		session.close()
+	}
 
-    override suspend fun upgradeTLS(): Transport =
-        WebSocketTransport(
-            httpClient,
-            address,
-            httpClient.webSocketSession {
-                if (address.url.protocolOrNull != null) {
-                    url(address.url)
-                } else {
-                    url(scheme = URLProtocol.WSS.name, host = address.url.host, port = address.url.port, path = address.url.fullPath)
-                }
-            },
-        )
+	override suspend fun upgradeTLS(): Transport =
+		WebSocketTransport(
+			httpClient,
+			address,
+			httpClient.webSocketSession {
+				if (address.url.protocolOrNull != null) {
+					url(address.url)
+				} else {
+					url(scheme = URLProtocol.WSS.name, host = address.url.host, port = address.url.port, path = address.url.fullPath)
+				}
+			},
+		)
 
-    override suspend fun write(block: suspend (ByteWriteChannel) -> Unit) {
-        block(outgoing)
-        outgoing.flush()
-    }
+	override suspend fun write(block: suspend (ByteWriteChannel) -> Unit) {
+		block(outgoing)
+		outgoing.flush()
+	}
 
-    override suspend fun flush() {
-        session.flush()
-    }
+	override suspend fun flush() {
+		session.flush()
+	}
 }

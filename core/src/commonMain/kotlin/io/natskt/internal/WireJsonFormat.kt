@@ -6,7 +6,7 @@ import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalSerializationApi::class)
 internal val wireJsonFormat =
-    Json {
-        classDiscriminatorMode = ClassDiscriminatorMode.NONE
-        explicitNulls = false
-    }
+	Json {
+		classDiscriminatorMode = ClassDiscriminatorMode.NONE
+		explicitNulls = false
+	}
