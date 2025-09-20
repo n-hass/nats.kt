@@ -1,5 +1,6 @@
 package io.natskt.client.transport
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
@@ -23,6 +24,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.isActive
 import kotlin.coroutines.CoroutineContext
 import kotlin.jvm.JvmInline
+
+private val logger = KotlinLogging.logger {}
 
 @ConsistentCopyVisibility
 public data class WebSocketTransport internal constructor(
@@ -62,7 +65,7 @@ public data class WebSocketTransport internal constructor(
 					val n = channel.readAvailable(buf, 0, buf.size)
 					when (n) {
 						-1 -> {
-							println("writer closed")
+							logger.debug { "WebSocket channel closed" }
 							break
 						}
 						0 -> {

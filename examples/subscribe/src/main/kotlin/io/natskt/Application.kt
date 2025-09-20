@@ -17,16 +17,17 @@ import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.minutes
 
 fun main(): Unit = runBlocking {
-//    NatsClient {
-//        server = "nats://localhost:4222"
-//        transport = TcpTransport
-//    }
-//    .connect()
     NatsClient {
-        server = "ws://localhost:8888"
-        transport = WebSocketTransport.Factory(CIO)
+        server = "nats://localhost:4222"
+        transport = TcpTransport
     }
     .connect()
+//    NatsClient {
+//        server = "ws://localhost:8888"
+//        transport = WebSocketTransport.Factory(CIO)
+//		maxReconnects = 4
+//    }
+//    .connect()
 
     delay(10.minutes)
 }

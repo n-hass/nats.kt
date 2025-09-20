@@ -1,5 +1,6 @@
 package io.natskt.client
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.client.connection.ConnectionManager
@@ -7,6 +8,8 @@ import io.natskt.internal.Subject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger { }
 
 internal class NatsClientImpl(
 	val configuration: ClientConfiguration,
@@ -20,7 +23,7 @@ internal class NatsClientImpl(
 		connectionManager.start()
 		CoroutineScope(currentCoroutineContext()).launch {
 			connectionManager.connectionStatus.collect {
-				println("Connection status change: $it")
+				logger.debug { "Connection status change: $it" }
 			}
 		}
 	}

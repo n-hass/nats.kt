@@ -1,5 +1,6 @@
 package io.natskt.internal
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.natskt.api.internal.ClientOperation
 import io.natskt.api.internal.Operation
 import io.natskt.api.internal.OperationSerializer
@@ -7,9 +8,11 @@ import io.natskt.api.internal.ServerOperation
 
 private const val LINE_END = "\r\n"
 
+private val logger = KotlinLogging.logger { }
+
 internal class OperationSerializerImpl : OperationSerializer {
 	override fun parseOrNull(line: String): Operation? {
-		println("raw: $line")
+		logger.debug { "raw: $line" }
 		if (line == "PONG") {
 			return Operation.Pong
 		}
@@ -44,7 +47,7 @@ internal class OperationSerializerImpl : OperationSerializer {
 			}
 
 		if (parsed == null) {
-			println("received unparseable control. op: $op, msg: $msg")
+			logger.warn { "received unparseable control. op: $op, msg: $msg" }
 			return null
 		}
 

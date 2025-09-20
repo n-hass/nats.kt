@@ -31,6 +31,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
+				api(libs.kotlinLogging)
                 implementation(libs.kotlinx.coroutines.core)
 
                 implementation(libs.ktor.io)

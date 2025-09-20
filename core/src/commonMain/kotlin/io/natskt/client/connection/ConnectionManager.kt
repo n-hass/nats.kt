@@ -1,5 +1,6 @@
 package io.natskt.client.connection
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.Url
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger { }
 
 internal class ConnectionManager(
 	val config: ClientConfiguration,
@@ -41,32 +44,30 @@ internal class ConnectionManager(
 						scope,
 					)
 
-				scope
-					.launch {
-						_connectionStatus.emitAll(connection.state)
-					}.invokeOnCompletion {
-						println("complete 1")
-					}
-
-				scope
-					.launch {
-						connection.events.collect {
-							when (it) {
-								is ServerOperation.InfoOp -> {
-									val newServers =
-										it.connectUrls
-											?.map { url ->
-												NatsServerAddress(Url(url))
-											}.orEmpty()
-
-									allServers.addAll(newServers)
-								}
-							}
-							println("event: $it")
+				val j1 =
+					scope
+						.launch {
+							_connectionStatus.emitAll(connection.state)
 						}
-					}.invokeOnCompletion {
-						println("complete 2")
-					}
+
+				val j2 =
+					scope
+						.launch {
+							connection.events.collect {
+								when (it) {
+									is ServerOperation.InfoOp -> {
+										val newServers =
+											it.connectUrls
+												?.map { url ->
+													NatsServerAddress(Url(url))
+												}.orEmpty()
+
+										allServers.addAll(newServers)
+									}
+								}
+								logger.debug { ("event: $it") }
+							}
+						}
 
 				connection.start()
 
@@ -75,13 +76,15 @@ internal class ConnectionManager(
 				}
 
 				val closed = connection.closed.await()
-				println("closed. reason: $closed")
+				logger.debug { "closed. reason: $closed" }
+				j1.cancel()
+				j2.cancel()
 				when (closed) {
 					is CloseReason.IoError, CloseReason.HandshakeRejected -> failureCount++
 					else -> failureCount = 0
 				}
 			}
-			println("maxReconnects exceeded")
+			logger.debug { "maxReconnects exceeded" }
 		}
 	}
 }

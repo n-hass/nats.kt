@@ -2,6 +2,7 @@
 
 package io.natskt.client.connection
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.core.toByteArray
 import io.ktor.utils.io.readUTF8Line
 import io.ktor.utils.io.write
@@ -31,6 +32,8 @@ import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+private val logger = KotlinLogging.logger { }
+
 internal class ProtocolEngineImpl(
 	private val transportFactory: TransportFactory,
 	private val address: NatsServerAddress,
@@ -56,7 +59,7 @@ internal class ProtocolEngineImpl(
 			throw IllegalStateException("cannot send with no connection open")
 		}
 
-		println("sending ${op::class.simpleName}")
+		logger.trace { "sending ${op::class.simpleName}" }
 		transport!!.writeAndFlush(msg)
 	}
 
@@ -70,7 +73,6 @@ internal class ProtocolEngineImpl(
 				_closed.complete(CloseReason.IoError(it))
 				return
 			}
-		println("connected!")
 
 		val incoming = transport!!.incoming
 		val info = incoming.readUTF8Line().orEmpty()
@@ -141,7 +143,7 @@ internal class ProtocolEngineImpl(
 						Operation.Err -> TODO()
 						Operation.Ok -> TODO()
 						else -> {
-							println("idk: $op")
+							logger.error { "idk: $op" }
 						}
 					}
 

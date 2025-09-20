@@ -9,7 +9,7 @@ buildkonfig = "0.17.1"
 
 ktor = "3.2.1"
 whyoleg-crypto = "0.5.0"
-
+kotlinLogging = "7.0.13"
 
 # Testing
 kotest = "6.0.3"
@@ -36,7 +36,8 @@ ktor-network = { module = "io.ktor:ktor-network", version.ref = "ktor"}
 ktor-network-tls = { module = "io.ktor:ktor-network-tls", version.ref = "ktor"}
 ktor-utils = { module = "io.ktor:ktor-utils", version.ref = "ktor"}
 
-# Crypto
+# Third-party libs
+kotlinLogging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlinLogging" }
 whyoleg-secureRandom = { module = "dev.whyoleg.cryptography:cryptography-random", version.ref = "whyoleg-crypto"}
 
 # Testing
