@@ -1,30 +1,26 @@
 package io.natskt.client
 
-import io.natskt.api.Connection
-import io.natskt.api.InternalNatsApi
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
+import io.natskt.client.connection.ConnectionManager
 import io.natskt.internal.Subject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 
 internal class NatsClientImpl(
-    override val configuration: ClientConfiguration,
+    val configuration: ClientConfiguration,
 ) : NatsClient {
-    internal val conn = ConnectionImpl(configuration)
+    internal val connectionManager = ConnectionManager(configuration)
 
-    @InternalNatsApi
-    override val connection: Connection
-        get() = conn
     override val subscriptions: Map<String, Subscription>
         get() = TODO("Not yet implemented")
 
     override suspend fun connect() {
-        conn.connect()
+        connectionManager.start()
         CoroutineScope(currentCoroutineContext()).launch {
-            conn.incoming.collect {
-//                println("came through: $it")
+            connectionManager.connectionStatus.collect {
+                println("Connection status change: $it")
             }
         }
     }

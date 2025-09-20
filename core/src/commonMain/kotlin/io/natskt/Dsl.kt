@@ -4,23 +4,19 @@ import io.natskt.api.NatsClient
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.ClientConfigurationBuilder
 import io.natskt.client.NatsClientImpl
+import io.natskt.client.build
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-public fun NatsClient(configuration: ClientConfiguration): NatsClient = NatsClientImpl(configuration)
-
 @OptIn(ExperimentalContracts::class)
-public inline fun NatsClient(
-    uri: String,
-    block: ClientConfigurationBuilder.() -> Unit,
-): NatsClient {
+public fun NatsClient(block: ClientConfigurationBuilder.() -> Unit): NatsClient {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
 
     val config =
-        ClientConfigurationBuilder(uri)
+        ClientConfigurationBuilder()
             .apply(block)
             .build()
 
@@ -32,8 +28,10 @@ public inline fun NatsClient(
 @OptIn(ExperimentalContracts::class)
 public fun NatsClient(uri: String): NatsClient {
     val config =
-        ClientConfigurationBuilder(uri)
-            .build()
+        ClientConfigurationBuilder()
+            .apply {
+                server = uri
+            }.build()
 
     val client = NatsClient(config)
 

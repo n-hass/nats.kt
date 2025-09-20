@@ -1,17 +1,18 @@
 package io.natskt.client
 
+import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
 import io.natskt.internal.Subject
-import io.natskt.internal.api.OperationParser
+import kotlinx.coroutines.CoroutineScope
 
-public data class ClientConfiguration(
+internal data class ClientConfiguration(
     /**
      * Servers to possibly connect to.
      */
     val servers: List<NatsServerAddress>,
     /**
-     *
+     * either a []
      */
     val transportFactory: TransportFactory,
     /**
@@ -21,7 +22,7 @@ public data class ClientConfiguration(
     /**
      *
      */
-    val parser: OperationParser,
+    internal val parser: OperationSerializer,
     /**
      * The max number of reconnects for a single server.
      */
@@ -31,6 +32,10 @@ public data class ClientConfiguration(
      * The NUID generator to use.
      */
     val nuid: NUID,
+    /**
+     * The coroutine scope that the client's connections and parsing runs on
+     */
+    val scope: CoroutineScope?,
 ) {
     /**
      * The length of an inbox created using [createInbox]

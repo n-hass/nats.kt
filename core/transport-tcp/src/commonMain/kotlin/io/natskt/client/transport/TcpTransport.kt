@@ -14,7 +14,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.CoroutineContext
 
-public class TcpTransport(
+public class TcpTransport internal constructor(
     private val inner: Connection,
 ) : Transport,
     CoroutineScope by inner.socket {

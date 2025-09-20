@@ -6,4 +6,6 @@ import kotlin.jvm.JvmInline
 @JvmInline
 public value class NatsServerAddress(
     public val url: Url,
-)
+) {
+    override fun toString(): String = url.toString()
+}
