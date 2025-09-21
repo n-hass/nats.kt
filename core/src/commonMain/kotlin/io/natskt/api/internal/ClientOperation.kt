@@ -3,7 +3,6 @@
 package io.natskt.api.internal
 
 import io.natskt.internal.BuildKonfig
-import io.natskt.internal.Subject
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -42,7 +41,27 @@ internal sealed interface ClientOperation : Operation {
 		@SerialName("reply-to")
 		val replyTo: String?,
 		val payload: ByteArray?,
-	) : ClientOperation
+	) : ClientOperation {
+		override fun equals(other: Any?): Boolean {
+			if (this === other) return true
+			if (other == null || this::class != other::class) return false
+
+			other as PubOp
+
+			if (subject != other.subject) return false
+			if (replyTo != other.replyTo) return false
+			if (!payload.contentEquals(other.payload)) return false
+
+			return true
+		}
+
+		override fun hashCode(): Int {
+			var result = subject.hashCode()
+			result = 31 * result + (replyTo?.hashCode() ?: 0)
+			result = 31 * result + (payload?.contentHashCode() ?: 0)
+			return result
+		}
+	}
 
 	@Serializable
 	data class HPubOp(
@@ -51,7 +70,29 @@ internal sealed interface ClientOperation : Operation {
 		val replyTo: String?,
 		val headers: Map<String, List<String>>?,
 		val payload: ByteArray?,
-	) : ClientOperation
+	) : ClientOperation {
+		override fun equals(other: Any?): Boolean {
+			if (this === other) return true
+			if (other == null || this::class != other::class) return false
+
+			other as HPubOp
+
+			if (subject != other.subject) return false
+			if (replyTo != other.replyTo) return false
+			if (headers != other.headers) return false
+			if (!payload.contentEquals(other.payload)) return false
+
+			return true
+		}
+
+		override fun hashCode(): Int {
+			var result = subject.hashCode()
+			result = 31 * result + (replyTo?.hashCode() ?: 0)
+			result = 31 * result + (headers?.hashCode() ?: 0)
+			result = 31 * result + (payload?.contentHashCode() ?: 0)
+			return result
+		}
+	}
 
 	@Serializable
 	data class SubOp(

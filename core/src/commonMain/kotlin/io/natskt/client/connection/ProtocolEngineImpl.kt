@@ -3,8 +3,6 @@
 package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.utils.io.core.toByteArray
-import io.ktor.utils.io.readUTF8Line
 import io.ktor.utils.io.write
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
@@ -17,15 +15,11 @@ import io.natskt.api.internal.ServerOperation
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
-import io.natskt.internal.wireJsonFormat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -40,13 +34,9 @@ internal class ProtocolEngineImpl(
 	private val parser: OperationSerializer,
 	private val scope: CoroutineScope,
 ) : ProtocolEngine {
-	override val events: SharedFlow<ServerOperation>
-		get() = _events
-	private val _events = MutableSharedFlow<ServerOperation>()
-
-	override val state: StateFlow<ConnectionState>
-		get() = _state
-	private val _state = MutableStateFlow(ConnectionState.Uninitialised)
+	override val events = MutableSharedFlow<ServerOperation>()
+	override val state = MutableStateFlow(ConnectionState.Uninitialised)
+	override val closed = CompletableDeferred<CloseReason>()
 
 	private var transport: Transport? = null
 
@@ -64,13 +54,13 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun start() {
-		_state.update { phase = ConnectionPhase.Connecting }
+		state.update { phase = ConnectionPhase.Connecting }
 		transport =
 			runCatching {
 				transportFactory.connect(address, currentCoroutineContext())
 			}.getOrElse {
-				_state.update { phase = ConnectionPhase.Failed }
-				_closed.complete(CloseReason.IoError(it))
+				state.update { phase = ConnectionPhase.Failed }
+				closed.complete(CloseReason.IoError(it))
 				return
 			}
 
@@ -98,23 +88,23 @@ internal class ProtocolEngineImpl(
 				send(connect)
 			}
 			else -> {
-				_closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
+				closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
 				return
 			}
 		}
 
 		when (parser.parse(incoming)) {
 			is Operation.Ok -> {
-				_state.update { phase = ConnectionPhase.Connected }
+				state.update { phase = ConnectionPhase.Connected }
 			}
 			else -> {
-				_closed.complete(CloseReason.ProtocolError("Server did not respond OK to CONNECT"))
+				closed.complete(CloseReason.ProtocolError("Server did not respond OK to CONNECT"))
 				return
 			}
 		}
 		scope.launch {
 			var op: Operation?
-			
+
 			send(
 				ClientOperation.SubOp(
 					subject = "test.echo",
@@ -122,14 +112,14 @@ internal class ProtocolEngineImpl(
 					sid = "11",
 				),
 			)
-			
+
 			while (!incoming.isClosedForRead) {
 				op = parser.parse(incoming)
 
 				if (op !is ServerOperation) {
 					when (op) {
 						Operation.Pong -> {
-							_state.update {
+							state.update {
 								lastPongAt = Clock.System.now().toEpochMilliseconds()
 								rtt =
 									rttMeasureStart
@@ -142,7 +132,7 @@ internal class ProtocolEngineImpl(
 						}
 						Operation.Ping -> {
 							send(Operation.Pong)
-							_state.update {
+							state.update {
 								lastPingAt = Clock.System.now().toEpochMilliseconds()
 							}
 
@@ -166,7 +156,7 @@ internal class ProtocolEngineImpl(
 					continue
 				}
 
-				_events.emit(op)
+				events.emit(op)
 			}
 		}
 	}
@@ -184,17 +174,13 @@ internal class ProtocolEngineImpl(
 		if (transport == null) {
 			throw IllegalStateException("Cannot close connection as it is not open")
 		}
-
-		_closed.complete(CloseReason.CleanClose)
-
+		closed.complete(CloseReason.CleanClose)
 		transport!!.close()
 	}
 
-	override val closed: Deferred<CloseReason>
-		get() = _closed
-	private val _closed = CompletableDeferred<CloseReason>()
-
-	private suspend fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) = _state.emit(_state.value.copy().apply { block() })
+	private fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) {
+		this.value = this.value.copy().apply { block() }
+	}
 }
 
 private suspend fun Transport.writeAndFlush(msg: ByteArray) {

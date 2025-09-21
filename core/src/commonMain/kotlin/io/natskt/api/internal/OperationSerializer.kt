@@ -8,4 +8,8 @@ internal interface OperationSerializer {
 	fun encode(op: ClientOperation): ByteArray
 }
 
-internal const val DEFAULT_MAX_LINE_BYTES: Long = 1024 * 1024 * 5 // 5 KB
+/**
+ * The max line bytes
+ */
+internal const val DEFAULT_MAX_CONTROL_LINE_BYTES: Int = 1024 // 1 KB
+internal const val DEFAULT_MAX_PAYLOAD_BYTES: Int = 52_428_800 // 50 MB

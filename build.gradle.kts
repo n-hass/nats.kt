@@ -13,7 +13,10 @@ allprojects {
         lineEndings = LineEnding.UNIX // configuration cache bug: https://github.com/diffplug/spotless/issues/2431
         kotlin {
             target("src/**/*.kt")
-            ktlint(libs.versions.ktlint.get())
+            ktlint(libs.versions.ktlint.get()).apply {
+				setEditorConfigPath(rootDir.resolve(".editorconfig"))
+			}
+			trimTrailingWhitespace()
         }
     }
 }

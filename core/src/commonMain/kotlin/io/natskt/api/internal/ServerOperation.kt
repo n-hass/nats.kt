@@ -1,6 +1,5 @@
 package io.natskt.api.internal
 
-import io.natskt.internal.Subject
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

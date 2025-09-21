@@ -8,7 +8,8 @@ import io.ktor.utils.io.read
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
 import io.natskt.api.internal.ClientOperation
-import io.natskt.api.internal.DEFAULT_MAX_LINE_BYTES
+import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
+import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.api.internal.Operation
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.api.internal.ServerOperation
@@ -29,10 +30,11 @@ private const val MSG = "MSG"
 private const val HMSG = "HMSG"
 
 internal class OperationSerializerImpl(
-	private val maxPayloadBytes: Int,
+	private val maxControlLineBytes: Int = DEFAULT_MAX_CONTROL_LINE_BYTES,
+	private val maxPayloadBytes: Int = DEFAULT_MAX_PAYLOAD_BYTES,
 ) : OperationSerializer {
 	override suspend fun parse(channel: ByteReadChannel): Operation? {
-		val line = channel.readLine()
+		val line = channel.readControlLine(maxControlLineBytes)
 
 		val start = line.firstToken().decodeToString()
 
@@ -68,6 +70,10 @@ internal class OperationSerializerImpl(
 						val subject = parts[1]
 						val sid = parts[2]
 						val bytes = parts[3].toInt()
+						if (bytes > maxPayloadBytes) {
+							logger.error { "MSG payload ignored - will exceed maximum bytes $maxPayloadBytes" }
+							return null
+						}
 						val payload = channel.readPayload(bytes)
 						ServerOperation.MsgOp(
 							subject = subject,
@@ -82,6 +88,10 @@ internal class OperationSerializerImpl(
 						val sid = parts[2]
 						val replyTo = parts[3]
 						val bytes = parts[4].toInt()
+						if (bytes > maxPayloadBytes) {
+							logger.error { "MSG payload ignored - will exceed maximum bytes $maxPayloadBytes" }
+							return null
+						}
 						val payload = channel.readPayload(bytes)
 						ServerOperation.MsgOp(
 							subject = subject,
@@ -106,6 +116,10 @@ internal class OperationSerializerImpl(
 						val sid = parts[2]
 						val hdrBytes = parts[3].toInt()
 						val totalBytes = parts[4].toInt()
+						if (totalBytes > maxPayloadBytes) {
+							logger.error { "HMSG payload ignored - will exceed maximum bytes $maxPayloadBytes" }
+							return null
+						}
 						require(hdrBytes >= 0 && totalBytes >= hdrBytes) {
 							"invalid HMSG sizes: hdr=$hdrBytes total=$totalBytes"
 						}
@@ -138,6 +152,10 @@ internal class OperationSerializerImpl(
 						val replyTo = parts[3]
 						val hdrBytes = parts[4].toInt()
 						val totalBytes = parts[5].toInt()
+						if (totalBytes > maxPayloadBytes) {
+							logger.error { "HMSG payload ignored - will exceed maximum bytes $maxPayloadBytes" }
+							return null
+						}
 						require(hdrBytes >= 0 && totalBytes >= hdrBytes) {
 							"invalid HMSG sizes: hdr=$hdrBytes total=$totalBytes"
 						}
@@ -227,11 +245,11 @@ private val lfByte = '\n'.code.toByte()
 private val cr = '\r'.code.toLong()
 private val lf = '\n'.code.toLong()
 
-private suspend fun ByteReadChannel.readLine(maxLen: Long = DEFAULT_MAX_LINE_BYTES): ByteArray {
+private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 	val acc = Buffer()
 	var last: Long = -1
 	var found = false
-	var total: Long = 0
+	var total = 0
 
 	while (!found) {
 		awaitContent()

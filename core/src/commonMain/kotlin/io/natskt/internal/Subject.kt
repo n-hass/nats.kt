@@ -5,4 +5,8 @@ import kotlin.jvm.JvmInline
 @JvmInline
 public value class Subject(
 	public val raw: String,
-)
+) {
+	init {
+// 		if ()
+	}
+}

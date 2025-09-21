@@ -2,7 +2,10 @@ package io.natskt.api.internal
 
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration
@@ -30,4 +33,24 @@ internal interface ProtocolEngine {
 
 	/** Completes once reader+writer coroutines finish and transport is closed. */
 	val closed: Deferred<CloseReason>
+
+	companion object {
+		val Empty =
+			object : ProtocolEngine {
+				override val events: SharedFlow<Operation> = MutableSharedFlow()
+				override val state: StateFlow<ConnectionState> = MutableStateFlow(ConnectionState.Uninitialised)
+
+				override suspend fun send(op: ClientOperation) { }
+
+				override suspend fun start() { }
+
+				override suspend fun ping() { }
+
+				override suspend fun drain(timeout: Duration) { }
+
+				override suspend fun close() { }
+
+				override val closed: Deferred<CloseReason> = CompletableDeferred()
+			}
+	}
 }

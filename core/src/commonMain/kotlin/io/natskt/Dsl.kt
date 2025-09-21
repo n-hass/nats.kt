@@ -1,9 +1,7 @@
 package io.natskt
 
 import io.natskt.api.NatsClient
-import io.natskt.client.ClientConfiguration
 import io.natskt.client.ClientConfigurationBuilder
-import io.natskt.client.NatsClientImpl
 import io.natskt.client.build
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
