@@ -71,7 +71,7 @@ internal class ProtocolEngineImpl(
 			is ServerOperation.InfoOp -> {
 				val connect =
 					ClientOperation.ConnectOp(
-						verbose = true,
+						verbose = false,
 						pedantic = false,
 						tlsRequired = false,
 						authToken = null,
@@ -96,15 +96,8 @@ internal class ProtocolEngineImpl(
 			}
 		}
 
-		when (parser.parse(incoming)) {
-			is Operation.Ok -> {
-				state.update { phase = ConnectionPhase.Connected }
-			}
-			else -> {
-				closed.complete(CloseReason.ProtocolError("Server did not respond OK to CONNECT"))
-				return
-			}
-		}
+		state.update { phase = ConnectionPhase.Connected }
+
 		scope.launch {
 			var op: Operation?
 

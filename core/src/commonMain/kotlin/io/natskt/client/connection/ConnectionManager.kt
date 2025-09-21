@@ -41,7 +41,6 @@ internal class ConnectionManager(
 	val events: SharedFlow<Operation> =
 		current
 			.flatMapLatest {
-				println("mapped events")
 				it.events
 			}.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 0)
 
@@ -78,7 +77,6 @@ internal class ConnectionManager(
 									}
 									else -> { }
 								}
-								logger.debug { ("event: $it") }
 							}
 						}
 

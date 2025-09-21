@@ -7,10 +7,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -23,8 +27,8 @@ internal class SubscriptionImpl(
 	override val queueGroup: String?,
 	override val sid: String,
 	private val scope: CoroutineScope,
-	private val onStart: suspend () -> Unit,
-	private val onStop: suspend () -> Unit,
+	private val onStart: suspend (sub: SubscriptionImpl, sid: String, subject: String, queueGroup: String?) -> Unit,
+	private val onStop: suspend (sid: String, maxMsgs: Int?) -> Unit,
 	/**
 	 * Start the subscription as soon as the subscription is constructed
 	 */
@@ -44,7 +48,29 @@ internal class SubscriptionImpl(
 			onBufferOverflow = BufferOverflow.DROP_OLDEST,
 		)
 
-	override val messages: Flow<Message> = bus
+	override val messages: Flow<Message> =
+		channelFlow {
+			val messageCollectorJob =
+				launch {
+					bus.collect { message -> send(message) }
+				}
+
+			val activeStateWatcherJob =
+				launch {
+					// suspend until the status becomes active for the first time
+					isActive.filter { active -> active }.first()
+
+					isActive.filter { active -> !active }.collect {
+						channel.close()
+					}
+				}
+
+			awaitClose {
+				messageCollectorJob.cancel()
+				activeStateWatcherJob.cancel()
+			}
+		}
+
 	override val isActive = MutableStateFlow(false)
 
 	private val lifecycle = Mutex()
@@ -54,33 +80,27 @@ internal class SubscriptionImpl(
 	private var closed = false
 
 	init {
+		// If eager, start immediately. This is the only place we will call
+		// ensureStarted proactively.
 		if (eagerSubscribe) {
 			scope.launch { ensureStarted() }
 		}
 
 		scope.launch {
 			try {
-				bus.subscriptionCount
-					.collect { count ->
-						if (closed) return@collect
-
-						if (count > 0 && !isActive.value) {
-							// If this isn't eager, then start on collection
-							ensureStarted()
-						}
-
-						if (autoUnsubscribeOnLastCollector) {
-							if (count == 0) {
-								scheduleStop()
-							} else {
-								cancelStopIfAny()
-							}
-						}
+				bus.subscriptionCount.collect { count ->
+					// The logic is now unified. The number of subscribers
+					// is the single source of truth for the subscription's state.
+					if (count > 0) {
+						// A collector is present, cancel any pending stop and ensure we are started.
+						cancelStopIfAny()
+						ensureStarted()
+					} else if (autoUnsubscribeOnLastCollector) {
+						scheduleStop()
 					}
-			} finally {
-				with(NonCancellable) {
-					runCatching { unsubscribe() }
 				}
+			} finally {
+				with(NonCancellable) { runCatching { unsubscribe() } }
 			}
 		}
 	}
@@ -90,16 +110,16 @@ internal class SubscriptionImpl(
 	private suspend fun ensureStarted() =
 		lifecycle.withLock {
 			if (closed || isActive.value) return
-			onStart()
-			isActive.value = true
+			onStart(this, sid, subject.raw, queueGroup)
+			isActive.emit(true)
 		}
 
 	private suspend fun ensureStopped() =
 		lifecycle.withLock {
-			logger.trace { "Cleaning subscription $sid" }
+			logger.trace { "Dropping subscription $sid" }
 			if (!isActive.value) return
-			onStop()
-			isActive.value = false
+			onStop(sid, null)
+			isActive.emit(false)
 		}
 
 	private fun cancelStopIfAny() {

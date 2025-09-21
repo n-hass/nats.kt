@@ -40,6 +40,9 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		}.also {
 			if (it.isEmpty()) error("must provide at least one server")
 		}
+
+	val inboxPrefix = if (inboxPrefix.endsWith(".")) inboxPrefix else "$inboxPrefix."
+
 	return ClientConfiguration(
 		servers = serversList,
 		transportFactory = transport ?: platformDefaultTransport,

@@ -34,6 +34,14 @@ public interface NatsClient {
 		scope: CoroutineScope? = null,
 	): Subscription
 
+	public suspend fun subscribe(
+		subject: Subject,
+		queueGroup: String? = null,
+		eager: Boolean = true,
+		unsubscribeOnLastCollector: Boolean = true,
+		scope: CoroutineScope? = null,
+	): Subscription
+
 	public suspend fun publish(
 		subject: String,
 		message: ByteArray,
@@ -55,10 +63,11 @@ public interface NatsClient {
 	public suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit): Unit
 
 	public suspend fun request(
-		subject: Subject,
+		subject: String,
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
-		launchIn: CoroutineScope?,
+		timeoutMs: Long = 5000,
+		launchIn: CoroutineScope? = null,
 	): Deferred<Message>
 
 	public companion object {

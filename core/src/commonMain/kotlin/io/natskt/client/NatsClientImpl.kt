@@ -52,9 +52,8 @@ internal class NatsClientImpl(
 		}
 		scope.launch {
 			connectionManager.events.collect {
-				println("got event: $it")
 				when (it) {
-					is ServerOperation.MsgOp ->
+					is ServerOperation.MsgOp -> {
 						_subscriptions[it.sid]?.emit(
 							IncomingCoreMessage(
 								subject = Subject(it.subject),
@@ -63,6 +62,7 @@ internal class NatsClientImpl(
 								data = it.payload,
 							),
 						)
+					}
 					is ServerOperation.HMsgOp ->
 						_subscriptions[it.sid]?.emit(
 							IncomingCoreMessage(
@@ -92,24 +92,41 @@ internal class NatsClientImpl(
 		eager: Boolean,
 		unsubscribeOnLastCollector: Boolean,
 		scope: CoroutineScope?,
+	): Subscription = subscribe(Subject(subject), queueGroup, eager, unsubscribeOnLastCollector, scope)
+
+	@OptIn(ExperimentalAtomicApi::class)
+	override suspend fun subscribe(
+		subject: Subject,
+		queueGroup: String?,
+		eager: Boolean,
+		unsubscribeOnLastCollector: Boolean,
+		scope: CoroutineScope?,
 	): Subscription {
-		val subject = Subject(subject)
 		val sid = sidAllocator.fetchAndAdd(1).toString()
 
-		suspend fun onStart() {
+		suspend fun onStart(
+			sub: SubscriptionImpl,
+			sid: String,
+			subject: String,
+			queueGroup: String?,
+		) {
 			require(subscriptions[sid] == null) { "subscription is either triggering onStart twice or SIDs are not unique" }
+			_subscriptions[sid] = sub
 			connectionManager.send(
 				ClientOperation.SubOp(
 					sid = sid,
-					subject = subject.raw,
+					subject = subject,
 					queueGroup = queueGroup,
 				),
 			)
 		}
 
-		suspend fun onStop() {
+		suspend fun onStop(
+			sid: String,
+			maxMsgs: Int?,
+		) {
 			subscriptions[sid] ?: return
-			connectionManager.send(ClientOperation.UnSubOp(sid = sid, maxMsgs = null))
+			connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
 		}
 
 		val sub =
@@ -127,7 +144,14 @@ internal class NatsClientImpl(
 				stopDebounceMillis = 750,
 			)
 
-		_subscriptions[sid] = sub
+		if (eager) {
+			// suspend until the subscription becomes active
+			sub.isActive
+				.filter { active ->
+					active
+				}.first()
+		}
+
 		return sub
 	}
 
@@ -140,22 +164,7 @@ internal class NatsClientImpl(
 		val subject = Subject(subject)
 		val replyTo = replyTo?.let { Subject(it) }
 
-		val op =
-			if (headers == null) {
-				ClientOperation.PubOp(
-					subject = subject.raw,
-					replyTo = replyTo?.raw,
-					payload = message,
-				)
-			} else {
-				ClientOperation.HPubOp(
-					subject = subject.raw,
-					replyTo = replyTo?.raw,
-					headers = headers,
-					payload = message,
-				)
-			}
-		connectionManager.send(op)
+		publish(subject, message, headers, replyTo)
 	}
 
 	override suspend fun publish(
@@ -212,17 +221,27 @@ internal class NatsClientImpl(
 	}
 
 	override suspend fun request(
-		subject: Subject,
+		subject: String,
 		message: ByteArray,
 		headers: Map<String, List<String>>?,
+		timeoutMs: Long,
 		launchIn: CoroutineScope?,
 	): Deferred<Message> {
-		val inbox = subscribe(configuration.createInbox().raw)
+		val inboxSubject = configuration.createInbox()
+		val inbox = subscribe(inboxSubject, eager = true)
 		val scope = launchIn ?: CoroutineScope(currentCoroutineContext())
-		publish(subject, message, headers)
+		publish(Subject(subject), message, headers, replyTo = inboxSubject)
 		val result = CompletableDeferred<Message>()
 		scope.launch {
-			result.complete(inbox.messages.first())
+			try {
+				withTimeout(timeoutMs) {
+					result.complete(inbox.messages.first())
+				}
+			} catch (e: Exception) {
+				logger.error { "request failed to $subject" }
+				result.completeExceptionally(e)
+			}
+			inbox.unsubscribe()
 		}
 		return result
 	}

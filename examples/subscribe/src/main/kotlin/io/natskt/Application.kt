@@ -4,8 +4,6 @@ import io.natskt.client.transport.TcpTransport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.time.Duration.Companion.minutes
 
 fun main(): Unit = runBlocking {
     val c = NatsClient {
@@ -23,19 +21,16 @@ fun main(): Unit = runBlocking {
 //		it.connect()
 //	}
 
-	c.publish("test.out1", "something".toByteArray())
+	val subscription = c.subscribe("test.hi", eager = false)
 
-	val sub = c.subscribe("test.echo")
-
-	withTimeoutOrNull(10_000) {
-		launch {
-			sub.messages.collect {
-				println("got: ${it.data?.decodeToString()}")
-			}
-		}
+	launch {
+		delay(20_000)
+		subscription.unsubscribe()
 	}
 
-	// subscription was automatically closed when the last collector stopped
+	subscription.messages.collect {
+		println("got a message: ${it.data?.decodeToString()}")
+	}
 
-    delay(10.minutes)
+	println("finished collecting")
 }

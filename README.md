@@ -72,22 +72,27 @@ subscription.messages.collect { message ->
 
 NATS.kt is under **active development**.
 
-| Feature                               | Status | Notes |
-|---------------------------------------|---|-----|
-| **Core Protocol**                     |   |     |
-| Multiplatform TCP/WebSocket transport | ✅ |     |
-| Authentication                        | 🚧 |     |
-| Publish/Subscribe                     | ✅ |     |
-| Request/Reply                         | 🚧 | Up next |
-| **Jetstream**                         |   |     |
-| Basic API                             | ❌ |     |
-| Key-Value Store                       | ❌ |     |
-| Object Store                          | ❌ |     |
-| **JetStream Management**              |   |     |
-| Streams                               | ❌ |     |
-| Consumers                             | ❌ |     |
+| Feature                               | Status | Notes   |
+|---------------------------------------|---|---------|
+| **Core Protocol**                     |   |         |
+| Multiplatform TCP/WebSocket transport | ✅ |         |
+| Authentication                        | 🚧 | up next |
+| Publish/Subscribe                     | ✅ |         |
+| Request/Reply                         | ✅ |         |
+| **Jetstream**                         |   |         |
+| Basic API                             | ❌ |         |
+| Pull consumer                         | ❌ |         |
+| Push consumer                         | ❌ |         |
+| Key-Value Store                       | ❌ |         |
+| Object Store                          | ❌ |         |
+| **JetStream Management**              |   |         |
+| Streams                               | ❌ |         |
+| Consumers                             | ❌ |         |
 
 **Legend**: ✅ Complete | 🚧 In Progress | ❌ Planned
+
+My priority right now is to reach a good level of stability and correctness with all JetStream consumer features,
+then to go back and address any performance optimisations that can be made.
 
 ## 🛠️ Development Environment
 
