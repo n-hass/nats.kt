@@ -1,17 +1,30 @@
 package io.natskt.client
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.util.collections.ConcurrentMap
+import io.natskt.api.ConnectionPhase
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.api.internal.ClientOperation
+import io.natskt.api.internal.ServerOperation
 import io.natskt.client.connection.ConnectionManager
+import io.natskt.internal.IncomingCoreMessage
 import io.natskt.internal.Subject
+import io.natskt.internal.SubscriptionImpl
+import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 private val logger = KotlinLogging.logger { }
 
@@ -20,25 +33,129 @@ internal class NatsClientImpl(
 ) : NatsClient {
 	internal val connectionManager = ConnectionManager(configuration)
 
-	override val subscriptions: Map<String, Subscription>
-		get() = TODO("Not yet implemented")
+	private val clientScope = CoroutineScope(SupervisorJob() + connectionCoroutineDispatcher + CoroutineName("NatsClient"))
 
-	override suspend fun connect() {
+	private val _subscriptions = ConcurrentMap<String, SubscriptionImpl>()
+	override val subscriptions: Map<String, Subscription>
+		get() = _subscriptions
+
+	@OptIn(ExperimentalAtomicApi::class)
+	private val sidAllocator = AtomicInt(1)
+
+	override suspend fun connect(scope: CoroutineScope?) {
 		connectionManager.start()
-		CoroutineScope(currentCoroutineContext()).launch {
+		val scope = scope ?: clientScope
+		scope.launch {
 			connectionManager.connectionStatus.collect {
 				logger.debug { "Connection status change: $it" }
 			}
 		}
-		CoroutineScope(currentCoroutineContext()).launch {
-			connectionManager
+		scope.launch {
+			connectionManager.events.collect {
+				println("got event: $it")
+				when (it) {
+					is ServerOperation.MsgOp ->
+						_subscriptions[it.sid]?.emit(
+							IncomingCoreMessage(
+								subject = Subject(it.subject),
+								replyTo = it.replyTo?.let { Subject(it) },
+								headers = null,
+								data = it.payload,
+							),
+						)
+					is ServerOperation.HMsgOp ->
+						_subscriptions[it.sid]?.emit(
+							IncomingCoreMessage(
+								subject = Subject(it.subject),
+								replyTo = it.replyTo?.let { Subject(it) },
+								headers = it.headers,
+								data = it.payload,
+							),
+						)
+					else -> { }
+				}
+			}
+		}
+
+		withTimeout(configuration.connectTimeoutMs) {
+			connectionManager.connectionStatus
+				.filter {
+					it.phase == ConnectionPhase.Connected
+				}.first()
 		}
 	}
 
+	@OptIn(ExperimentalAtomicApi::class)
 	override suspend fun subscribe(
-		subject: Subject,
+		subject: String,
 		queueGroup: String?,
+		eager: Boolean,
+		unsubscribeOnLastCollector: Boolean,
+		scope: CoroutineScope?,
 	): Subscription {
+		val subject = Subject(subject)
+		val sid = sidAllocator.fetchAndAdd(1).toString()
+
+		suspend fun onStart() {
+			require(subscriptions[sid] == null) { "subscription is either triggering onStart twice or SIDs are not unique" }
+			connectionManager.send(
+				ClientOperation.SubOp(
+					sid = sid,
+					subject = subject.raw,
+					queueGroup = queueGroup,
+				),
+			)
+		}
+
+		suspend fun onStop() {
+			subscriptions[sid] ?: return
+			connectionManager.send(ClientOperation.UnSubOp(sid = sid, maxMsgs = null))
+		}
+
+		val sub =
+			SubscriptionImpl(
+				subject = subject,
+				queueGroup = queueGroup,
+				sid = sid,
+				scope = scope ?: clientScope,
+				onStart = ::onStart,
+				onStop = ::onStop,
+				eagerSubscribe = eager,
+				autoUnsubscribeOnLastCollector = unsubscribeOnLastCollector,
+				prefetchReplay = 32,
+				extraBufferCapacity = 1024,
+				stopDebounceMillis = 750,
+			)
+
+		_subscriptions[sid] = sub
+		return sub
+	}
+
+	override suspend fun publish(
+		subject: String,
+		message: ByteArray,
+		headers: Map<String, List<String>>?,
+		replyTo: String?,
+	) {
+		val subject = Subject(subject)
+		val replyTo = replyTo?.let { Subject(it) }
+
+		val op =
+			if (headers == null) {
+				ClientOperation.PubOp(
+					subject = subject.raw,
+					replyTo = replyTo?.raw,
+					payload = message,
+				)
+			} else {
+				ClientOperation.HPubOp(
+					subject = subject.raw,
+					replyTo = replyTo?.raw,
+					headers = headers,
+					payload = message,
+				)
+			}
+		connectionManager.send(op)
 	}
 
 	override suspend fun publish(
@@ -84,13 +201,13 @@ internal class NatsClientImpl(
 		connectionManager.send(op)
 	}
 
-	override suspend fun publish(messageBlock: ByteMessageBuilder.() -> Unit) {
-		val message = ByteMessageBuilder().apply { messageBlock() }.build()
+	override suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit) {
+		val message = ByteMessageBuilder().apply { byteMessageBlock() }.build()
 		publish(message)
 	}
 
-	override suspend fun publish(messageBlock: StringMessageBuilder.() -> Unit) {
-		val message = StringMessageBuilder().apply { messageBlock() }.build()
+	override suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit) {
+		val message = StringMessageBuilder().apply { stringMessageBlock() }.build()
 		publish(message)
 	}
 
@@ -100,12 +217,12 @@ internal class NatsClientImpl(
 		headers: Map<String, List<String>>?,
 		launchIn: CoroutineScope?,
 	): Deferred<Message> {
-		val inbox = subscribe(configuration.createInbox())
+		val inbox = subscribe(configuration.createInbox().raw)
 		val scope = launchIn ?: CoroutineScope(currentCoroutineContext())
 		publish(subject, message, headers)
 		val result = CompletableDeferred<Message>()
 		scope.launch {
-			// suspend on collecting the inbox messages
+			result.complete(inbox.messages.first())
 		}
 		return result
 	}

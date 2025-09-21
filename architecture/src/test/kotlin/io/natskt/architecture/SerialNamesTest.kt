@@ -1,9 +1,7 @@
 package io.natskt.architecture
 
 import com.lemonappdev.konsist.api.Konsist
-import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoPropertyDeclaration
-import com.lemonappdev.konsist.api.verify.assertTrue
 import io.kotest.core.spec.style.FreeSpec
 
 @Suppress("unused")

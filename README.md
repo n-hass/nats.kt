@@ -72,20 +72,20 @@ subscription.messages.collect { message ->
 
 NATS.kt is under **active development**.
 
-| Feature                               | Status | Notes   |
-|---------------------------------------|---|---------|
-| **Core Protocol**                     |   |         |
-| Multiplatform TCP/WebSocket transport | ✅ |         |
-| Authentication                        | 🚧 |         |
-| Publish/Subscribe                     | 🚧 | Up next |
-| Request/Reply                         | 🚧 |         |
-| **Jetstream**                         |   |         |
-| Basic API                             | ❌ |         |
-| Key-Value Store                       | ❌ |         |
-| Object Store                          | ❌ |         |
-| **JetStream Management**              |   |         |
-| Streams                               | ❌ |         |
-| Consumers                             | ❌ |         |
+| Feature                               | Status | Notes |
+|---------------------------------------|---|-----|
+| **Core Protocol**                     |   |     |
+| Multiplatform TCP/WebSocket transport | ✅ |     |
+| Authentication                        | 🚧 |     |
+| Publish/Subscribe                     | ✅ |     |
+| Request/Reply                         | 🚧 | Up next |
+| **Jetstream**                         |   |     |
+| Basic API                             | ❌ |     |
+| Key-Value Store                       | ❌ |     |
+| Object Store                          | ❌ |     |
+| **JetStream Management**              |   |     |
+| Streams                               | ❌ |     |
+| Consumers                             | ❌ |     |
 
 **Legend**: ✅ Complete | 🚧 In Progress | ❌ Planned
 

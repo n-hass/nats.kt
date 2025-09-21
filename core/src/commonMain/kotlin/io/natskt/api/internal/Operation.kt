@@ -10,4 +10,6 @@ internal sealed interface Operation {
 	data object Ping : Operation, ClientOperation
 
 	data object Pong : Operation, ClientOperation
+
+	data object Empty : Operation
 }

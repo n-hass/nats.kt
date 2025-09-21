@@ -27,8 +27,9 @@ internal data class ClientConfiguration(
 	 * The max number of reconnects for a single server.
 	 */
 	val maxReconnects: Int?,
-	val connectTimeoutMs: Int = 5000,
-	val maxControlLineBytes: Int = 1024,
+	val connectTimeoutMs: Long,
+	val reconnectDebounceMs: Long,
+	val maxControlLineBytes: Int,
 	/**
 	 * The NUID generator to use.
 	 */

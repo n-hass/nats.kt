@@ -48,7 +48,7 @@ internal class OperationSerializerImpl(
 				Operation.Err(
 					message =
 						if (line.size > 5) {
-							line.copyOfRange(5, line.size).decodeToString()
+							line.copyOfRange(6, line.size - 1).decodeToString()
 						} else {
 							null
 						},
@@ -189,6 +189,10 @@ internal class OperationSerializerImpl(
 				}
 			}
 
+			"" -> {
+				Operation.Empty
+			}
+
 			else -> {
 				logger.warn { "Unparseable control message: ${line.decodeToString()}" }
 				null
@@ -200,9 +204,7 @@ internal class OperationSerializerImpl(
 		when (op) {
 			Operation.Ping -> "PING".toByteArray()
 			Operation.Pong -> "PONG".toByteArray()
-			is ClientOperation.ConnectOp -> {
-				"CONNECT ${wireJsonFormat.encodeToString(op)}".toByteArray()
-			}
+			is ClientOperation.ConnectOp -> "CONNECT ${wireJsonFormat.encodeToString(op)}".toByteArray()
 			is ClientOperation.PubOp -> {
 				val payloadExists = op.payload != null
 
@@ -227,7 +229,7 @@ internal class OperationSerializerImpl(
 				pub
 			}
 			is ClientOperation.HPubOp -> TODO()
-			is ClientOperation.SubOp -> {
+			is ClientOperation.SubOp ->
 				buildString {
 					append("SUB ${op.subject} ")
 					if (op.queueGroup != null) {
@@ -235,8 +237,11 @@ internal class OperationSerializerImpl(
 					}
 					append(op.sid)
 				}.toByteArray()
-			}
-			is ClientOperation.UnSubOp -> TODO()
+			is ClientOperation.UnSubOp ->
+				buildString {
+					append("UNSUB ${op.sid}")
+					if (op.maxMsgs != null) append(" ${op.maxMsgs}")
+				}.toByteArray()
 		} + lineEndBytes
 }
 

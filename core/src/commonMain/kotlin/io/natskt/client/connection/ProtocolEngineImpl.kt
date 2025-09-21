@@ -15,6 +15,7 @@ import io.natskt.api.internal.ServerOperation
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
+import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -85,7 +86,9 @@ internal class ProtocolEngineImpl(
 						headers = true,
 						nkey = null,
 					)
-				send(connect)
+				with(connectionCoroutineDispatcher) {
+					send(connect)
+				}
 			}
 			else -> {
 				closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
@@ -104,14 +107,6 @@ internal class ProtocolEngineImpl(
 		}
 		scope.launch {
 			var op: Operation?
-
-			send(
-				ClientOperation.SubOp(
-					subject = "test.echo",
-					queueGroup = null,
-					sid = "11",
-				),
-			)
 
 			while (!incoming.isClosedForRead) {
 				op = parser.parse(incoming)
@@ -135,19 +130,15 @@ internal class ProtocolEngineImpl(
 							state.update {
 								lastPingAt = Clock.System.now().toEpochMilliseconds()
 							}
-
-							send(
-								ClientOperation.PubOp(
-									subject = "test.echo",
-									replyTo = null,
-									payload = "this is a test message on ping".encodeToByteArray(),
-								),
-							)
 						}
 						is Operation.Err -> {
 							logger.error { "received a protocol error response: ${(op as Operation.Err).message}" }
 						}
 						Operation.Ok -> { }
+						Operation.Empty -> {
+							transport?.close()
+							closed.complete(CloseReason.ServerInitiatedClose)
+						}
 						else -> {
 							logger.error { "idk: $op" }
 						}

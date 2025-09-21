@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,7 +38,12 @@ internal class ConnectionManager(
 
 	val connectionStatus: StateFlow<ConnectionState> = current.flatMapLatest { it.state }.stateIn(scope, SharingStarted.WhileSubscribed(), current.value.state.value)
 
-	val events: SharedFlow<Operation> = current.flatMapLatest { it.events }.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 0)
+	val events: SharedFlow<Operation> =
+		current
+			.flatMapLatest {
+				println("mapped events")
+				it.events
+			}.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 0)
 
 	private val allServers = mutableSetOf<NatsServerAddress>().apply { addAll(config.servers) }
 
@@ -47,13 +53,14 @@ internal class ConnectionManager(
 		scope.launch {
 			while (config.maxReconnects == null || failureCount < config.maxReconnects) {
 				val address = allServers.shuffled().first()
-				current.value =
+				current.emit(
 					ProtocolEngineImpl(
 						config.transportFactory,
 						address,
 						config.parser,
 						scope,
-					)
+					),
+				)
 
 				val eventJob =
 					scope
@@ -88,6 +95,7 @@ internal class ConnectionManager(
 					is CloseReason.IoError, CloseReason.HandshakeRejected -> failureCount++
 					else -> failureCount = 0
 				}
+				delay(config.reconnectDebounceMs)
 			}
 			logger.debug { "maxReconnects exceeded" }
 		}
