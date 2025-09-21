@@ -24,6 +24,25 @@
         ./dev/shell.nix
       ];
 
+      perSystem = { system, lib, config, ... }: let
+        pkgs = import inputs.nixpkgs {
+          inherit system;
+          config = {
+            allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+              "google-chrome"
+            ];
+          };
+          overlays = [
+            mini-dev-shell.overlays.default
+            mini-dev-shell.overlays.mk-minimal-shell
+          ];
+        };
+      in {
+        _module.args = {
+            inherit pkgs;
+        };
+      };
+
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
     };
 }

@@ -13,6 +13,7 @@ kotlinLogging = "7.0.13"
 
 # Testing
 kotest = "6.0.3"
+turbine = "1.2.1"
 konsist = "0.17.3"
 spotless = "7.2.1"
 ktlint = "1.7.1"
@@ -43,6 +44,7 @@ whyoleg-secureRandom = { module = "dev.whyoleg.cryptography:cryptography-random"
 # Testing
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
+turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

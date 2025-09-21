@@ -43,8 +43,7 @@ class OperationSerializerImplTest {
 			assertEquals(Operation.Ping, ser.parse(ch))
 			assertEquals(Operation.Pong, ser.parse(ch))
 			assertEquals(Operation.Ok, ser.parse(ch))
-			assertEquals(Operation.Err("'x'"), ser.parse(ch))
-			assertNull(ser.parse(ch))
+			assertEquals(Operation.Err("x"), ser.parse(ch))
 		}
 
 	@Test

@@ -26,7 +26,13 @@ kotlin {
     linuxArm64()
 
     js {
-        browser()
+        browser {
+			testTask {
+				useKarma {
+					useChromeHeadless()
+				}
+			}
+		}
         nodejs()
     }
     wasmJs {
@@ -66,6 +72,12 @@ kotlin {
             implementation(libs.ktor.http)
         }
 
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.turbine)
+        }
+
         nativeAndJvmSharedMain.dependencies {
             api(projects.core.transportTcp)
         }
@@ -78,10 +90,6 @@ kotlin {
             implementation(libs.ktor.client.engine.cio)
         }
 
-		jvmTest.dependencies {
-			implementation(kotlin("test"))
-			implementation(libs.kotlinx.coroutines.test)
-		}
     }
 }
 
