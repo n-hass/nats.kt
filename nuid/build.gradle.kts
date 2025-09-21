@@ -36,3 +36,13 @@ kotlin {
         }
     }
 }
+
+mavenPublishing {
+	coordinates(artifactId = "natskt-nuid")
+	publishToMavenCentral()
+
+	pom {
+		name = "NATS Kotlin Client - NUID"
+		description = "Part of natskt-core"
+	}
+}

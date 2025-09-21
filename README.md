@@ -37,9 +37,13 @@
 
 ### Installation
 
-NATS.kt is not quite usable yet, and so is not published to maven. 
-You can clone this repo and use it as an [includeBuild](https://docs.gradle.org/current/userguide/composite_builds.html)
-to use it while features are still in development.
+Gradle:
+
+```kotlin
+commonMain.dependencies {
+	implementation("io.github.n-hass:natskt-core:0.1.1")
+}
+```
 
 ### Basic Usage
 

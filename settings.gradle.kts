@@ -1,4 +1,4 @@
-rootProject.name = "nats"
+rootProject.name = "natskt"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -24,4 +24,4 @@ include("core:common")
 include("core:transport-tcp")
 include("core:transport-ws")
 include("nuid")
-include("nkeys")
+//include("nkeys")

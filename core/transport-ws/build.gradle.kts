@@ -43,3 +43,13 @@ kotlin {
         }
     }
 }
+
+mavenPublishing {
+	coordinates(artifactId = "natskt-transport-ws")
+	publishToMavenCentral()
+
+	pom {
+		name = "NATS Kotlin Client - WebSocket transport"
+		description = "Part of natskt-core"
+	}
+}

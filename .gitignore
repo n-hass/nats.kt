@@ -222,3 +222,6 @@ gradle-app.setting
 
 local.properties
 .pre-commit-config.yaml
+
+**/gradlew
+**/gradlew.bat

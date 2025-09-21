@@ -1,5 +1,7 @@
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
+includeBuild("../../")
+
 pluginManagement {
     repositories {
         mavenCentral()
@@ -21,7 +23,3 @@ dependencyResolutionManagement {
         }
     }
 }
-
-
-
-includeBuild("../../")

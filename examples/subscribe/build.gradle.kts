@@ -8,7 +8,7 @@ application {
 }
 
 dependencies {
-    implementation("io.natskt:core")
+    implementation("io.github.n-hass:core")
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.client.core)
     implementation("io.ktor:ktor-client-cio:${libs.versions.ktor.get()}")

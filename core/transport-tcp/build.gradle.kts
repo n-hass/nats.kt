@@ -41,3 +41,13 @@ kotlin {
         }
     }
 }
+
+mavenPublishing {
+	coordinates(artifactId = "natskt-transport-tcp")
+	publishToMavenCentral()
+
+	pom {
+		name = "NATS Kotlin Client - TCP transport"
+		description = "Part of natskt-core"
+	}
+}

@@ -4,8 +4,6 @@ import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
 
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
-version = "0.1.0"
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
@@ -60,7 +58,7 @@ kotlin {
             api(projects.core.common)
             api(projects.core.transportWs)
             api(projects.nuid)
-            api(projects.nkeys)
+//            api(projects.nkeys)
 
             implementation(libs.whyoleg.secureRandom)
             implementation(libs.kotlinx.coroutines.core)
@@ -99,4 +97,14 @@ buildkonfig {
     defaultConfigs {
         buildConfigField(STRING, "version", project.version.toString(), const = true)
     }
+}
+
+mavenPublishing {
+	coordinates(artifactId = "natskt-core")
+	publishToMavenCentral()
+
+	pom {
+		name = "NATS Kotlin Client"
+		description = "A Kotlin Multiplatform client for NATS messaging system"
+	}
 }

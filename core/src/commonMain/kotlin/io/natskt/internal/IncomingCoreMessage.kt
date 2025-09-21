@@ -22,9 +22,6 @@ internal data class IncomingCoreMessage(
 		if (replyTo != other.replyTo) return false
 		if (headers != other.headers) return false
 		if (!data.contentEquals(other.data)) return false
-		if (ack != other.ack) return false
-		if (ackWait != other.ackWait) return false
-		if (nak != other.nak) return false
 
 		return true
 	}

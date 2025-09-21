@@ -53,7 +53,7 @@ internal class NatsClientImpl(
 		scope.launch {
 			connectionManager.events.collect {
 				when (it) {
-					is ServerOperation.MsgOp -> {
+					is ServerOperation.MsgOp ->
 						_subscriptions[it.sid]?.emit(
 							IncomingCoreMessage(
 								subject = Subject(it.subject),
@@ -62,7 +62,6 @@ internal class NatsClientImpl(
 								data = it.payload,
 							),
 						)
-					}
 					is ServerOperation.HMsgOp ->
 						_subscriptions[it.sid]?.emit(
 							IncomingCoreMessage(
@@ -125,7 +124,8 @@ internal class NatsClientImpl(
 			sid: String,
 			maxMsgs: Int?,
 		) {
-			subscriptions[sid] ?: return
+			_subscriptions[sid] ?: return
+			_subscriptions.remove(sid)
 			connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
 		}
 

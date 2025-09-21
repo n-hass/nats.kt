@@ -1,12 +1,21 @@
 package io.natskt
 
+import io.ktor.utils.io.core.toByteArray
 import io.natskt.client.transport.TcpTransport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlin.time.Duration.Companion.minutes
 
 fun main(): Unit = runBlocking {
+
+	delay(5000)
+	println("starting in")
+	println("3")
+	delay(1000)
+	println("2")
+	delay(1000)
+	println("1")
+	delay(1000)
     val c = NatsClient {
         server = "nats://localhost:4222"
         transport = TcpTransport
@@ -15,7 +24,7 @@ fun main(): Unit = runBlocking {
 		it.connect()
 	}
 
-	for (i in 1..1000) {
+	for (i in 1..5000) {
 		launch {
 			c.request("test.service.echo", "HI FROM KOTLIN $i".toByteArray()).await().also {
 				println("-------- $i: ${it.data?.decodeToString()}")
@@ -24,14 +33,9 @@ fun main(): Unit = runBlocking {
 	}
 
 	do {
-		delay(2000)
-		println(c.subscriptions.size)
+		delay(1000)
+		println("size is: ${c.subscriptions.size}")
 	} while(c.subscriptions.isNotEmpty())
 
-	println("doing GC")
-	System.gc()
-
-	delay(20.minutes)
-
-	println("finished collecting")
+	println("complete")
 }

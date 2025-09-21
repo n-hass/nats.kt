@@ -41,3 +41,13 @@ kotlin {
         }
     }
 }
+
+mavenPublishing {
+	coordinates(artifactId = "natskt-core-common")
+	publishToMavenCentral()
+
+	pom {
+		name = "NATS Kotlin Client - core shared models"
+		description = "Part of natskt-core"
+	}
+}
