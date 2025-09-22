@@ -18,4 +18,6 @@ dependencies {
 
 tasks.withType<JavaExec>().configureEach {
 	systemProperty("org.slf4j.simpleLogger.defaultLogLevel", "ERROR")
+//	systemProperty("kotlinx.coroutines.debug", "off")
+//	systemProperty("kotlinx.coroutines.stacktrace.recovery", "false")
 }

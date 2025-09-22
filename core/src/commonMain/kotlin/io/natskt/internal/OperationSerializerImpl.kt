@@ -19,15 +19,30 @@ import kotlinx.io.readByteArray
 private val logger = KotlinLogging.logger { }
 
 private const val LINE_END = "\r\n"
-private val lineEndBytes = LINE_END.toByteArray()
 
-private const val PING = "PING"
-private const val PONG = "PONG"
-private const val OK = "+OK"
-private const val ERR = "-ERR"
-private const val INFO = "INFO"
-private const val MSG = "MSG"
-private const val HMSG = "HMSG"
+private val PING = "PING".toByteArray()
+private val PONG = "PONG".toByteArray()
+private val OK = "+OK".toByteArray()
+private val ERR = "-ERR".toByteArray()
+private val INFO = "INFO".toByteArray()
+private val MSG = "MSG".toByteArray()
+private val HMSG = "HMSG".toByteArray()
+
+private val pingOpBytes = "PING".toByteArray()
+private val pongOpBytes = "PONG".toByteArray()
+private val connectOpBytes = "CONNECT ".toByteArray()
+private val pubOpBytes = "PUB ".toByteArray()
+private val subOpBytes = "SUB ".toByteArray()
+private val unsubOpBytes = "UNSUB ".toByteArray()
+
+private val empty = "".toByteArray()
+
+private val lineEndBytes = LINE_END.toByteArray()
+private val spaceByte = ' '.code.toByte()
+private val crByte = '\r'.code.toByte()
+private val lfByte = '\n'.code.toByte()
+private val cr = '\r'.code.toLong()
+private val lf = '\n'.code.toLong()
 
 internal class OperationSerializerImpl(
 	private val maxControlLineBytes: Int = DEFAULT_MAX_CONTROL_LINE_BYTES,
@@ -36,15 +51,13 @@ internal class OperationSerializerImpl(
 	override suspend fun parse(channel: ByteReadChannel): Operation? {
 		val line = channel.readControlLine(maxControlLineBytes)
 
-		val start = line.firstToken().decodeToString()
+		val start = line.firstToken()
 
-		logger.trace { "received $start" }
-
-		return when (start) {
-			PONG -> return Operation.Pong
-			PING -> return Operation.Ping
-			OK -> return Operation.Ok
-			ERR -> {
+		return when {
+			start.contentEquals(PONG) -> return Operation.Pong
+			start.contentEquals(PING) -> return Operation.Ping
+			start.contentEquals(OK) -> return Operation.Ok
+			start.contentEquals(ERR) -> {
 				Operation.Err(
 					message =
 						if (line.size > 5) {
@@ -54,7 +67,7 @@ internal class OperationSerializerImpl(
 						},
 				)
 			}
-			INFO -> {
+			start.contentEquals(INFO) -> {
 				val json = line.copyOfRange(5, line.size).decodeToString()
 				return try {
 					wireJsonFormat.decodeFromString<ServerOperation.InfoOp>(json)
@@ -63,7 +76,7 @@ internal class OperationSerializerImpl(
 					null
 				}
 			}
-			MSG -> {
+			start.contentEquals(MSG) -> {
 				val parts = line.decodeToString().split(' ')
 				return when (parts.size) {
 					4 -> {
@@ -108,7 +121,7 @@ internal class OperationSerializerImpl(
 				}
 			}
 
-			HMSG -> {
+			start.contentEquals(HMSG) -> {
 				val parts = line.decodeToString().split(' ')
 				return when (parts.size) {
 					5 -> {
@@ -189,7 +202,7 @@ internal class OperationSerializerImpl(
 				}
 			}
 
-			"" -> {
+			start.contentEquals(empty) -> {
 				Operation.Empty
 			}
 
@@ -202,25 +215,28 @@ internal class OperationSerializerImpl(
 
 	override fun encode(op: ClientOperation): ByteArray =
 		when (op) {
-			Operation.Ping -> "PING".toByteArray()
-			Operation.Pong -> "PONG".toByteArray()
-			is ClientOperation.ConnectOp -> "CONNECT ${wireJsonFormat.encodeToString(op)}".toByteArray()
+			Operation.Ping -> pingOpBytes
+			Operation.Pong -> pongOpBytes
+			is ClientOperation.ConnectOp -> connectOpBytes + wireJsonFormat.encodeToString(op).encodeToByteArray()
 			is ClientOperation.PubOp -> {
 				val payloadExists = op.payload != null
 
 				var pub =
-					buildString {
-						append("PUB ${op.subject}")
-						if (op.replyTo != null) {
-							append(" ${op.replyTo}")
-						}
-						if (payloadExists) {
-							val payloadBytes = op.payload
-							append(" ${payloadBytes.size}$LINE_END")
-						} else {
-							append(" 0$LINE_END")
-						}
-					}.toByteArray()
+					pubOpBytes +
+						buildString {
+							append(op.subject)
+							if (op.replyTo != null) {
+								append(" ")
+								append(op.replyTo)
+							}
+							if (payloadExists) {
+								val payloadBytes = op.payload
+								append(" ")
+								append(payloadBytes.size)
+							} else {
+								append(" 0")
+							}
+						}.encodeToByteArray() + lineEndBytes
 
 				if (payloadExists) {
 					pub += op.payload
@@ -230,25 +246,27 @@ internal class OperationSerializerImpl(
 			}
 			is ClientOperation.HPubOp -> TODO()
 			is ClientOperation.SubOp ->
-				buildString {
-					append("SUB ${op.subject} ")
-					if (op.queueGroup != null) {
-						append("${op.queueGroup} ")
-					}
-					append(op.sid)
-				}.toByteArray()
+				subOpBytes +
+					buildString {
+						append(op.subject)
+						append(" ")
+						if (op.queueGroup != null) {
+							append(op.queueGroup)
+							append(" ")
+						}
+						append(op.sid)
+					}.encodeToByteArray()
 			is ClientOperation.UnSubOp ->
-				buildString {
-					append("UNSUB ${op.sid}")
-					if (op.maxMsgs != null) append(" ${op.maxMsgs}")
-				}.toByteArray()
+				unsubOpBytes +
+					buildString {
+						append(op.sid)
+						if (op.maxMsgs != null) {
+							append(" ")
+							append(op.maxMsgs)
+						}
+					}.encodeToByteArray()
 		} + lineEndBytes
 }
-
-private val crByte = '\r'.code.toByte()
-private val lfByte = '\n'.code.toByte()
-private val cr = '\r'.code.toLong()
-private val lf = '\n'.code.toLong()
 
 private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 	val acc = Buffer()
@@ -313,7 +331,7 @@ private suspend fun ByteReadChannel.readPayload(n: Int): ByteArray {
 }
 
 private fun ByteArray.firstToken(): ByteArray {
-	val sp = indexOf(' '.code.toByte()).let { if (it < 0) size else it }
+	val sp = indexOf(spaceByte).let { if (it < 0) size else it }
 	return copyOfRange(0, sp)
 }
 
@@ -326,11 +344,15 @@ private suspend fun ByteReadChannel.readExact(n: Int): ByteArray {
 	return out
 }
 
+private const val HEADER_START = "NATS/1.0$LINE_END"
+private const val HEADER_START_LENGTH = HEADER_START.length
+private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
+
 private fun parseHeaders(raw: ByteArray): Map<String, List<String>>? {
 	val s = raw.decodeToString()
-	require(s.startsWith("NATS/1.0$LINE_END")) { "invalid NATS header preamble" }
-	val start = "NATS/1.0$LINE_END".length
-	val end = s.lastIndexOf("$LINE_END$LINE_END").takeIf { it >= start } ?: error("headers missing terminating CRLF CRLF")
+	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
+	val start = HEADER_START_LENGTH
+	val end = s.lastIndexOf(DOUBLE_LINE_END).takeIf { it >= start } ?: error("headers missing terminating CRLF CRLF")
 	val map = LinkedHashMap<String, MutableList<String>>()
 	var i = start
 	while (i < end) {
