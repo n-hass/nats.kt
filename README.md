@@ -122,11 +122,11 @@ nix develop
 ### What's Included
 
 Our Nix environment provides:
-- **JDK 21** - Latest LTS Java for optimal performance
-- **Gradle** - Build and dependency management
-- **NATS Server** - Local NATS server for testing
-- **NATS CLI** - Command-line tools for NATS administration
-- **Pre-commit hooks** - Code formatting and conventional commits
+- **OpenJDK 21**
+- **Gradle 8**
+- **NATS Server**
+- **NATS CLI**
+- **Pre-commit hooks**
 
 ## 🧪 Examples
 
