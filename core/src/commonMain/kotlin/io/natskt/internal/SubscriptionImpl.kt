@@ -5,7 +5,6 @@ import io.natskt.api.Message
 import io.natskt.api.Subscription
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
@@ -30,15 +29,16 @@ internal class SubscriptionImpl(
 	private val onStart: suspend (sub: SubscriptionImpl, sid: String, subject: String, queueGroup: String?) -> Unit,
 	private val onStop: suspend (sid: String, maxMsgs: Int?) -> Unit,
 	/**
-	 * Start the subscription as soon as the subscription is constructed
+	 * Start listening for messages as soon as the subscription is constructed,
+	 * instead of when the first collector on [messages] starts
 	 */
 	eagerSubscribe: Boolean = true,
 	/**
 	 * Unsubscribe when the last collector stops (debounced)
 	 */
-	private val autoUnsubscribeOnLastCollector: Boolean = true,
+	private val unsubscribeOnLastCollector: Boolean,
 	private val stopDebounceMillis: Long = 500L,
-	prefetchReplay: Int = 32,
+	prefetchReplay: Int,
 	extraBufferCapacity: Int = 1024,
 ) : Subscription {
 	private val bus =
@@ -47,6 +47,11 @@ internal class SubscriptionImpl(
 			extraBufferCapacity = extraBufferCapacity,
 			onBufferOverflow = BufferOverflow.DROP_OLDEST,
 		)
+
+	override val isActive = MutableStateFlow(false)
+
+	@Volatile
+	private var closed = false
 
 	override val messages: Flow<Message> =
 		channelFlow {
@@ -71,38 +76,28 @@ internal class SubscriptionImpl(
 			}
 		}
 
-	override val isActive = MutableStateFlow(false)
-
 	private val lifecycle = Mutex()
 	private var stopJob: Job? = null
-
-	@Volatile
-	private var closed = false
+	private var interestWatchJob: Job? = null
 
 	init {
-		// If eager, start immediately. This is the only place we will call
-		// ensureStarted proactively.
 		if (eagerSubscribe) {
 			scope.launch { ensureStarted() }
 		}
 
-		scope.launch {
-			try {
+		interestWatchJob =
+			scope.launch {
+				var initialised = false
 				bus.subscriptionCount.collect { count ->
-					// The logic is now unified. The number of subscribers
-					// is the single source of truth for the subscription's state.
 					if (count > 0) {
-						// A collector is present, cancel any pending stop and ensure we are started.
 						cancelStopIfAny()
 						ensureStarted()
-					} else if (autoUnsubscribeOnLastCollector) {
+						initialised = true
+					} else if (initialised && unsubscribeOnLastCollector) {
 						scheduleStop()
 					}
 				}
-			} finally {
-				with(NonCancellable) { runCatching { unsubscribe() } }
 			}
-		}
 	}
 
 	suspend fun emit(msg: Message) = bus.emit(msg)
@@ -118,6 +113,8 @@ internal class SubscriptionImpl(
 		lifecycle.withLock {
 			logger.trace { "Dropping subscription $sid" }
 			if (!isActive.value) return
+			interestWatchJob?.cancel()
+			interestWatchJob = null
 			onStop(sid, null)
 			isActive.emit(false)
 		}
@@ -144,4 +141,6 @@ internal class SubscriptionImpl(
 		cancelStopIfAny()
 		ensureStopped()
 	}
+
+	override fun close() { }
 }

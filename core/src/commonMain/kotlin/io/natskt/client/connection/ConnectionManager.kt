@@ -14,6 +14,7 @@ import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,55 +49,63 @@ internal class ConnectionManager(
 
 	private var failureCount = 0
 
+	private var reconnectJob: Job? = null
+
 	fun start() {
-		scope.launch {
-			while (config.maxReconnects == null || failureCount < config.maxReconnects) {
-				val address = allServers.shuffled().first()
-				current.emit(
-					ProtocolEngineImpl(
-						config.transportFactory,
-						address,
-						config.parser,
-						scope,
-					),
-				)
+		reconnectJob =
+			scope.launch {
+				while (config.maxReconnects == null || failureCount < config.maxReconnects) {
+					val address = allServers.shuffled().first()
+					current.emit(
+						ProtocolEngineImpl(
+							config.transportFactory,
+							address,
+							config.parser,
+							scope,
+						),
+					)
 
-				val eventJob =
-					scope
-						.launch {
-							current.value.events.collect {
-								when (it) {
-									is ServerOperation.InfoOp -> {
-										val newServers =
-											it.connectUrls
-												?.map { url ->
-													NatsServerAddress(Url(url))
-												}.orEmpty()
+					val eventJob =
+						scope
+							.launch {
+								current.value.events.collect {
+									when (it) {
+										is ServerOperation.InfoOp -> {
+											val newServers =
+												it.connectUrls
+													?.map { url ->
+														NatsServerAddress(Url(url))
+													}.orEmpty()
 
-										allServers.addAll(newServers)
+											allServers.addAll(newServers)
+										}
+										else -> { }
 									}
-									else -> { }
 								}
 							}
-						}
 
-				current.value.start()
+					current.value.start()
 
-				if (!current.value.closed.isCompleted) {
-					current.value.ping()
+					if (!current.value.closed.isCompleted) {
+						current.value.ping()
+					}
+
+					val closed = current.value.closed.await()
+					logger.debug { "closed. reason: $closed" }
+					eventJob.cancel()
+					when (closed) {
+						is CloseReason.IoError, CloseReason.HandshakeRejected -> failureCount++
+						else -> failureCount = 0
+					}
+					delay(config.reconnectDebounceMs)
 				}
-
-				val closed = current.value.closed.await()
-				logger.debug { "closed. reason: $closed" }
-				eventJob.cancel()
-				when (closed) {
-					is CloseReason.IoError, CloseReason.HandshakeRejected -> failureCount++
-					else -> failureCount = 0
-				}
-				delay(config.reconnectDebounceMs)
+				logger.debug { "maxReconnects exceeded" }
 			}
-			logger.debug { "maxReconnects exceeded" }
-		}
+	}
+
+	suspend fun stop() {
+		reconnectJob?.cancel() ?: logger.warn { "closing connection pool, but no manager job is active" }
+		current.value.close()
 	}
 
 	suspend fun send(op: ClientOperation) = current.value.send(op)

@@ -22,5 +22,5 @@ public interface Subscription : AutoCloseable {
 	/**
 	 * initiates [unsubscribe]
 	 */
-	override fun close() { /* = runBlocking { unsubscribe() } or non-suspending shortcut */ }
+	abstract override fun close()
 }

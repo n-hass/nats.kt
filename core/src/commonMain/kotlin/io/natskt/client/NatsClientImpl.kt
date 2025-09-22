@@ -13,6 +13,7 @@ import io.natskt.internal.IncomingCoreMessage
 import io.natskt.internal.Subject
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.connectionCoroutineDispatcher
+import io.natskt.internal.from
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -76,12 +78,13 @@ internal class NatsClientImpl(
 			}
 		}
 
-		withTimeout(configuration.connectTimeoutMs) {
+		withTimeoutOrNull(configuration.connectTimeoutMs) {
 			connectionManager.connectionStatus
 				.filter {
 					it.phase == ConnectionPhase.Connected
 				}.first()
 		}
+			?: connectionManager.stop()
 	}
 
 	@OptIn(ExperimentalAtomicApi::class)
@@ -89,19 +92,22 @@ internal class NatsClientImpl(
 		subject: String,
 		queueGroup: String?,
 		eager: Boolean,
+		replayBuffer: Int,
 		unsubscribeOnLastCollector: Boolean,
 		scope: CoroutineScope?,
-	): Subscription = subscribe(Subject(subject), queueGroup, eager, unsubscribeOnLastCollector, scope)
+	): Subscription = subscribe(Subject(subject), queueGroup, eager, replayBuffer, unsubscribeOnLastCollector, scope)
 
 	@OptIn(ExperimentalAtomicApi::class)
 	override suspend fun subscribe(
 		subject: Subject,
 		queueGroup: String?,
 		eager: Boolean,
+		replayBuffer: Int,
 		unsubscribeOnLastCollector: Boolean,
 		scope: CoroutineScope?,
 	): Subscription {
 		val sid = sidAllocator.fetchAndAdd(1).toString()
+		require(_subscriptions[sid] == null) { "duplicate subscription ID: $sid" }
 
 		suspend fun onStart(
 			sub: SubscriptionImpl,
@@ -109,7 +115,7 @@ internal class NatsClientImpl(
 			subject: String,
 			queueGroup: String?,
 		) {
-			require(subscriptions[sid] == null) { "subscription is either triggering onStart twice or SIDs are not unique" }
+			require(subscriptions[sid] == null) { "subscription is triggering onStart twice" }
 			_subscriptions[sid] = sub
 			connectionManager.send(
 				ClientOperation.SubOp(
@@ -138,10 +144,8 @@ internal class NatsClientImpl(
 				onStart = ::onStart,
 				onStop = ::onStop,
 				eagerSubscribe = eager,
-				autoUnsubscribeOnLastCollector = unsubscribeOnLastCollector,
-				prefetchReplay = 32,
-				extraBufferCapacity = 1024,
-				stopDebounceMillis = 750,
+				unsubscribeOnLastCollector = unsubscribeOnLastCollector,
+				prefetchReplay = replayBuffer,
 			)
 
 		if (eager) {
@@ -228,9 +232,9 @@ internal class NatsClientImpl(
 		launchIn: CoroutineScope?,
 	): Deferred<Message> {
 		val inboxSubject = configuration.createInbox()
-		val inbox = subscribe(inboxSubject, eager = true)
+		val inbox = subscribe(inboxSubject, eager = true, replayBuffer = 1, unsubscribeOnLastCollector = false)
 		val scope = launchIn ?: CoroutineScope(currentCoroutineContext())
-		publish(Subject(subject), message, headers, replyTo = inboxSubject)
+		publish(Subject.from(subject), message, headers, replyTo = inboxSubject)
 		val result = CompletableDeferred<Message>()
 		scope.launch {
 			try {
@@ -238,7 +242,7 @@ internal class NatsClientImpl(
 					result.complete(inbox.messages.first())
 				}
 			} catch (e: Exception) {
-				logger.error { "request failed to $subject" }
+				logger.error { "request failed to $subject - ${e::class.simpleName}" }
 				result.completeExceptionally(e)
 			}
 			inbox.unsubscribe()

@@ -30,6 +30,7 @@ public interface NatsClient {
 		subject: String,
 		queueGroup: String? = null,
 		eager: Boolean = true,
+		replayBuffer: Int = 0,
 		unsubscribeOnLastCollector: Boolean = true,
 		scope: CoroutineScope? = null,
 	): Subscription
@@ -38,6 +39,7 @@ public interface NatsClient {
 		subject: Subject,
 		queueGroup: String? = null,
 		eager: Boolean = true,
+		replayBuffer: Int = 0,
 		unsubscribeOnLastCollector: Boolean = true,
 		scope: CoroutineScope? = null,
 	): Subscription
