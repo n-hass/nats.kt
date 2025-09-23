@@ -26,4 +26,5 @@ dependencyResolutionManagement {
 
 include("kotlin-jvm")
 include("java")
+include("native")
 

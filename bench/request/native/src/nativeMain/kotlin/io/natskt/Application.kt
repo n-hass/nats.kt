@@ -1,7 +1,6 @@
-@file:OptIn(ExperimentalTime::class)
-
 package io.natskt
 
+import io.ktor.utils.io.core.toByteArray
 import io.natskt.client.transport.TcpTransport
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.joinAll
@@ -10,12 +9,13 @@ import kotlinx.coroutines.runBlocking
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
+@ExperimentalTime
 fun main(): Unit = runBlocking {
-    val c = NatsClient {
-        server = "nats://localhost:4222"
-        transport = TcpTransport
+	val c = NatsClient {
+		server = "nats://localhost:4222"
+		transport = TcpTransport
 		inboxPrefix = "_INBOX.me."
-    }.also {
+	}.also {
 		it.connect()
 	}
 
@@ -35,5 +35,4 @@ fun main(): Unit = runBlocking {
 	val stop = Clock.System.now()
 
 	println("final time: ${stop - start}")
-//	delay(10.minutes)
 }
