@@ -1,6 +1,6 @@
 package io.natskt.api.internal
 
-internal sealed interface Operation {
+internal sealed interface Operation : ParsedOutput {
 	data object Ok : Operation
 
 	data class Err(

@@ -3,7 +3,7 @@ package io.natskt.api.internal
 import io.ktor.utils.io.ByteReadChannel
 
 internal interface OperationSerializer {
-	suspend fun parse(channel: ByteReadChannel): Operation?
+	suspend fun parse(channel: ByteReadChannel): ParsedOutput?
 
 	fun encode(op: ClientOperation): ByteArray
 }

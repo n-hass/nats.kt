@@ -12,6 +12,7 @@ import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
 import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.api.internal.Operation
 import io.natskt.api.internal.OperationSerializer
+import io.natskt.api.internal.ParsedOutput
 import io.natskt.api.internal.ServerOperation
 import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
@@ -48,7 +49,7 @@ internal class OperationSerializerImpl(
 	private val maxControlLineBytes: Int = DEFAULT_MAX_CONTROL_LINE_BYTES,
 	private val maxPayloadBytes: Int = DEFAULT_MAX_PAYLOAD_BYTES,
 ) : OperationSerializer {
-	override suspend fun parse(channel: ByteReadChannel): Operation? {
+	override suspend fun parse(channel: ByteReadChannel): ParsedOutput? {
 		val line = channel.readControlLine(maxControlLineBytes)
 
 		val start = line.firstToken()
@@ -88,12 +89,12 @@ internal class OperationSerializerImpl(
 							return null
 						}
 						val payload = channel.readPayload(bytes)
-						ServerOperation.MsgOp(
-							subject = subject,
+						IncomingCoreMessage(
 							sid = sid,
-							replyTo = null,
-							bytes = bytes,
-							payload = payload,
+							subjectString = subject,
+							replyToString = null,
+							data = payload,
+							headers = null,
 						)
 					}
 					5 -> {
@@ -106,12 +107,12 @@ internal class OperationSerializerImpl(
 							return null
 						}
 						val payload = channel.readPayload(bytes)
-						ServerOperation.MsgOp(
-							subject = subject,
+						IncomingCoreMessage(
 							sid = sid,
-							replyTo = replyTo,
-							bytes = bytes,
-							payload = payload,
+							subjectString = subject,
+							replyToString = replyTo,
+							data = payload,
+							headers = null,
 						)
 					}
 					else -> {
@@ -149,14 +150,12 @@ internal class OperationSerializerImpl(
 								require(c == crByte && l == lfByte) { "malformed HMSG terminator" }
 								null
 							}
-						ServerOperation.HMsgOp(
-							subject = subject,
+						IncomingCoreMessage(
 							sid = sid,
-							replyTo = null,
-							headerBytes = hdrBytes,
-							totalBytes = totalBytes,
+							subjectString = subject,
+							replyToString = null,
 							headers = parseHeaders(hdrBlock),
-							payload = payload,
+							data = payload,
 						)
 					}
 					6 -> {
@@ -185,14 +184,12 @@ internal class OperationSerializerImpl(
 								null
 							}
 
-						ServerOperation.HMsgOp(
-							subject = subject,
+						IncomingCoreMessage(
 							sid = sid,
-							replyTo = replyTo,
-							headerBytes = hdrBytes,
-							totalBytes = totalBytes,
+							subjectString = subject,
+							replyToString = replyTo,
 							headers = parseHeaders(hdrBlock),
-							payload = payload,
+							data = payload,
 						)
 					}
 					else -> {

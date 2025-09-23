@@ -5,7 +5,7 @@ import io.ktor.http.Url
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
 import io.natskt.api.internal.ClientOperation
-import io.natskt.api.internal.Operation
+import io.natskt.api.internal.InternalSubscriptionHandler
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.api.internal.ServerOperation
 import io.natskt.client.ClientConfiguration
@@ -18,19 +18,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger { }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class ConnectionManager(
+internal class ConnectionManagerImpl(
 	val config: ClientConfiguration,
+	val subscriptions: Map<String, InternalSubscriptionHandler>,
 ) {
 	private val scope: CoroutineScope =
 		config.scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("ConnectionManager"))
@@ -39,11 +38,7 @@ internal class ConnectionManager(
 
 	val connectionStatus: StateFlow<ConnectionState> = current.flatMapLatest { it.state }.stateIn(scope, SharingStarted.WhileSubscribed(), current.value.state.value)
 
-	val events: SharedFlow<Operation> =
-		current
-			.flatMapLatest {
-				it.events
-			}.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 0)
+	val serverInfo = MutableStateFlow<ServerOperation.InfoOp?>(null)
 
 	private val allServers = mutableSetOf<NatsServerAddress>().apply { addAll(config.servers) }
 
@@ -61,6 +56,8 @@ internal class ConnectionManager(
 							config.transportFactory,
 							address,
 							config.parser,
+							subscriptions,
+							serverInfo,
 							scope,
 						),
 					)
@@ -68,7 +65,7 @@ internal class ConnectionManager(
 					val eventJob =
 						scope
 							.launch {
-								current.value.events.collect {
+								serverInfo.collect {
 									when (it) {
 										is ServerOperation.InfoOp -> {
 											val newServers =

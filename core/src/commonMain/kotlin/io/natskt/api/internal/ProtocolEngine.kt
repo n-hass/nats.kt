@@ -4,15 +4,12 @@ import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration
 
 internal interface ProtocolEngine {
-	/** Hot stream of decoded server events; never blocks the reader. */
-	val events: SharedFlow<Operation>
+	val serverInfo: MutableStateFlow<ServerOperation.InfoOp?>
 
 	/** Hot state; reflects transitions Connecting→Connected→… */
 	val state: StateFlow<ConnectionState>
@@ -37,7 +34,7 @@ internal interface ProtocolEngine {
 	companion object {
 		val Empty =
 			object : ProtocolEngine {
-				override val events: SharedFlow<Operation> = MutableSharedFlow()
+				override val serverInfo = MutableStateFlow<ServerOperation.InfoOp?>(null)
 				override val state: StateFlow<ConnectionState> = MutableStateFlow(ConnectionState.Uninitialised)
 
 				override suspend fun send(op: ClientOperation) { }

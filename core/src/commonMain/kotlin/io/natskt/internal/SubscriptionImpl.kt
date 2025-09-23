@@ -3,6 +3,7 @@ package io.natskt.internal
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.natskt.api.Message
 import io.natskt.api.Subscription
+import io.natskt.api.internal.InternalSubscriptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -40,7 +41,8 @@ internal class SubscriptionImpl(
 	private val stopDebounceMillis: Long = 500L,
 	prefetchReplay: Int,
 	extraBufferCapacity: Int = 1024,
-) : Subscription {
+) : Subscription,
+	InternalSubscriptionHandler {
 	private val bus =
 		MutableSharedFlow<Message>(
 			replay = prefetchReplay,
@@ -100,7 +102,7 @@ internal class SubscriptionImpl(
 			}
 	}
 
-	suspend fun emit(msg: Message) = bus.emit(msg)
+	override suspend fun emit(msg: Message) = bus.emit(msg)
 
 	private suspend fun ensureStarted() =
 		lifecycle.withLock {

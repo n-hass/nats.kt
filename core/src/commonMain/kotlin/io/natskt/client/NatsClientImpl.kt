@@ -7,9 +7,8 @@ import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.api.internal.ClientOperation
-import io.natskt.api.internal.ServerOperation
-import io.natskt.client.connection.ConnectionManager
-import io.natskt.internal.IncomingCoreMessage
+import io.natskt.api.internal.InternalSubscriptionHandler
+import io.natskt.client.connection.ConnectionManagerImpl
 import io.natskt.internal.Subject
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.connectionCoroutineDispatcher
@@ -33,13 +32,13 @@ private val logger = KotlinLogging.logger { }
 internal class NatsClientImpl(
 	val configuration: ClientConfiguration,
 ) : NatsClient {
-	internal val connectionManager = ConnectionManager(configuration)
-
 	private val clientScope = CoroutineScope(SupervisorJob() + connectionCoroutineDispatcher + CoroutineName("NatsClient"))
 
-	private val _subscriptions = ConcurrentMap<String, SubscriptionImpl>()
+	private val _subscriptions = ConcurrentMap<String, InternalSubscriptionHandler>()
 	override val subscriptions: Map<String, Subscription>
 		get() = _subscriptions
+
+	internal val connectionManager = ConnectionManagerImpl(configuration, _subscriptions)
 
 	@OptIn(ExperimentalAtomicApi::class)
 	private val sidAllocator = AtomicInt(1)
@@ -50,31 +49,6 @@ internal class NatsClientImpl(
 		scope.launch {
 			connectionManager.connectionStatus.collect {
 				logger.debug { "Connection status change: $it" }
-			}
-		}
-		scope.launch {
-			connectionManager.events.collect {
-				when (it) {
-					is ServerOperation.MsgOp ->
-						_subscriptions[it.sid]?.emit(
-							IncomingCoreMessage(
-								subject = Subject(it.subject),
-								replyTo = it.replyTo?.let { Subject(it) },
-								headers = null,
-								data = it.payload,
-							),
-						)
-					is ServerOperation.HMsgOp ->
-						_subscriptions[it.sid]?.emit(
-							IncomingCoreMessage(
-								subject = Subject(it.subject),
-								replyTo = it.replyTo?.let { Subject(it) },
-								headers = it.headers,
-								data = it.payload,
-							),
-						)
-					else -> { }
-				}
 			}
 		}
 

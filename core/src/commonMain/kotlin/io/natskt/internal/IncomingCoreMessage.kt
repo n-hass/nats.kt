@@ -1,16 +1,26 @@
 package io.natskt.internal
 
-import io.natskt.api.Message
+import io.natskt.api.internal.MessageInternal
 
 internal data class IncomingCoreMessage(
-	override val subject: Subject,
-	override val replyTo: Subject?,
-	override val headers: Map<String, List<String>>?,
+	override val sid: String,
+	val subjectString: String,
+	val replyToString: String?,
 	override val data: ByteArray?,
-) : Message {
-	override val ack = null
-	override val ackWait = null
-	override val nak = null
+	override val headers: Map<String, List<String>>?,
+) : MessageInternal {
+	override var ackWait: (suspend () -> Unit)? = null
+	override var ack: (() -> Unit)? = null
+	override var nak: (() -> Unit)? = null
+
+	override val subject by lazy {
+		Subject(subjectString)
+	}
+
+	override val replyTo by lazy {
+		if (replyToString == null) return@lazy null
+		Subject(replyToString)
+	}
 
 	override fun equals(other: Any?): Boolean {
 		if (this === other) return true

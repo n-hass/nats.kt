@@ -8,8 +8,11 @@ import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.internal.ClientOperation
+import io.natskt.api.internal.InternalSubscriptionHandler
+import io.natskt.api.internal.MessageInternal
 import io.natskt.api.internal.Operation
 import io.natskt.api.internal.OperationSerializer
+import io.natskt.api.internal.ParsedOutput
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.api.internal.ServerOperation
 import io.natskt.client.NatsServerAddress
@@ -19,7 +22,6 @@ import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -33,9 +35,10 @@ internal class ProtocolEngineImpl(
 	private val transportFactory: TransportFactory,
 	private val address: NatsServerAddress,
 	private val parser: OperationSerializer,
+	private val subscriptions: Map<String, InternalSubscriptionHandler>,
+	override val serverInfo: MutableStateFlow<ServerOperation.InfoOp?>,
 	private val scope: CoroutineScope,
 ) : ProtocolEngine {
-	override val events = MutableSharedFlow<ServerOperation>()
 	override val state = MutableStateFlow(ConnectionState.Uninitialised)
 	override val closed = CompletableDeferred<CloseReason>()
 
@@ -99,13 +102,18 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connected }
 
 		scope.launch {
-			var op: Operation?
+			var out: ParsedOutput?
 
 			while (!incoming.isClosedForRead) {
-				op = parser.parse(incoming)
+				out = parser.parse(incoming)
 
-				if (op !is ServerOperation) {
-					when (op) {
+				if (out is MessageInternal) {
+					subscriptions[out.sid]?.emit(out)
+					continue
+				}
+
+				if (out !is ServerOperation) {
+					when (out) {
 						Operation.Pong -> {
 							state.update {
 								lastPongAt = Clock.System.now().toEpochMilliseconds()
@@ -125,7 +133,7 @@ internal class ProtocolEngineImpl(
 							}
 						}
 						is Operation.Err -> {
-							logger.error { "received a protocol error response: ${(op as Operation.Err).message}" }
+							logger.error { "received a protocol error response: ${(out as Operation.Err).message}" }
 						}
 						Operation.Ok -> { }
 						Operation.Empty -> {
@@ -133,14 +141,16 @@ internal class ProtocolEngineImpl(
 							closed.complete(CloseReason.ServerInitiatedClose)
 						}
 						else -> {
-							logger.error { "idk: $op" }
+							logger.error { "idk: $out" }
 						}
 					}
 
 					continue
 				}
 
-				events.emit(op)
+				if (out is ServerOperation.InfoOp) {
+					serverInfo.emit(out)
+				}
 			}
 		}
 	}
