@@ -19,7 +19,7 @@ fun main(): Unit = runBlocking {
 		it.connect()
 	}
 
-	val runs = 50_000
+	val runs = 100_000
 
 	val default = launch {  }
 	val jobs: MutableList<Job> = MutableList(runs) { default }

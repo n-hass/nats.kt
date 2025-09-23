@@ -8,12 +8,13 @@ import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.api.internal.ClientOperation
 import io.natskt.api.internal.InternalSubscriptionHandler
+import io.natskt.api.internal.OnSubscriptionStart
+import io.natskt.api.internal.OnSubscriptionStop
 import io.natskt.client.connection.ConnectionManagerImpl
+import io.natskt.internal.RequestSubscriptionImpl
 import io.natskt.internal.Subject
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.connectionCoroutineDispatcher
-import io.natskt.internal.from
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -81,33 +82,6 @@ internal class NatsClientImpl(
 		scope: CoroutineScope?,
 	): Subscription {
 		val sid = sidAllocator.fetchAndAdd(1).toString()
-		require(_subscriptions[sid] == null) { "duplicate subscription ID: $sid" }
-
-		suspend fun onStart(
-			sub: SubscriptionImpl,
-			sid: String,
-			subject: String,
-			queueGroup: String?,
-		) {
-			require(subscriptions[sid] == null) { "subscription is triggering onStart twice" }
-			_subscriptions[sid] = sub
-			connectionManager.send(
-				ClientOperation.SubOp(
-					sid = sid,
-					subject = subject,
-					queueGroup = queueGroup,
-				),
-			)
-		}
-
-		suspend fun onStop(
-			sid: String,
-			maxMsgs: Int?,
-		) {
-			_subscriptions[sid] ?: return
-			_subscriptions.remove(sid)
-			connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
-		}
 
 		val sub =
 			SubscriptionImpl(
@@ -115,8 +89,8 @@ internal class NatsClientImpl(
 				queueGroup = queueGroup,
 				sid = sid,
 				scope = scope ?: clientScope,
-				onStart = ::onStart,
-				onStop = ::onStop,
+				onStart = onSubscriptionStart,
+				onStop = onSubscriptionStop,
 				eagerSubscribe = eager,
 				unsubscribeOnLastCollector = unsubscribeOnLastCollector,
 				prefetchReplay = replayBuffer,
@@ -150,24 +124,7 @@ internal class NatsClientImpl(
 		message: ByteArray,
 		headers: Map<String, List<String>>?,
 		replyTo: Subject?,
-	) {
-		val op =
-			if (headers == null) {
-				ClientOperation.PubOp(
-					subject = subject.raw,
-					replyTo = replyTo?.raw,
-					payload = message,
-				)
-			} else {
-				ClientOperation.HPubOp(
-					subject = subject.raw,
-					replyTo = replyTo?.raw,
-					headers = headers,
-					payload = message,
-				)
-			}
-		connectionManager.send(op)
-	}
+	) = publishUnchecked(subject.raw, message, headers, replyTo?.raw)
 
 	override suspend fun publish(message: Message) {
 		val op =
@@ -188,6 +145,30 @@ internal class NatsClientImpl(
 		connectionManager.send(op)
 	}
 
+	private suspend fun publishUnchecked(
+		subject: String,
+		message: ByteArray,
+		headers: Map<String, List<String>>?,
+		replyTo: String?,
+	) {
+		val op =
+			if (headers == null) {
+				ClientOperation.PubOp(
+					subject = subject,
+					replyTo = replyTo,
+					payload = message,
+				)
+			} else {
+				ClientOperation.HPubOp(
+					subject = subject,
+					replyTo = replyTo,
+					headers = headers,
+					payload = message,
+				)
+			}
+		connectionManager.send(op)
+	}
+
 	override suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit) {
 		val message = ByteMessageBuilder().apply { byteMessageBlock() }.build()
 		publish(message)
@@ -198,6 +179,7 @@ internal class NatsClientImpl(
 		publish(message)
 	}
 
+	@OptIn(ExperimentalAtomicApi::class)
 	override suspend fun request(
 		subject: String,
 		message: ByteArray,
@@ -206,21 +188,55 @@ internal class NatsClientImpl(
 		launchIn: CoroutineScope?,
 	): Deferred<Message> {
 		val inboxSubject = configuration.createInbox()
-		val inbox = subscribe(inboxSubject, eager = true, replayBuffer = 1, unsubscribeOnLastCollector = false)
+		val sid = sidAllocator.fetchAndAdd(1).toString()
+		val inbox =
+			RequestSubscriptionImpl(
+				sid = sid,
+			)
+		onSubscriptionStart(inbox, sid, inboxSubject, null)
 		val scope = launchIn ?: CoroutineScope(currentCoroutineContext())
-		publish(Subject.from(subject), message, headers, replyTo = inboxSubject)
-		val result = CompletableDeferred<Message>()
+		publishUnchecked(subject, message, headers, replyTo = inboxSubject)
+		val result = inbox.response
 		scope.launch {
 			try {
 				withTimeout(timeoutMs) {
-					result.complete(inbox.messages.first())
+					inbox.response.await()
 				}
 			} catch (e: Exception) {
 				logger.error { "request failed to $subject - ${e::class.simpleName}" }
 				result.completeExceptionally(e)
 			}
-			inbox.unsubscribe()
+			onSubscriptionStop(sid, null)
 		}
 		return result
 	}
+
+	private val onSubscriptionStart =
+		OnSubscriptionStart {
+			sub: InternalSubscriptionHandler,
+			sid: String,
+			subject: String,
+			queueGroup: String?,
+			->
+
+			require(subscriptions[sid] == null) { "subscription is triggering onStart twice" }
+			_subscriptions[sid] = sub
+			connectionManager.send(
+				ClientOperation.SubOp(
+					sid = sid,
+					subject = subject,
+					queueGroup = queueGroup,
+				),
+			)
+		}
+
+	private val onSubscriptionStop =
+		OnSubscriptionStop {
+			sid: String,
+			maxMsgs: Int?,
+			->
+			_subscriptions[sid] ?: return@OnSubscriptionStop
+			_subscriptions.remove(sid)
+			connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
+		}
 }

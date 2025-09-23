@@ -13,7 +13,7 @@ import kotlin.time.ExperimentalTime
 fun main(): Unit = runBlocking {
 	val c = Nats.connect("nats://localhost:4222")
 
-	val runs = 50_000
+	val runs = 100_000
 
 	val default = launch {  }
 	val jobs: MutableList<Job> = MutableList(runs) { default }

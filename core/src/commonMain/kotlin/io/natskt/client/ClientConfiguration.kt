@@ -3,7 +3,6 @@ package io.natskt.client
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
-import io.natskt.internal.Subject
 import kotlinx.coroutines.CoroutineScope
 
 internal data class ClientConfiguration(
@@ -47,5 +46,5 @@ internal data class ClientConfiguration(
 	/**
 	 *
 	 */
-	public fun createInbox(): Subject = Subject(inboxPrefix + nuid.next())
+	public fun createInbox(): String = inboxPrefix + nuid.next()
 }

@@ -21,7 +21,6 @@ import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -61,7 +60,7 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connecting }
 		transport =
 			runCatching {
-				transportFactory.connect(address, currentCoroutineContext())
+				transportFactory.connect(address, scope.coroutineContext)
 			}.getOrElse {
 				state.update { phase = ConnectionPhase.Failed }
 				closed.complete(CloseReason.IoError(it))

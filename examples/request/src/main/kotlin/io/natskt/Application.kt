@@ -4,7 +4,6 @@ import io.natskt.client.transport.TcpTransport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlin.time.Duration.Companion.minutes
 
 fun main(): Unit = runBlocking {
     val c = NatsClient {
@@ -15,7 +14,7 @@ fun main(): Unit = runBlocking {
 		it.connect()
 	}
 
-	for (i in 1..10) {
+	for (i in 1..5) {
 		launch {
 			c.request("test.service.echo", "HI FROM KOTLIN $i".toByteArray()).await().also {
 				println("-------- $i: ${it.data?.decodeToString()}")
@@ -25,13 +24,7 @@ fun main(): Unit = runBlocking {
 
 	do {
 		delay(2000)
-		println(c.subscriptions.size)
-	} while(c.subscriptions.isNotEmpty())
-
-	println("doing GC")
-	System.gc()
-
-	delay(20.minutes)
+	} while (c.subscriptions.isNotEmpty())
 
 	println("finished collecting")
 }

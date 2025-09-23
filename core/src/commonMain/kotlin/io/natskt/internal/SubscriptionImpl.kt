@@ -4,6 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.natskt.api.Message
 import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalSubscriptionHandler
+import io.natskt.api.internal.OnSubscriptionStart
+import io.natskt.api.internal.OnSubscriptionStop
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -27,8 +29,8 @@ internal class SubscriptionImpl(
 	override val queueGroup: String?,
 	override val sid: String,
 	private val scope: CoroutineScope,
-	private val onStart: suspend (sub: SubscriptionImpl, sid: String, subject: String, queueGroup: String?) -> Unit,
-	private val onStop: suspend (sid: String, maxMsgs: Int?) -> Unit,
+	private val onStart: OnSubscriptionStart,
+	private val onStop: OnSubscriptionStop,
 	/**
 	 * Start listening for messages as soon as the subscription is constructed,
 	 * instead of when the first collector on [messages] starts
