@@ -31,8 +31,7 @@ internal class ConnectionManagerImpl(
 	val config: ClientConfiguration,
 	val subscriptions: Map<String, InternalSubscriptionHandler>,
 ) {
-	private val scope: CoroutineScope =
-		config.scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("ConnectionManager"))
+	private val scope: CoroutineScope = CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("ConnectionManager"))
 
 	internal val current: MutableStateFlow<ProtocolEngine> = MutableStateFlow(ProtocolEngine.Empty)
 

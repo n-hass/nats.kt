@@ -18,3 +18,5 @@ public fun Subject.Companion.fromOrNull(s: String): Subject? {
 }
 
 public fun Subject.Companion.from(s: String): Subject = fromOrNull(s) ?: throw IllegalArgumentException("'$s' contains invalid subject token characters")
+
+internal fun validateSubject(s: String) = disallowedSubjectChars.containsMatchIn(s)

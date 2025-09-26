@@ -19,12 +19,18 @@ public interface NatsClient {
 	public val subscriptions: Map<String, Subscription>
 
 	/**
-	 *
+	 * Activates the client's connection. Suspends until active or timeout.
+	 * Returns [Result.success] when the connection was successful, or a failure
 	 */
-	public suspend fun connect(scope: CoroutineScope? = null)
+	public suspend fun connect(): Result<Unit>
 
 	/**
-	 *
+	 * Deactivates the client's connection
+	 */
+	public suspend fun disconnect()
+
+	/**
+	 * Create a new [Subscription]
 	 */
 	public suspend fun subscribe(
 		subject: String,
@@ -35,6 +41,9 @@ public interface NatsClient {
 		scope: CoroutineScope? = null,
 	): Subscription
 
+	/**
+	 * Create a new [Subscription]
+	 */
 	public suspend fun subscribe(
 		subject: Subject,
 		queueGroup: String? = null,
@@ -49,20 +58,20 @@ public interface NatsClient {
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
 		replyTo: String? = null,
-	): Unit
+	)
 
 	public suspend fun publish(
 		subject: Subject,
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
 		replyTo: Subject? = null,
-	): Unit
+	)
 
-	public suspend fun publish(message: Message): Unit
+	public suspend fun publish(message: Message)
 
-	public suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit): Unit
+	public suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit)
 
-	public suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit): Unit
+	public suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit)
 
 	public suspend fun request(
 		subject: String,

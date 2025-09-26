@@ -5,6 +5,7 @@ package io.natskt.internal
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.writeFully
+import io.natskt.api.internal.ClientOperation
 import io.natskt.api.internal.Operation
 import io.natskt.api.internal.ServerOperation
 import junit.framework.TestCase.assertTrue
@@ -85,12 +86,11 @@ class OperationSerializerImplTest {
 					b("\r\n"),
 				)
 			val op = ser.parse(ch)
-			val msg = op as? ServerOperation.MsgOp ?: fail("Expected MsgOp")
-			assertEquals("s", msg.subject)
+			val msg = op as? IncomingCoreMessage ?: fail("Expected MsgOp")
+			assertEquals("s", msg.subject.raw)
 			assertEquals("9", msg.sid)
 			assertNull(msg.replyTo)
-			assertEquals(4, msg.bytes)
-			assertContentEquals(b("DATA"), msg.payload)
+			assertContentEquals(b("DATA"), msg.data)
 		}
 
 	@Test
@@ -105,12 +105,11 @@ class OperationSerializerImplTest {
 					b("\r\n"),
 				)
 			val op = ser.parse(ch)
-			val msg = op as? ServerOperation.MsgOp ?: fail("Expected MsgOp")
-			assertEquals("sub", msg.subject)
+			val msg = op as? IncomingCoreMessage ?: fail("Expected MsgOp")
+			assertEquals("sub", msg.subject.raw)
 			assertEquals("42", msg.sid)
-			assertEquals("inbox", msg.replyTo)
-			assertEquals(5, msg.bytes)
-			assertContentEquals(b("HELLO"), msg.payload)
+			assertEquals("inbox", msg.replyTo?.raw)
+			assertContentEquals(b("HELLO"), msg.data)
 		}
 
 	@Test
@@ -133,14 +132,12 @@ class OperationSerializerImplTest {
 				)
 
 			val op = ser.parse(ch)
-			val hm = op as? ServerOperation.HMsgOp ?: fail("Expected HMsgOp")
-			assertEquals("s", hm.subject)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected HMsgOp")
+			assertEquals("s", hm.subject.raw)
 			assertEquals("1", hm.sid)
 			assertNull(hm.replyTo)
-			assertEquals(hdrLen, hm.headerBytes)
-			assertEquals(total, hm.totalBytes)
 			assertEquals(listOf("X"), hm.headers?.get("Header"))
-			assertContentEquals(b(payload), hm.payload)
+			assertContentEquals(b(payload), hm.data)
 		}
 
 	@Test
@@ -161,14 +158,12 @@ class OperationSerializerImplTest {
 				)
 
 			val op = ser.parse(ch)
-			val hm = op as? ServerOperation.HMsgOp ?: fail("Expected HMsgOp")
-			assertEquals("SUBJECT", hm.subject)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected HMsgOp")
+			assertEquals("SUBJECT", hm.subject.raw)
 			assertEquals("77", hm.sid)
-			assertEquals("REPLY", hm.replyTo)
-			assertEquals(hdrLen, hm.headerBytes)
-			assertEquals(total, hm.totalBytes)
+			assertEquals("REPLY", hm.replyTo?.raw)
 			assertEquals(listOf("X"), hm.headers?.get("Header"))
-			assertNull(hm.payload)
+			assertNull(hm.data)
 		}
 
 	@Test
@@ -190,10 +185,10 @@ class OperationSerializerImplTest {
 				)
 
 			val op = ser.parse(ch)
-			val hm = op as? ServerOperation.HMsgOp ?: fail("Expected HMsgOp")
+			val hm = op as? IncomingCoreMessage ?: fail("Expected HMsgOp")
 			assertEquals(listOf("X", "Y"), hm.headers?.get("Header1"))
 			assertEquals(listOf("Z"), hm.headers?.get("Header2"))
-			assertContentEquals(b(payload), hm.payload)
+			assertContentEquals(b(payload), hm.data)
 		}
 
 	@Test
@@ -212,10 +207,10 @@ class OperationSerializerImplTest {
 				)
 
 			val op = ser.parse(ch)
-			val hm = op as? ServerOperation.HMsgOp ?: fail("Expected HMsgOp")
+			val hm = op as? IncomingCoreMessage ?: fail("Expected HMsgOp")
 			assertEquals(listOf("X", "Y"), hm.headers?.get("Header1"))
 			assertEquals(listOf("Z"), hm.headers?.get("Header2"))
-			assertNull(hm.payload)
+			assertNull(hm.data)
 		}
 
 	@Test
@@ -249,4 +244,70 @@ class OperationSerializerImplTest {
 			val ex = assertFails { ser.parse(ch) }
 			assertTrue(ex.message?.contains("invalid NATS header preamble") == true)
 		}
+
+	@Test
+	fun encode_hpub_with_headers_and_payload() {
+		val serializer = newSerializer()
+
+		val payload = "DATA".encodeToByteArray()
+		val headers =
+			linkedMapOf(
+				"X" to listOf("1", "2"),
+				"Y" to emptyList(),
+			)
+
+		val encoded =
+			serializer.encode(
+				ClientOperation.HPubOp(
+					subject = "sub",
+					replyTo = "reply",
+					headers = headers,
+					payload = payload,
+				),
+			)
+
+		val expectedHeaderBlock = "NATS/1.0\r\nX: 1\r\nX: 2\r\nY: \r\n\r\n".encodeToByteArray()
+		val expectedHeaderSize = expectedHeaderBlock.size
+		val expectedTotalSize = expectedHeaderSize + payload.size
+
+		val expected =
+			buildString {
+				append("HPUB sub reply ")
+				append(expectedHeaderSize)
+				append(" ")
+				append(expectedTotalSize)
+				append("\r\n")
+			}.encodeToByteArray() + expectedHeaderBlock + payload + "\r\n".encodeToByteArray()
+
+		assertContentEquals(expected, encoded)
+	}
+
+	@Test
+	fun encode_hpub_without_headers_or_payload() {
+		val serializer = newSerializer()
+
+		val encoded =
+			serializer.encode(
+				ClientOperation.HPubOp(
+					subject = "sub",
+					replyTo = null,
+					headers = emptyMap(),
+					payload = null,
+				),
+			)
+
+		val expectedHeaderBlock = "NATS/1.0\r\n\r\n".encodeToByteArray()
+		val expectedHeaderSize = expectedHeaderBlock.size
+
+		val expected =
+			buildString {
+				append("HPUB sub ")
+				append(expectedHeaderSize)
+				append(" ")
+				append(expectedHeaderSize)
+				append("\r\n")
+			}.encodeToByteArray() + expectedHeaderBlock + "\r\n".encodeToByteArray()
+
+		assertContentEquals(expected, encoded)
+	}
 }

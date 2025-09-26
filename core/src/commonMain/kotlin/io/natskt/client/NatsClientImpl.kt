@@ -15,11 +15,11 @@ import io.natskt.internal.RequestSubscriptionImpl
 import io.natskt.internal.Subject
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.connectionCoroutineDispatcher
+import io.natskt.internal.validateSubject
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -33,7 +33,7 @@ private val logger = KotlinLogging.logger { }
 internal class NatsClientImpl(
 	val configuration: ClientConfiguration,
 ) : NatsClient {
-	private val clientScope = CoroutineScope(SupervisorJob() + connectionCoroutineDispatcher + CoroutineName("NatsClient"))
+	private val clientScope = configuration.scope ?: CoroutineScope(SupervisorJob() + connectionCoroutineDispatcher + CoroutineName("NatsClient"))
 
 	private val _subscriptions = ConcurrentMap<String, InternalSubscriptionHandler>()
 	override val subscriptions: Map<String, Subscription>
@@ -44,10 +44,9 @@ internal class NatsClientImpl(
 	@OptIn(ExperimentalAtomicApi::class)
 	private val sidAllocator = AtomicInt(1)
 
-	override suspend fun connect(scope: CoroutineScope?) {
+	override suspend fun connect(): Result<Unit> {
 		connectionManager.start()
-		val scope = scope ?: clientScope
-		scope.launch {
+		clientScope.launch {
 			connectionManager.connectionStatus.collect {
 				logger.debug { "Connection status change: $it" }
 			}
@@ -58,8 +57,13 @@ internal class NatsClientImpl(
 				.filter {
 					it.phase == ConnectionPhase.Connected
 				}.first()
-		}
-			?: connectionManager.stop()
+		} ?: return Result.failure(Exception())
+
+		return Result.success(Unit)
+	}
+
+	override suspend fun disconnect() {
+		connectionManager.stop()
 	}
 
 	@OptIn(ExperimentalAtomicApi::class)
@@ -113,10 +117,14 @@ internal class NatsClientImpl(
 		headers: Map<String, List<String>>?,
 		replyTo: String?,
 	) {
-		val subject = Subject(subject)
-		val replyTo = replyTo?.let { Subject(it) }
+		if (validateSubject(subject)) {
+			throw IllegalArgumentException("invalid subject")
+		}
+		if (replyTo != null && validateSubject(replyTo)) {
+			throw IllegalArgumentException("invalid reply-to")
+		}
 
-		publish(subject, message, headers, replyTo)
+		publishUnchecked(subject, message, headers, replyTo)
 	}
 
 	override suspend fun publish(
@@ -194,9 +202,8 @@ internal class NatsClientImpl(
 				sid = sid,
 			)
 		onSubscriptionStart(inbox, sid, inboxSubject, null)
-		val scope = launchIn ?: CoroutineScope(currentCoroutineContext())
+		val scope = launchIn ?: clientScope
 		publishUnchecked(subject, message, headers, replyTo = inboxSubject)
-		val result = inbox.response
 		scope.launch {
 			try {
 				withTimeout(timeoutMs) {
@@ -204,11 +211,11 @@ internal class NatsClientImpl(
 				}
 			} catch (e: Exception) {
 				logger.error { "request failed to $subject - ${e::class.simpleName}" }
-				result.completeExceptionally(e)
+				inbox.response.completeExceptionally(e)
 			}
 			onSubscriptionStop(sid, null)
 		}
-		return result
+		return inbox.response
 	}
 
 	private val onSubscriptionStart =

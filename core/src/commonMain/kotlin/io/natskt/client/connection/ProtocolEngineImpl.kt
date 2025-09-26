@@ -168,6 +168,7 @@ internal class ProtocolEngineImpl(
 			throw IllegalStateException("Cannot close connection as it is not open")
 		}
 		closed.complete(CloseReason.CleanClose)
+		transport!!.flush()
 		transport!!.close()
 	}
 

@@ -33,6 +33,7 @@ private val pingOpBytes = "PING".toByteArray()
 private val pongOpBytes = "PONG".toByteArray()
 private val connectOpBytes = "CONNECT ".toByteArray()
 private val pubOpBytes = "PUB ".toByteArray()
+private val hpubOpBytes = "HPUB ".toByteArray()
 private val subOpBytes = "SUB ".toByteArray()
 private val unsubOpBytes = "UNSUB ".toByteArray()
 
@@ -241,7 +242,53 @@ internal class OperationSerializerImpl(
 
 				pub
 			}
-			is ClientOperation.HPubOp -> TODO()
+			is ClientOperation.HPubOp -> {
+				val payloadBytes = op.payload
+				val headerBytes =
+					buildString {
+						append(HEADER_START)
+						op.headers?.forEach { (name, values) ->
+							if (values.isEmpty()) {
+								append(name)
+								append(": ")
+								append(LINE_END)
+							} else {
+								values.forEach { value ->
+									append(name)
+									append(": ")
+									append(value)
+									append(LINE_END)
+								}
+							}
+						}
+						append(LINE_END)
+					}.encodeToByteArray()
+
+				val payloadLength = payloadBytes?.size ?: 0
+				val totalLength = headerBytes.size + payloadLength
+
+				var hpub =
+					hpubOpBytes +
+						buildString {
+							append(op.subject)
+							if (op.replyTo != null) {
+								append(" ")
+								append(op.replyTo)
+							}
+							append(" ")
+							append(headerBytes.size)
+							append(" ")
+							append(totalLength)
+						}.encodeToByteArray() + lineEndBytes
+
+				hpub += headerBytes
+
+				if (payloadBytes != null) {
+					hpub += payloadBytes
+				}
+
+				hpub
+			}
 			is ClientOperation.SubOp ->
 				subOpBytes +
 					buildString {
