@@ -1,6 +1,6 @@
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-includeBuild("../../")
+includeBuild("../")
 
 pluginManagement {
     repositories {
@@ -19,8 +19,11 @@ dependencyResolutionManagement {
     }
     versionCatalogs {
         create("libs") {
-            from(files("../../gradle/libs.versions.toml"))
+            from(files("../gradle/libs.versions.toml"))
         }
     }
 }
 
+include("native")
+include("request")
+include("subscribe")
