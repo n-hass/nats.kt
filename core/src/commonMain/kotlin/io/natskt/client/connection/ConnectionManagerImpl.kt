@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -23,8 +25,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger { }
+
+internal const val LAME_DUCK_BACKOFF_MILLIS: Long = 60_000
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class ConnectionManagerImpl(
@@ -40,6 +46,7 @@ internal class ConnectionManagerImpl(
 	val serverInfo = MutableStateFlow<ServerOperation.InfoOp?>(null)
 
 	private val allServers = mutableSetOf<NatsServerAddress>().apply { addAll(config.servers) }
+	private val lameDuckServers = mutableMapOf<NatsServerAddress, Long>()
 
 	private var failureCount = 0
 
@@ -49,7 +56,7 @@ internal class ConnectionManagerImpl(
 		reconnectJob =
 			scope.launch {
 				while (config.maxReconnects == null || failureCount < config.maxReconnects) {
-					val address = allServers.shuffled().first()
+					val address = selectAddress()
 					current.emit(
 						ProtocolEngineImpl(
 							config.transportFactory,
@@ -75,7 +82,11 @@ internal class ConnectionManagerImpl(
 														NatsServerAddress(Url(url))
 													}.orEmpty()
 
+											allServers.clear()
 											allServers.addAll(newServers)
+											if (it.ldm == true) {
+												markLameDuck(address)
+											}
 										}
 										else -> { }
 									}
@@ -107,4 +118,36 @@ internal class ConnectionManagerImpl(
 	}
 
 	suspend fun send(op: ClientOperation) = current.value.send(op)
+
+	internal fun markLameDuck(
+		address: NatsServerAddress,
+		timestamp: Long = Clock.System.now().toEpochMilliseconds(),
+	) {
+		lameDuckServers[address] = timestamp
+	}
+
+	internal fun selectAddress(now: Long = Clock.System.now().toEpochMilliseconds()): NatsServerAddress {
+		if (allServers.isEmpty()) {
+			throw IllegalStateException("no servers available")
+		}
+		pruneLameDuck(now)
+		val viable =
+			allServers.filterNot { address ->
+				val markedAt = lameDuckServers[address]
+				markedAt != null && now - markedAt < LAME_DUCK_BACKOFF_MILLIS
+			}
+		val pool = if (viable.isNotEmpty()) viable else allServers.toList()
+		return pool.shuffled().first()
+	}
+
+	private fun pruneLameDuck(now: Long) {
+		lameDuckServers.removeIf { entry ->
+			now - entry.value >= LAME_DUCK_BACKOFF_MILLIS
+		}
+	}
 }
+
+private fun <K, V> MutableMap<K, V>.removeIf(predicate: (Map.Entry<K, V>) -> Boolean) =
+	forEach {
+		if (predicate(it)) remove(it.key)
+	}

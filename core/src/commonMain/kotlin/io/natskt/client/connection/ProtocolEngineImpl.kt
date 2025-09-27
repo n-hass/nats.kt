@@ -148,6 +148,11 @@ internal class ProtocolEngineImpl(
 
 		when (val info = parser.parse(transport!!.incoming)) {
 			is ServerOperation.InfoOp -> {
+				serverInfo.value = info
+				if (info.ldm == true) {
+					enterLameDuckMode()
+					return
+				}
 				if ((info.tlsRequired != null && info.tlsRequired) || tlsRequired) {
 					logger.trace { "upgrading connection to TLS" }
 					transport = transport!!.upgradeTLS()
@@ -162,7 +167,6 @@ internal class ProtocolEngineImpl(
 							return
 						}
 				with(connectionCoroutineDispatcher) { send(connect) }
-				serverInfo.value = info
 			}
 			else -> {
 				closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
@@ -221,6 +225,10 @@ internal class ProtocolEngineImpl(
 
 				if (out is ServerOperation.InfoOp) {
 					serverInfo.emit(out)
+					if (out.ldm == true) {
+						enterLameDuckMode()
+						break
+					}
 				}
 			}
 		}
@@ -242,6 +250,16 @@ internal class ProtocolEngineImpl(
 		closed.complete(CloseReason.CleanClose)
 		transport!!.flush()
 		transport!!.close()
+	}
+
+	private suspend fun enterLameDuckMode() {
+		logger.debug { "server ${address.url} entered lame duck mode" }
+		state.update { phase = ConnectionPhase.LameDuck }
+		if (!closed.isCompleted) {
+			closed.complete(CloseReason.LameDuckMode)
+		}
+		runCatching { transport?.flush() }
+		runCatching { transport?.close() }
 	}
 
 	private fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) {

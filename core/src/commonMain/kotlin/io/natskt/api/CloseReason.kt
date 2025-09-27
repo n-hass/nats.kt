@@ -18,4 +18,6 @@ public sealed interface CloseReason {
 	public data object PayloadTooLarge : CloseReason
 
 	public data object HandshakeRejected : CloseReason
+
+	public data object LameDuckMode : CloseReason
 }
