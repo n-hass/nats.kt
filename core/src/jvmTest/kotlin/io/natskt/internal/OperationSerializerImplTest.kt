@@ -30,7 +30,7 @@ class OperationSerializerImplTest {
 	private fun b(s: String) = s.encodeToByteArray()
 
 	@Test
-	fun parse_ping_pong_ok_err() =
+	fun `parse - ping pong ok err`() =
 		runTest {
 			val ser = newSerializer()
 			val ch =
@@ -48,7 +48,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun parse_info_json() =
+	fun `parse info json payload`() =
 		runTest {
 			val ser = newSerializer()
 			val infoJson =
@@ -75,7 +75,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun parse_msg_without_reply() =
+	fun `parse message without reply`() =
 		runTest {
 			val ser = newSerializer()
 			// MSG <subject> <sid> <n>\r\n[payload]\r\n
@@ -94,7 +94,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun parse_msg_with_reply() =
+	fun `parse message with reply`() =
 		runTest {
 			val ser = newSerializer()
 			// MSG <subject> <sid> <reply-to> <n>\r\n[payload]\r\n
@@ -113,7 +113,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun parse_hmsg_single_header_with_payload() =
+	fun `parse hmsg single header with payload`() =
 		runTest {
 			val ser = newSerializer()
 			// HMSG <subject> <sid> <#hdr> <#total>\r\n
@@ -141,7 +141,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun parse_hmsg_zero_payload_total_equals_hdr() =
+	fun `parse hmsg with no payload, total = header bytes`() =
 		runTest {
 			val ser = newSerializer()
 			// HMSG SUBJECT REPLY <hdr> <total==hdr>\r\n
@@ -167,7 +167,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun parse_hmsg_duplicate_headers_and_payload() =
+	fun `parse hmsg duplicate headers and payload`() =
 		runTest {
 			val ser = newSerializer()
 			// NATS/1.0\r\nHeader1: X\r\nHeader1: Y\r\nHeader2: Z\r\n\r\nPAYLOAD\r\n
@@ -192,7 +192,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun parse_hmsg_duplicate_headers_zero_payload() =
+	fun `parse hmsg duplicate headers zero payload`() =
 		runTest {
 			val ser = newSerializer()
 			val headerBlock = "NATS/1.0\r\nHeader1: X\r\nHeader1: Y\r\nHeader2: Z\r\n\r\n"
@@ -214,7 +214,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun msg_missing_trailing_crlf_throws() =
+	fun `missing trailing crlf throws`() =
 		runTest {
 			val ser = newSerializer()
 			// Missing the final CRLF after payload -> readPayloadExact() should throw
@@ -229,7 +229,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun hmsg_invalid_header_preamble_rejected() =
+	fun `hmsg invalid header preamble rejected`() =
 		runTest {
 			val ser = newSerializer()
 			val badHeader = "NOTS/1.0\r\nK: V\r\n\r\n"
@@ -246,7 +246,7 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun encode_hpub_with_headers_and_payload() {
+	fun `encode hpub with headers and payload`() {
 		val serializer = newSerializer()
 
 		val payload = "DATA".encodeToByteArray()
@@ -283,7 +283,7 @@ class OperationSerializerImplTest {
 	}
 
 	@Test
-	fun encode_hpub_without_headers_or_payload() {
+	fun `encode hpub without headers or payload`() {
 		val serializer = newSerializer()
 
 		val encoded =
