@@ -6,6 +6,7 @@ import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.awaitClosed
 import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
+import io.ktor.network.tls.tls
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.natskt.client.NatsServerAddress
@@ -16,6 +17,7 @@ import kotlin.coroutines.CoroutineContext
 
 public class TcpTransport internal constructor(
 	private val inner: Connection,
+	private val context: CoroutineContext,
 ) : Transport,
 	CoroutineScope by inner.socket {
 	public companion object : TransportFactory {
@@ -28,6 +30,7 @@ public class TcpTransport internal constructor(
 					.tcp()
 					.connect(address.url.host, address.url.port) { }
 					.connection(),
+				context,
 			)
 	}
 
@@ -41,7 +44,7 @@ public class TcpTransport internal constructor(
 		inner.socket.awaitClosed()
 	}
 
-	override suspend fun upgradeTLS(): TcpTransport = upgradeTlsNative(inner)
+	override suspend fun upgradeTLS(): TcpTransport = TcpTransport(inner.tls(context).connection(), context)
 
 	override suspend fun write(block: suspend (ByteWriteChannel) -> Unit): Unit =
 		writeMutex.withLock {

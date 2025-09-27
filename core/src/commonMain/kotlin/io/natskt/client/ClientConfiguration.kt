@@ -29,6 +29,7 @@ internal data class ClientConfiguration(
 	val connectTimeoutMs: Long,
 	val reconnectDebounceMs: Long,
 	val maxControlLineBytes: Int,
+	val tlsRequired: Boolean,
 	/**
 	 * The NUID generator to use.
 	 */

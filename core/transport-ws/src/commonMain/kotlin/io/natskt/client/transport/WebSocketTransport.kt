@@ -113,8 +113,12 @@ public data class WebSocketTransport internal constructor(
 		session.close()
 	}
 
-	override suspend fun upgradeTLS(): Transport =
-		WebSocketTransport(
+	override suspend fun upgradeTLS(): Transport {
+		if (address.url.protocolOrNull == URLProtocol.WSS) {
+			return this
+		}
+
+		return WebSocketTransport(
 			httpClient,
 			address,
 			httpClient.webSocketSession {
@@ -125,6 +129,7 @@ public data class WebSocketTransport internal constructor(
 				}
 			},
 		)
+	}
 
 	override suspend fun write(block: suspend (ByteWriteChannel) -> Unit) {
 		block(outgoing)

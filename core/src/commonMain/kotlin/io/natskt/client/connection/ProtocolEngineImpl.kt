@@ -7,6 +7,7 @@ import io.ktor.utils.io.write
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
+import io.natskt.api.Credentials
 import io.natskt.api.internal.ClientOperation
 import io.natskt.api.internal.InternalSubscriptionHandler
 import io.natskt.api.internal.MessageInternal
@@ -36,6 +37,8 @@ internal class ProtocolEngineImpl(
 	private val parser: OperationSerializer,
 	private val subscriptions: Map<String, InternalSubscriptionHandler>,
 	override val serverInfo: MutableStateFlow<ServerOperation.InfoOp?>,
+	private val credentials: Credentials?,
+	private val tlsRequired: Boolean,
 	private val scope: CoroutineScope,
 ) : ProtocolEngine {
 	override val state = MutableStateFlow(ConnectionState.Uninitialised)
@@ -67,15 +70,19 @@ internal class ProtocolEngineImpl(
 				return
 			}
 
-		val incoming = transport!!.incoming
+		transport!!.incoming
 
-		when (parser.parse(incoming)) {
+		when (val info = parser.parse(transport!!.incoming)) {
 			is ServerOperation.InfoOp -> {
+				if ((info.tlsRequired != null && info.tlsRequired) || tlsRequired) {
+					transport = transport!!.upgradeTLS()
+				}
+
 				val connect =
 					ClientOperation.ConnectOp(
 						verbose = false,
 						pedantic = false,
-						tlsRequired = false,
+						tlsRequired = tlsRequired,
 						authToken = null,
 						user = null,
 						pass = null,
@@ -103,8 +110,8 @@ internal class ProtocolEngineImpl(
 		scope.launch {
 			var out: ParsedOutput?
 
-			while (!incoming.isClosedForRead) {
-				out = parser.parse(incoming)
+			while (!transport!!.incoming.isClosedForRead) {
+				out = parser.parse(transport!!.incoming)
 
 				if (out is MessageInternal) {
 					subscriptions[out.sid]?.emit(out)

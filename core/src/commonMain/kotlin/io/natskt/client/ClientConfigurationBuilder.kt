@@ -15,6 +15,7 @@ internal interface ClientConfigurationValues {
 	val connectTimeoutMs: Long?
 	val reconnectDebounceMs: Long?
 	val transport: TransportFactory?
+	val tlsRequired: Boolean
 	val scope: CoroutineScope?
 }
 
@@ -26,6 +27,7 @@ public class ClientConfigurationBuilder : ClientConfigurationValues {
 	public override var maxControlLineBytes: Int = 1024
 	public override var connectTimeoutMs: Long = 5000
 	public override var reconnectDebounceMs: Long = 2000
+	public override var tlsRequired: Boolean = false
 	public override var transport: TransportFactory? = null
 	public override var scope: CoroutineScope? = null
 }
@@ -52,6 +54,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		connectTimeoutMs = connectTimeoutMs,
 		reconnectDebounceMs = reconnectDebounceMs,
 		maxControlLineBytes = maxControlLineBytes,
+		tlsRequired = tlsRequired,
 		nuid = NUID.Default,
 		scope = scope,
 	)
