@@ -69,14 +69,12 @@ public class NKeySeed private constructor(
 			privateKey: Ed25519PrivateKey,
 		): String {
 			val seedBytes = privateKey.seed()
-			val publicKey = privateKey.publicKey().toByteArray()
 			val b1 = (SEED_PREFIX or (type.prefix shr 5)) and 0xFF
 			val b2 = ((type.prefix and 0x1F) shl 3) and 0xFF
-			val payload = ByteArray(2 + seedBytes.size + publicKey.size)
+			val payload = ByteArray(2 + seedBytes.size)
 			payload[0] = b1.toByte()
 			payload[1] = b2.toByte()
 			seedBytes.copyInto(payload, 2)
-			publicKey.copyInto(payload, 34)
 			return encodeWithChecksum(payload)
 		}
 

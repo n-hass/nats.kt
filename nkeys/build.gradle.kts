@@ -40,5 +40,11 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
+
+		val jvmTest by getting {
+			dependencies {
+				implementation("io.nats:nkeys-java:2.1.1")
+			}
+		}
     }
 }
