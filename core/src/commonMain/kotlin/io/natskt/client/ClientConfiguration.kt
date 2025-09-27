@@ -1,5 +1,6 @@
 package io.natskt.client
 
+import io.natskt.api.Credentials
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
@@ -14,6 +15,7 @@ internal data class ClientConfiguration(
 	 * either a []
 	 */
 	val transportFactory: TransportFactory,
+	val credentials: Credentials?,
 	/**
 	 *
 	 */

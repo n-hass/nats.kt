@@ -12,6 +12,7 @@ fun main(): Unit = runBlocking {
     val c = NatsClient {
         server = "nats://localhost:4222"
         transport = TcpTransport
+		maxReconnects = 3
     }.also {
 		it.connect()
 	}

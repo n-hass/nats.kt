@@ -58,7 +58,7 @@ kotlin {
             api(projects.core.common)
             api(projects.core.transportWs)
             api(projects.nuid)
-//            api(projects.nkeys)
+            api(projects.nkeys)
 
             implementation(libs.whyoleg.secureRandom)
             implementation(libs.kotlinx.coroutines.core)

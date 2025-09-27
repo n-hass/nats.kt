@@ -20,6 +20,8 @@ import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.connectionCoroutineDispatcher
+import io.natskt.nkeys.NKeySeed
+import io.natskt.nkeys.NKeys
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +50,69 @@ internal class ProtocolEngineImpl(
 
 	private var rttMeasureStart: Instant? = null
 
+	private data class AuthPayload(
+		val authToken: String? = null,
+		val user: String? = null,
+		val pass: String? = null,
+		val jwt: String? = null,
+		val signature: String? = null,
+		val nkey: String? = null,
+	)
+
+	private fun buildConnectOp(info: ServerOperation.InfoOp): ClientOperation.ConnectOp {
+		val auth = resolveAuth(info)
+		return ClientOperation.ConnectOp(
+			verbose = false,
+			pedantic = false,
+			tlsRequired = tlsRequired || (info.tlsRequired == true),
+			authToken = auth.authToken,
+			user = auth.user,
+			pass = auth.pass,
+			name = null,
+			protocol = null,
+			echo = false,
+			sig = auth.signature,
+			jwt = auth.jwt,
+			noResponders = null,
+			headers = true,
+			nkey = auth.nkey,
+		)
+	}
+
+	private fun resolveAuth(info: ServerOperation.InfoOp): AuthPayload {
+		val creds = credentials ?: return AuthPayload()
+		return when (creds) {
+			is Credentials.Password -> AuthPayload(user = creds.username, pass = creds.password)
+			is Credentials.Jwt -> buildNKeyAuth(info, creds.nkey, creds.token)
+			is Credentials.Nkey -> buildNKeyAuth(info, creds.key, null)
+			is Credentials.File -> {
+				val parsed = NKeys.parseCreds(creds.content)
+				buildNKeyAuth(info, parsed.seed, parsed.jwt)
+			}
+		}
+	}
+
+	private fun buildNKeyAuth(
+		info: ServerOperation.InfoOp,
+		seedValue: String,
+		jwt: String?,
+	): AuthPayload {
+		if (seedValue.isBlank()) {
+			throw IllegalArgumentException("NKey seed cannot be blank")
+		}
+		return buildNKeyAuth(info, NKeys.parseSeed(seedValue), jwt)
+	}
+
+	private fun buildNKeyAuth(
+		info: ServerOperation.InfoOp,
+		seed: NKeySeed,
+		jwt: String?,
+	): AuthPayload {
+		val nonce = info.nonce ?: throw IllegalStateException("Server did not provide nonce for NKey authentication")
+		val signature = seed.signNonce(nonce)
+		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.publicKey)
+	}
+
 	override suspend fun send(op: ClientOperation) {
 		val msg = parser.encode(op)
 
@@ -75,29 +140,20 @@ internal class ProtocolEngineImpl(
 		when (val info = parser.parse(transport!!.incoming)) {
 			is ServerOperation.InfoOp -> {
 				if ((info.tlsRequired != null && info.tlsRequired) || tlsRequired) {
+					logger.trace { "upgrading connection to TLS" }
 					transport = transport!!.upgradeTLS()
 				}
-
 				val connect =
-					ClientOperation.ConnectOp(
-						verbose = false,
-						pedantic = false,
-						tlsRequired = tlsRequired,
-						authToken = null,
-						user = null,
-						pass = null,
-						name = null,
-						protocol = null,
-						echo = false,
-						sig = null,
-						jwt = null,
-						noResponders = null,
-						headers = true,
-						nkey = null,
-					)
-				with(connectionCoroutineDispatcher) {
-					send(connect)
-				}
+					runCatching { buildConnectOp(info) }
+						.getOrElse {
+							logger.error(it) { "failed to prepare CONNECT for ${address.url}" }
+							state.update { phase = ConnectionPhase.Failed }
+							transport?.close()
+							closed.complete(CloseReason.HandshakeRejected)
+							return
+						}
+				with(connectionCoroutineDispatcher) { send(connect) }
+				serverInfo.value = info
 			}
 			else -> {
 				closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))

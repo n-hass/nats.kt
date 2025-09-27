@@ -31,7 +31,13 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                // No dependencies for now - this is a placeholder module
+                implementation(libs.curve25519.kt)
+            }
+        }
+
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
             }
         }
     }

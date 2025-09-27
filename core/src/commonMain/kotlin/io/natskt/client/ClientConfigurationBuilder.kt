@@ -1,6 +1,7 @@
 package io.natskt.client
 
 import io.ktor.http.URLBuilder
+import io.natskt.api.Credentials
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
 import io.natskt.internal.OperationSerializerImpl
@@ -9,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 
 internal interface ClientConfigurationValues {
 	val servers: Collection<String>?
+	val authentication: Credentials?
 	val inboxPrefix: String
 	val maxReconnects: Int?
 	val maxControlLineBytes: Int?
@@ -22,6 +24,7 @@ internal interface ClientConfigurationValues {
 public class ClientConfigurationBuilder : ClientConfigurationValues {
 	public var server: String? = null
 	public override var servers: Collection<String>? = null
+	public override var authentication: Credentials? = null
 	public override var inboxPrefix: String = "_INBOX."
 	public override var maxReconnects: Int? = null
 	public override var maxControlLineBytes: Int = 1024
@@ -48,6 +51,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 	return ClientConfiguration(
 		servers = serversList,
 		transportFactory = transport ?: platformDefaultTransport,
+		credentials = authentication,
 		inboxPrefix = inboxPrefix,
 		parser = OperationSerializerImpl(),
 		maxReconnects = maxReconnects,
