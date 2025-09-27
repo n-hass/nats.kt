@@ -1,13 +1,13 @@
 package harness
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import java.io.BufferedReader
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeout
 import kotlin.concurrent.thread
 
 class NatsServerHarness : AutoCloseable {

@@ -11,9 +11,8 @@ internal class RequestSubscriptionImpl(
 ) : InternalSubscriptionHandler {
 	val response = CompletableDeferred<Message>()
 
-	override suspend fun emit(msg: Message) {
-		response.complete(msg)
-	}
+	@Suppress("CAST_NEVER_SUCCEEDS")
+	override suspend fun emit(msg: Message): Unit = response.complete(msg) as Unit
 
 	override val subject: Subject
 		get() = throw UnsupportedOperationException()

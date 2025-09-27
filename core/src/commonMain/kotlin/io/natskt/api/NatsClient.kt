@@ -8,10 +8,6 @@ import io.natskt.internal.Subject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 
-public object ByteMessageBlockTag
-
-public object StringMessageBlockTag
-
 public interface NatsClient {
 	/**
 	 * The subscriptions that have been created with this [NatsClient].
@@ -82,6 +78,6 @@ public interface NatsClient {
 	): Deferred<Message>
 
 	public companion object {
-		internal operator fun invoke(config: ClientConfiguration) = NatsClientImpl(config)
+		internal operator fun invoke(config: ClientConfiguration): NatsClientImpl = NatsClientImpl(config)
 	}
 }
