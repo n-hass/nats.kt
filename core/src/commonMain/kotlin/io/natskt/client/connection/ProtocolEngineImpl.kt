@@ -64,7 +64,7 @@ internal class ProtocolEngineImpl(
 		return ClientOperation.ConnectOp(
 			verbose = false,
 			pedantic = false,
-			tlsRequired = tlsRequired || (info.tlsRequired == true),
+			tlsRequired = tlsRequired,
 			authToken = auth.authToken,
 			user = auth.user,
 			pass = auth.pass,
