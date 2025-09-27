@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 
 class NKeyInteropTest {
 	@Test
-	fun `encodeSeed roundtrip through java nkey`() {
+	fun `encode seed roundtrips through Java nkey`() {
 		val seedBytes = ByteArray(32) { it.toByte() }
 		val privateKey = Ed25519.keyFromSeed(seedBytes)
 		val encoded = NKeySeed.encodeSeed(NKeyType.User, privateKey)
@@ -26,7 +26,7 @@ class NKeyInteropTest {
 	}
 
 	@Test
-	fun `kotlin parses java seed`() {
+	fun `Kotlin parses seed from Java library`() {
 		val deterministicSeed = ByteArray(32) { (it * 13 + 7).toByte() }
 		val javaKey = NKey.createUser(DeterministicSecureRandom(deterministicSeed))
 		val javaSeed = String(javaKey.seed)
