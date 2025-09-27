@@ -48,3 +48,13 @@ kotlin {
 		}
     }
 }
+
+mavenPublishing {
+	coordinates(artifactId = "natskt-nkeys")
+	publishToMavenCentral()
+
+	pom {
+		name = "NATS Kotlin Client - NKeys"
+		description = "Part of natskt-core"
+	}
+}
