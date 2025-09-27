@@ -108,8 +108,10 @@ internal class ProtocolEngineImpl(
 		seed: NKeySeed,
 		jwt: String?,
 	): AuthPayload {
-		val nonce = info.nonce ?: throw IllegalStateException("Server did not provide nonce for NKey authentication")
-		val signature = seed.signNonce(nonce)
+		if (info.nonce == null) {
+			return AuthPayload()
+		}
+		val signature = seed.signNonce(info.nonce)
 		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.publicKey)
 	}
 
