@@ -31,8 +31,30 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                // No dependencies for now - this is a placeholder module
+                implementation(libs.curve25519.kt)
             }
         }
+
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
+
+		val jvmTest by getting {
+			dependencies {
+				implementation("io.nats:nkeys-java:2.1.1")
+			}
+		}
     }
+}
+
+mavenPublishing {
+	coordinates(artifactId = "natskt-nkeys")
+	publishToMavenCentral()
+
+	pom {
+		name = "NATS Kotlin Client - NKeys"
+		description = "Part of natskt-core"
+	}
 }

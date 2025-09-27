@@ -57,6 +57,8 @@ internal class ConnectionManagerImpl(
 							config.parser,
 							subscriptions,
 							serverInfo,
+							config.credentials,
+							config.tlsRequired,
 							scope,
 						),
 					)

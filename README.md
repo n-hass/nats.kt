@@ -14,7 +14,7 @@
 
 - **🌐 Universal Platform Support**: Deploy your NATS-powered applications anywhere Kotlin runs
 - **🏗️ Transport Flexibility**: TCP and WebSocket transports supported 
-- **🛡️ Coroutines**: Coroutine-based API for idiomatic reactive programming
+- **🤝 Coroutines**: Coroutine-based API for idiomatic reactive programming
 - **🔧 Developer-First**: Clean, idiomatic Kotlin API with DSL configuration
 - **⚡ Built on Ktor**: Leverage Ktor's stability for networking capabilities and performance
 
@@ -76,57 +76,27 @@ subscription.messages.collect { message ->
 
 NATS.kt is under **active development**.
 
-| Feature                               | Status | Notes   |
-|---------------------------------------|---|---------|
-| **Core Protocol**                     |   |         |
-| Multiplatform TCP/WebSocket transport | ✅ |         |
-| Authentication                        | 🚧 | up next |
-| Publish/Subscribe                     | ✅ |         |
-| Request/Reply                         | ✅ |         |
-| **Jetstream**                         |   |         |
-| Basic API                             | ❌ |         |
-| Pull consumer                         | ❌ |         |
-| Push consumer                         | ❌ |         |
-| Key-Value Store                       | ❌ |         |
-| Object Store                          | ❌ |         |
-| **JetStream Management**              |   |         |
-| Streams                               | ❌ |         |
-| Consumers                             | ❌ |         |
+| Feature                               | Status | Notes                         |
+|---------------------------------------|---|-------------------------------|
+| **Core Protocol**                     |   |                               |
+| Multiplatform TCP/WebSocket transport | ✅ |                               |
+| Authentication                        | ✅ | * See security notice at end! |
+| Publish/Subscribe                     | ✅ |                               |
+| Request/Reply                         | ✅ |                               |
+| **Jetstream**                         |   |                               |
+| Basic API                             | ❌ |                               |
+| Pull consumer                         | ❌ |                               |
+| Push consumer                         | ❌ |                               |
+| Key-Value Store                       | ❌ |                               |
+| Object Store                          | ❌ |                               |
+| **JetStream Management**              |   |                               |
+| Streams                               | ❌ |                               |
+| Consumers                             | ❌ |                               |
 
 **Legend**: ✅ Complete | 🚧 In Progress | ❌ Planned
 
 My priority right now is to reach a good level of stability and correctness with all JetStream consumer features,
 then to go back and address any performance optimisations that can be made.
-
-## 🛠️ Development Environment
-
-We use **Nix** for a consistent, reproducible development environment.
-
-### Using Nix
-
-**Option 1: With direnv (Recommended)**
-```bash
-# Install direnv if you haven't already
-# Then simply cd into the project directory
-cd nats.kt
-direnv allow
-# direnv will automatically load the development environment
-```
-
-**Option 2: Manual Nix shell**
-```bash
-cd nats.kt
-nix develop
-```
-
-### What's Included
-
-Our Nix environment provides:
-- **OpenJDK 21**
-- **Gradle 8**
-- **NATS Server**
-- **NATS CLI**
-- **Pre-commit hooks**
 
 ## 🧪 Examples
 
@@ -135,43 +105,15 @@ Check out our [examples directory](examples/) for comprehensive usage examples:
 
 More coming soon!
 
-## 🔧 Building
+## 🛡️ Security
 
-```bash
-# Build all targets
-gradle build
+Please do not rely on the NKEY/Creds authentication features included in this client in a production environment. Although functionally correct, some cryptographic operations have not been formally verified and may have vulnerabilities. 
 
-# Run tests
-gradle test
+The NKEY implementation uses an Ed25519 algorithm implementation from an [un-attested library](https://github.com/andreypfau/curve25519-kotlin). This is used to sign authentication requests by the server on connect.
 
-# Apply code formatting
-gradle spotlessApply
-```
+I plan to move the NKEY implementation to use [cryptography-kotlin](https://github.com/whyoleg/cryptography-kotlin), a multiplatform binding to various other platform-native attested libraries, like JCA, OpenSSL and WebCrypto. This is waiting on the features being developed in that library upstream.
 
-## 🤝 Contributing
-
-We welcome contributions! NATS.kt is in active development and there are many opportunities to help:
-
-1. **Check out our issues** - Look for "good first issue" labels
-2. **Review the feature coverage** - Pick an unimplemented feature
-3. **Improve documentation** - Help make NATS.kt more accessible
-4. **Add examples** - Show how to use NATS.kt in real scenarios
-
-### Development Workflow
-
-1. Fork the repository
-2. Use our Nix development environment (`nix develop` or direnv)
-3. Make your changes following our code style
-4. Add tests for new functionality
-5. Ensure all tests pass (`gradle test`)
-6. Submit a pull request
-
-### Commit Convention
-
-We use [Conventional Commits](https://www.conventionalcommits.org/). Examples:
-- `feat(core): add request/reply support`
-- `fix(transport): handle connection timeouts`
-- `docs(readme): update installation instructions`
+The rest of the secure operations, including [secure-random](https://github.com/whyoleg/cryptography-kotlin) and TLS for TCP and WebSocket transports, use implementations which delegate to platform-native libraries and should not pose a notable security risk. 
 
 ## 📄 License
 
