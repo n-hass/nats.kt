@@ -6,6 +6,8 @@ import io.natskt.api.Subject
 import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.StringMessageBuilder
 import io.natskt.jetstream.api.JetStreamClient
+import io.natskt.jetstream.api.PublishAck
+import kotlinx.coroutines.Deferred
 
 internal class JetStreamClientImpl(
 	private val client: NatsClient,
@@ -16,7 +18,7 @@ internal class JetStreamClientImpl(
 		message: ByteArray,
 		headers: Map<String, List<String>>?,
 		replyTo: String?,
-	) {
+	): Deferred<PublishAck> {
 		TODO("Not yet implemented")
 	}
 
@@ -25,19 +27,19 @@ internal class JetStreamClientImpl(
 		message: ByteArray,
 		headers: Map<String, List<String>>?,
 		replyTo: Subject?,
-	) {
+	): Deferred<PublishAck> {
 		TODO("Not yet implemented")
 	}
 
-	override suspend fun publish(message: Message) {
+	override suspend fun publish(message: Message): Deferred<PublishAck> {
 		TODO("Not yet implemented")
 	}
 
-	override suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit) {
+	override suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit): Deferred<PublishAck> {
 		TODO("Not yet implemented")
 	}
 
-	override suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit) {
+	override suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit): Deferred<PublishAck> {
 		TODO("Not yet implemented")
 	}
 }
