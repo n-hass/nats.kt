@@ -1,6 +1,9 @@
-package io.natskt.api.internal
+package io.natskt.internal
 
-internal sealed interface Operation : ParsedOutput {
+import io.natskt.api.internal.InternalNatsApi
+
+@OptIn(InternalNatsApi::class)
+sealed interface Operation : ParsedOutput {
 	data object Ok : Operation
 
 	data class Err(

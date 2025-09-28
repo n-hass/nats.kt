@@ -3,7 +3,8 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
+	alias(libs.plugins.kotlin.multiplatform)
+	alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -32,9 +33,23 @@ kotlin {
         val commonMain by getting {
             dependencies {
 				implementation(projects.core)
+				implementation(projects.core.common)
+				implementation(projects.internal)
                 implementation(libs.whyoleg.secureRandom)
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.core)
+                implementation(libs.kotlinx.serialization.json)
+				implementation(libs.ktor.http)
             }
         }
+
+		val commonTest by getting {
+			dependencies {
+				implementation(kotlin("test"))
+				implementation(libs.kotlinx.coroutines.test)
+				implementation(libs.turbine)
+			}
+		}
     }
 }
 

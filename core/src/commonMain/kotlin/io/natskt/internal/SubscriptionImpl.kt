@@ -2,8 +2,8 @@ package io.natskt.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.natskt.api.Message
+import io.natskt.api.Subject
 import io.natskt.api.Subscription
-import io.natskt.api.internal.InternalSubscriptionHandler
 import io.natskt.api.internal.OnSubscriptionStart
 import io.natskt.api.internal.OnSubscriptionStop
 import kotlinx.coroutines.CoroutineScope

@@ -3,13 +3,13 @@ package io.natskt.client.connection
 import io.ktor.http.Url
 import io.ktor.utils.io.ByteReadChannel
 import io.natskt.api.Credentials
-import io.natskt.api.internal.ClientOperation
 import io.natskt.api.internal.OperationSerializer
-import io.natskt.api.internal.ParsedOutput
-import io.natskt.api.internal.ServerOperation
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
+import io.natskt.internal.ClientOperation
+import io.natskt.internal.ParsedOutput
+import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.CoroutineContext

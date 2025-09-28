@@ -1,14 +1,14 @@
 package io.natskt.client.connection
 
 import io.ktor.http.Url
-import io.natskt.api.internal.ClientOperation
 import io.natskt.api.internal.OperationSerializer
-import io.natskt.api.internal.ParsedOutput
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
+import io.natskt.internal.ClientOperation
 import io.natskt.internal.NUID
+import io.natskt.internal.ParsedOutput
 import kotlin.coroutines.CoroutineContext
 import kotlin.random.Random
 import kotlin.test.Test

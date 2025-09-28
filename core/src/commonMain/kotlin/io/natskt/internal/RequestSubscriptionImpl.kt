@@ -1,7 +1,7 @@
 package io.natskt.internal
 
 import io.natskt.api.Message
-import io.natskt.api.internal.InternalSubscriptionHandler
+import io.natskt.api.Subject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +12,9 @@ internal class RequestSubscriptionImpl(
 	val response = CompletableDeferred<Message>()
 
 	@Suppress("CAST_NEVER_SUCCEEDS")
-	override suspend fun emit(msg: Message): Unit = response.complete(msg) as Unit
+	override suspend fun emit(msg: Message) {
+		response.complete(msg)
+	}
 
 	override val subject: Subject
 		get() = throw UnsupportedOperationException()

@@ -1,6 +1,5 @@
 package io.natskt.api
 
-import io.natskt.internal.Subject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 

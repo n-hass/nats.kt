@@ -1,3 +1,5 @@
+@file:OptIn(InternalNatsApi::class)
+
 package io.natskt.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -7,13 +9,10 @@ import io.ktor.utils.io.core.toByteArray
 import io.ktor.utils.io.read
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
-import io.natskt.api.internal.ClientOperation
 import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
 import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
-import io.natskt.api.internal.Operation
+import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OperationSerializer
-import io.natskt.api.internal.ParsedOutput
-import io.natskt.api.internal.ServerOperation
 import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
 
@@ -228,7 +227,7 @@ internal class OperationSerializerImpl(
 								append(op.replyTo)
 							}
 							if (payloadExists) {
-								val payloadBytes = op.payload
+								val payloadBytes = op.payload!!
 								append(" ")
 								append(payloadBytes.size)
 							} else {
@@ -237,7 +236,7 @@ internal class OperationSerializerImpl(
 						}.encodeToByteArray() + lineEndBytes
 
 				if (payloadExists) {
-					pub += op.payload
+					pub += op.payload!!
 				}
 
 				pub

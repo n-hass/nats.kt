@@ -4,7 +4,8 @@ package io.natskt.internal
 
 import app.cash.turbine.test
 import io.natskt.api.Message
-import io.natskt.api.internal.InternalSubscriptionHandler
+import io.natskt.api.Subject
+import io.natskt.api.from
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle

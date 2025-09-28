@@ -24,6 +24,7 @@ dependencyResolutionManagement {
     }
 }
 
+include("jetstream")
 include("native")
 include("request")
 include("subscribe")

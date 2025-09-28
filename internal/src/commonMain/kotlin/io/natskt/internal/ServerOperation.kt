@@ -1,9 +1,9 @@
-package io.natskt.api.internal
+package io.natskt.internal
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-internal sealed interface ServerOperation : Operation {
+sealed interface ServerOperation : Operation {
 	@Serializable
 	data class InfoOp(
 		@SerialName("server_id")

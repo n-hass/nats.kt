@@ -6,12 +6,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.Url
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
-import io.natskt.api.internal.ClientOperation
-import io.natskt.api.internal.InternalSubscriptionHandler
 import io.natskt.api.internal.ProtocolEngine
-import io.natskt.api.internal.ServerOperation
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
+import io.natskt.internal.ClientOperation
+import io.natskt.internal.InternalSubscriptionHandler
+import io.natskt.internal.ServerOperation
 import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope

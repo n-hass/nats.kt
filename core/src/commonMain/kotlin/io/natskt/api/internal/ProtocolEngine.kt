@@ -2,6 +2,8 @@ package io.natskt.api.internal
 
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
+import io.natskt.internal.ClientOperation
+import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.MutableStateFlow

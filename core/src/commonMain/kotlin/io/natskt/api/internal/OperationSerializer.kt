@@ -1,7 +1,10 @@
 package io.natskt.api.internal
 
 import io.ktor.utils.io.ByteReadChannel
+import io.natskt.internal.ClientOperation
+import io.natskt.internal.ParsedOutput
 
+@OptIn(InternalNatsApi::class)
 internal interface OperationSerializer {
 	suspend fun parse(channel: ByteReadChannel): ParsedOutput?
 

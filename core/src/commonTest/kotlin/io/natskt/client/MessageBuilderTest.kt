@@ -1,8 +1,8 @@
 package io.natskt.client
 
+import io.natskt.api.Subject
+import io.natskt.api.from
 import io.natskt.internal.OutgoingMessage
-import io.natskt.internal.Subject
-import io.natskt.internal.from
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

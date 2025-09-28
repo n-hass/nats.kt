@@ -84,8 +84,8 @@ NATS.kt is under **active development**.
 | Publish/Subscribe                     | ✅ |                               |
 | Request/Reply                         | ✅ |                               |
 | **Jetstream**                         |   |                               |
-| Basic API                             | ❌ |                               |
-| Pull consumer                         | ❌ |                               |
+| Basic API                             | 🚧 | Foundational client + pull    |
+| Pull consumer                         | 🚧 | Core fetch/ack implementation |
 | Push consumer                         | ❌ |                               |
 | Key-Value Store                       | ❌ |                               |
 | Object Store                          | ❌ |                               |

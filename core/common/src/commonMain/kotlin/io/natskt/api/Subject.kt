@@ -1,16 +1,20 @@
-package io.natskt.internal
+package io.natskt.api
 
+import io.natskt.api.internal.InternalNatsApi
 import kotlin.jvm.JvmInline
 
 private val disallowedSubjectChars = Regex("[\\u0000 ]")
 
 @JvmInline
-public value class Subject internal constructor(
-	public val raw: String,
-) {
-	public companion object { }
-}
+public value class Subject
+	@InternalNatsApi
+	constructor(
+		public val raw: String,
+	) {
+		public companion object { }
+	}
 
+@OptIn(InternalNatsApi::class)
 public fun Subject.Companion.fromOrNull(s: String): Subject? {
 	if (disallowedSubjectChars.containsMatchIn(s)) return null
 
@@ -19,4 +23,5 @@ public fun Subject.Companion.fromOrNull(s: String): Subject? {
 
 public fun Subject.Companion.from(s: String): Subject = fromOrNull(s) ?: throw IllegalArgumentException("'$s' contains invalid subject token characters")
 
-internal fun validateSubject(s: String) = disallowedSubjectChars.containsMatchIn(s)
+@InternalNatsApi
+public fun validateSubject(s: String): Boolean = disallowedSubjectChars.containsMatchIn(s)

@@ -7,13 +7,13 @@ import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.NatsClient
-import io.natskt.api.internal.ClientOperation
+import io.natskt.api.Subject
+import io.natskt.api.from
 import io.natskt.api.internal.ProtocolEngine
-import io.natskt.api.internal.ServerOperation
+import io.natskt.internal.ClientOperation
 import io.natskt.internal.OutgoingMessage
 import io.natskt.internal.RequestSubscriptionImpl
-import io.natskt.internal.Subject
-import io.natskt.internal.from
+import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

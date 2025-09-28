@@ -1,8 +1,9 @@
 package io.natskt.client
 
 import io.natskt.api.Message
+import io.natskt.api.Subject
+import io.natskt.api.from
 import io.natskt.internal.OutgoingMessage
-import io.natskt.internal.Subject
 
 public class ByteMessageBuilder {
 	public var subject: String? = null
@@ -20,16 +21,16 @@ public class StringMessageBuilder {
 
 internal fun ByteMessageBuilder.build(): Message =
 	OutgoingMessage(
-		subject = this.subject?.let { Subject(it) } ?: error("subject must be set"),
-		replyTo = this.replyTo?.let { Subject(it) },
+		subject = this.subject?.let { Subject.from(it) } ?: error("subject must be set"),
+		replyTo = this.replyTo?.let { Subject.from(it) },
 		headers = this.headers,
 		data = this.data,
 	)
 
 internal fun StringMessageBuilder.build(): Message =
 	OutgoingMessage(
-		subject = this.subject?.let { Subject(it) } ?: error("subject must be set"),
-		replyTo = this.replyTo?.let { Subject(it) },
+		subject = this.subject?.let { Subject.from(it) } ?: error("subject must be set"),
+		replyTo = this.replyTo?.let { Subject.from(it) },
 		headers = this.headers,
 		data = this.data?.encodeToByteArray(),
 	)

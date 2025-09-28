@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalTime::class)
+@file:OptIn(ExperimentalTime::class, InternalNatsApi::class)
 
 package io.natskt.client.connection
 
@@ -8,17 +8,18 @@ import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Credentials
-import io.natskt.api.internal.ClientOperation
-import io.natskt.api.internal.InternalSubscriptionHandler
-import io.natskt.api.internal.MessageInternal
-import io.natskt.api.internal.Operation
+import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OperationSerializer
-import io.natskt.api.internal.ParsedOutput
 import io.natskt.api.internal.ProtocolEngine
-import io.natskt.api.internal.ServerOperation
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
+import io.natskt.internal.ClientOperation
+import io.natskt.internal.InternalSubscriptionHandler
+import io.natskt.internal.MessageInternal
+import io.natskt.internal.Operation
+import io.natskt.internal.ParsedOutput
+import io.natskt.internal.ServerOperation
 import io.natskt.internal.connectionCoroutineDispatcher
 import io.natskt.nkeys.NKeySeed
 import io.natskt.nkeys.NKeys
@@ -118,7 +119,7 @@ internal class ProtocolEngineImpl(
 		if (info.nonce == null) {
 			return AuthPayload()
 		}
-		val signature = seed.signNonce(info.nonce)
+		val signature = seed.signNonce(info.nonce!!)
 		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.publicKey)
 	}
 
@@ -153,7 +154,7 @@ internal class ProtocolEngineImpl(
 					enterLameDuckMode()
 					return
 				}
-				if ((info.tlsRequired != null && info.tlsRequired) || tlsRequired) {
+				if ((info.tlsRequired == true) || tlsRequired) {
 					logger.trace { "upgrading connection to TLS" }
 					transport = transport!!.upgradeTLS()
 				}

@@ -1,6 +1,9 @@
+@file:OptIn(InternalNatsApi::class)
+
 package io.natskt.internal
 
-import io.natskt.api.internal.MessageInternal
+import io.natskt.api.Subject
+import io.natskt.api.internal.InternalNatsApi
 
 internal data class IncomingCoreMessage(
 	override val sid: String,
@@ -9,10 +12,6 @@ internal data class IncomingCoreMessage(
 	override val data: ByteArray?,
 	override val headers: Map<String, List<String>>?,
 ) : MessageInternal {
-	override var ackWait: (suspend () -> Unit)? = null
-	override var ack: (() -> Unit)? = null
-	override var nak: (() -> Unit)? = null
-
 	override val subject by lazy {
 		Subject(subjectString)
 	}
@@ -41,9 +40,6 @@ internal data class IncomingCoreMessage(
 		result = 31 * result + (replyTo?.hashCode() ?: 0)
 		result = 31 * result + (headers?.hashCode() ?: 0)
 		result = 31 * result + (data?.contentHashCode() ?: 0)
-		result = 31 * result + (ack?.hashCode() ?: 0)
-		result = 31 * result + (ackWait?.hashCode() ?: 0)
-		result = 31 * result + (nak?.hashCode() ?: 0)
 		return result
 	}
 }

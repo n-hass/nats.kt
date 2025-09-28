@@ -1,13 +1,10 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
-import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
-
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.buildkonfig)
 }
 
 kotlin {
@@ -58,6 +55,7 @@ kotlin {
             api(projects.core.common)
             api(projects.core.transportWs)
             api(projects.nuid)
+			implementation(projects.internal)
             implementation(projects.nkeys)
 
             implementation(libs.whyoleg.secureRandom)
@@ -88,14 +86,6 @@ kotlin {
             implementation(libs.ktor.client.engine.cio)
         }
 
-    }
-}
-
-buildkonfig {
-    packageName = "io.natskt.internal"
-
-    defaultConfigs {
-        buildConfigField(STRING, "version", project.version.toString(), const = true)
     }
 }
 

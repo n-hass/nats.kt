@@ -5,8 +5,9 @@ import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalSerializationApi::class)
-internal val wireJsonFormat =
+val wireJsonFormat =
 	Json {
 		classDiscriminatorMode = ClassDiscriminatorMode.NONE
 		explicitNulls = false
+		ignoreUnknownKeys = true
 	}

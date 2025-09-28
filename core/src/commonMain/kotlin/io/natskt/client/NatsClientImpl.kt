@@ -1,3 +1,5 @@
+@file:OptIn(InternalNatsApi::class)
+
 package io.natskt.client
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -5,17 +7,18 @@ import io.ktor.util.collections.ConcurrentMap
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
+import io.natskt.api.Subject
 import io.natskt.api.Subscription
-import io.natskt.api.internal.ClientOperation
-import io.natskt.api.internal.InternalSubscriptionHandler
+import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OnSubscriptionStart
 import io.natskt.api.internal.OnSubscriptionStop
+import io.natskt.api.validateSubject
 import io.natskt.client.connection.ConnectionManagerImpl
+import io.natskt.internal.ClientOperation
+import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.RequestSubscriptionImpl
-import io.natskt.internal.Subject
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.connectionCoroutineDispatcher
-import io.natskt.internal.validateSubject
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred

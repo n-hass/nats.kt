@@ -1,14 +1,13 @@
-@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@file:OptIn(ExperimentalCoroutinesApi::class, InternalNatsApi::class)
 
 package io.natskt.internal
 
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.writeFully
-import io.natskt.api.internal.ClientOperation
-import io.natskt.api.internal.Operation
-import io.natskt.api.internal.ServerOperation
+import io.natskt.api.internal.InternalNatsApi
 import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

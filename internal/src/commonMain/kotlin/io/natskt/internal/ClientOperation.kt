@@ -1,14 +1,13 @@
 @file:OptIn(ExperimentalSerializationApi::class)
 
-package io.natskt.api.internal
+package io.natskt.internal
 
-import io.natskt.internal.BuildKonfig
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-internal sealed interface ClientOperation : Operation {
+sealed interface ClientOperation : Operation {
 	@Serializable
 	data class ConnectOp(
 		val verbose: Boolean,
@@ -23,7 +22,7 @@ internal sealed interface ClientOperation : Operation {
 		@EncodeDefault
 		val lang: String = "Kotlin",
 		@EncodeDefault
-		val version: String = BuildKonfig.version,
+		val version: String = CLIENT_VERSION,
 		val protocol: Int?,
 		val echo: Boolean,
 		val sig: String?,

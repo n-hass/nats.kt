@@ -1,5 +1,12 @@
+@file:OptIn(InternalNatsApi::class)
+
 package io.natskt.internal
 
+import io.natskt.api.Subject
+import io.natskt.api.from
+import io.natskt.api.fromOrNull
+import io.natskt.api.internal.InternalNatsApi
+import io.natskt.api.validateSubject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

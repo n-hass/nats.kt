@@ -1,8 +1,8 @@
-package io.natskt.api.internal
+package io.natskt.internal
 
 import io.natskt.api.Message
 import io.natskt.api.Subscription
 
-internal interface InternalSubscriptionHandler : Subscription {
+interface InternalSubscriptionHandler : Subscription {
 	suspend fun emit(msg: Message)
 }

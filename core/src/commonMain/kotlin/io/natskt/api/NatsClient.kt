@@ -4,7 +4,6 @@ import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsClientImpl
 import io.natskt.client.StringMessageBuilder
-import io.natskt.internal.Subject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 
