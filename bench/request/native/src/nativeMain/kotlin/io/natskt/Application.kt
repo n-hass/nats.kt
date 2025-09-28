@@ -27,7 +27,7 @@ fun main(): Unit = runBlocking {
 	val start = Clock.System.now()
 	for (i in 1..runs) {
 		jobs.add(launch {
-			c.request("test.service.echo", "HI FROM KOTLIN $i".toByteArray()).await()
+			c.request("test.service.echo", "HI FROM KOTLIN $i".toByteArray())
 		})
 	}
 

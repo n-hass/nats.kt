@@ -26,9 +26,8 @@ fun main(): Unit = runBlocking {
 
 	for (i in 1..50000) {
 		launch {
-			c.request("test.service.echo", "HI FROM KOTLIN $i".toByteArray()).await().also {
-				println("-------- $i: ${it.data?.decodeToString()}")
-			}
+			val response = c.request("test.service.echo", "HI FROM KOTLIN $i".toByteArray())
+			println("-------- $i: ${response.data?.decodeToString()}")
 		}
 	}
 

@@ -3,6 +3,7 @@
 package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.write
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
@@ -19,6 +20,7 @@ import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.MessageInternal
 import io.natskt.internal.Operation
 import io.natskt.internal.ParsedOutput
+import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
 import io.natskt.internal.connectionCoroutineDispatcher
 import io.natskt.nkeys.NKeySeed
@@ -27,6 +29,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
@@ -39,6 +42,7 @@ internal class ProtocolEngineImpl(
 	private val address: NatsServerAddress,
 	private val parser: OperationSerializer,
 	private val subscriptions: Map<String, InternalSubscriptionHandler>,
+	private val pendingRequests: ConcurrentMap<String, PendingRequest>,
 	override val serverInfo: MutableStateFlow<ServerOperation.InfoOp?>,
 	private val credentials: Credentials?,
 	private val tlsRequired: Boolean,
@@ -184,6 +188,14 @@ internal class ProtocolEngineImpl(
 				out = parser.parse(transport!!.incoming)
 
 				if (out is MessageInternal) {
+					val pending = pendingRequests.remove(out.sid)
+					if (pending != null) {
+						if (pending.continuation.isActive) {
+							pending.continuation.resume(out)
+						}
+						continue
+					}
+
 					subscriptions[out.sid]?.emit(out)
 					continue
 				}

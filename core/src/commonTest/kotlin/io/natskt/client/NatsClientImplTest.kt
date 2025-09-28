@@ -6,24 +6,18 @@ import io.natskt.NatsClient
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
-import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.api.from
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.internal.ClientOperation
-import io.natskt.internal.OutgoingMessage
-import io.natskt.internal.RequestSubscriptionImpl
 import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class NatsClientImplTest {
 	private fun newClient(scope: CoroutineScope): Pair<NatsClientImpl, FakeProtocolEngine> {
@@ -34,7 +28,7 @@ class NatsClientImplTest {
 					this.scope = scope
 				}.build()
 
-		val client = NatsClient(config) as NatsClientImpl
+		val client = NatsClientImpl(config)
 		val fakeEngine = FakeProtocolEngine()
 		client.connectionManager.current.value = fakeEngine
 		return client to fakeEngine
@@ -73,47 +67,6 @@ class NatsClientImplTest {
 			assertEquals("inbox", op.replyTo)
 			assertEquals(mapOf("Header" to listOf("value")), op.headers)
 			assertEquals(byteArrayOf(4, 5, 6).toList(), op.payload!!.toList())
-		}
-
-	@Test
-	fun `request registers inbox and completes when response arrives`() =
-		runTest {
-			val (client, engine) = newClient(this)
-
-			val responseDeferred =
-				client.request(
-					subject = "service",
-					message = byteArrayOf(1),
-					headers = null,
-					timeoutMs = 5_000,
-					launchIn = this,
-				)
-
-			val subOp = engine.sent.filterIsInstance<ClientOperation.SubOp>().single()
-			val pubOp = engine.sent.filterIsInstance<ClientOperation.PubOp>().single()
-			assertEquals("service", pubOp.subject)
-			assertEquals(subOp.subject, pubOp.replyTo)
-
-			val inbox = client.subscriptions[subOp.sid]
-			val requestSub = assertIs<RequestSubscriptionImpl>(inbox)
-
-			requestSub.emit(
-				OutgoingMessage(
-					subject = Subject.from("reply"),
-					replyTo = null,
-					headers = null,
-					data = "payload".encodeToByteArray(),
-				),
-			)
-
-			val response = responseDeferred.await()
-			assertEquals("payload", response.data!!.decodeToString())
-
-			advanceUntilIdle()
-
-			val unsub = engine.sent.filterIsInstance<ClientOperation.UnSubOp>().single()
-			assertEquals(subOp.sid, unsub.sid)
-			assertTrue(client.subscriptions.isEmpty())
 		}
 
 	@Test

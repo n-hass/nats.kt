@@ -74,12 +74,11 @@ class NatsClientIntegrationTest {
 					val result =
 						runCatching {
 							withTimeout(2_000) {
-								client
-									.request(
-										subject = "integration.req",
-										message = "ping".encodeToByteArray(),
-										timeoutMs = 500,
-									).await()
+								client.request(
+									subject = "integration.req",
+									message = "ping".encodeToByteArray(),
+									timeoutMs = 500,
+								)
 							}
 						}
 
@@ -89,7 +88,7 @@ class NatsClientIntegrationTest {
 					waitForLog(server) { it.contains("SUB _INBOX") }
 
 					withTimeout(5_000) {
-						while (client.subscriptions.isNotEmpty()) {
+						while (client.pendingRequests.isNotEmpty()) {
 							delay(50)
 						}
 					}

@@ -51,7 +51,7 @@ buildkonfig {
 	packageName = "io.natskt.internal"
 
 	defaultConfigs {
-		buildConfigField(STRING, "version", project.version.toString(), const = true)
+		buildConfigField(STRING, "version", properties["natskt.version"].toString(), const = true)
 	}
 }
 

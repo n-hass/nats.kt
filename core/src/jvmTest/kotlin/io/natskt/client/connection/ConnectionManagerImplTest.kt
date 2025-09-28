@@ -1,14 +1,17 @@
 package io.natskt.client.connection
 
 import io.ktor.http.Url
+import io.ktor.util.collections.ConcurrentMap
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.ClientOperation
+import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.NUID
 import io.natskt.internal.ParsedOutput
+import io.natskt.internal.PendingRequest
 import kotlin.coroutines.CoroutineContext
 import kotlin.random.Random
 import kotlin.test.Test
@@ -69,7 +72,11 @@ class ConnectionManagerImplTest {
 				nuid = NUID.Default,
 				scope = null,
 			)
-		return ConnectionManagerImpl(config, emptyMap())
+		return ConnectionManagerImpl(
+			config,
+			ConcurrentMap<String, InternalSubscriptionHandler>(),
+			ConcurrentMap<String, PendingRequest>(),
+		)
 	}
 
 	private object NoopTransportFactory : TransportFactory {

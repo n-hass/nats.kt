@@ -4,6 +4,7 @@ package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.Url
+import io.ktor.util.collections.ConcurrentMap
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
 import io.natskt.api.internal.ProtocolEngine
@@ -11,6 +12,7 @@ import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
+import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
 import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
@@ -35,7 +37,8 @@ internal const val LAME_DUCK_BACKOFF_MILLIS: Long = 60_000
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class ConnectionManagerImpl(
 	val config: ClientConfiguration,
-	val subscriptions: Map<String, InternalSubscriptionHandler>,
+	val subscriptions: ConcurrentMap<String, InternalSubscriptionHandler>,
+	val pendingRequests: ConcurrentMap<String, PendingRequest>,
 ) {
 	private val scope: CoroutineScope = CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("ConnectionManager"))
 
@@ -63,6 +66,7 @@ internal class ConnectionManagerImpl(
 							address,
 							config.parser,
 							subscriptions,
+							pendingRequests,
 							serverInfo,
 							config.credentials,
 							config.tlsRequired,

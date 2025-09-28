@@ -5,7 +5,6 @@ import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsClientImpl
 import io.natskt.client.StringMessageBuilder
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 
 public interface NatsClient {
 	/**
@@ -73,8 +72,7 @@ public interface NatsClient {
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
 		timeoutMs: Long = 5000,
-		launchIn: CoroutineScope? = null,
-	): Deferred<Message>
+	): Message
 
 	public companion object {
 		internal operator fun invoke(config: ClientConfiguration): NatsClientImpl = NatsClientImpl(config)

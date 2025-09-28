@@ -1,6 +1,7 @@
 package io.natskt.client.connection
 
 import io.ktor.http.Url
+import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.ByteReadChannel
 import io.natskt.api.Credentials
 import io.natskt.api.internal.OperationSerializer
@@ -9,6 +10,7 @@ import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.ParsedOutput
+import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,6 +64,7 @@ class ProtocolEngineImplAuthTest {
 			address = NatsServerAddress(Url(url)),
 			parser = NoopSerializer,
 			subscriptions = emptyMap(),
+			pendingRequests = ConcurrentMap<String, PendingRequest>(),
 			serverInfo = MutableStateFlow(null),
 			credentials = credentials,
 			tlsRequired = false,

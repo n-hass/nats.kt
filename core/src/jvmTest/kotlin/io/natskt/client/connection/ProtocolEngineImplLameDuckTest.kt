@@ -1,6 +1,7 @@
 package io.natskt.client.connection
 
 import io.ktor.http.Url
+import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
@@ -13,6 +14,7 @@ import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.Operation
 import io.natskt.internal.ParsedOutput
+import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +58,7 @@ class ProtocolEngineImplLameDuckTest {
 			address = NatsServerAddress(Url("nats://localhost:4222")),
 			parser = serializer,
 			subscriptions = emptyMap(),
+			pendingRequests = ConcurrentMap<String, PendingRequest>(),
 			serverInfo = MutableStateFlow(null),
 			credentials = null,
 			tlsRequired = false,

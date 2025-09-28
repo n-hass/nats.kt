@@ -16,20 +16,23 @@ import io.natskt.api.validateSubject
 import io.natskt.client.connection.ConnectionManagerImpl
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
-import io.natskt.internal.RequestSubscriptionImpl
+import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.connectionCoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.startCoroutine
 
 private val logger = KotlinLogging.logger { }
 
@@ -39,13 +42,14 @@ internal class NatsClientImpl(
 	private val clientScope = configuration.scope ?: CoroutineScope(SupervisorJob() + connectionCoroutineDispatcher + CoroutineName("NatsClient"))
 
 	private val _subscriptions = ConcurrentMap<String, InternalSubscriptionHandler>()
+	internal val pendingRequests = ConcurrentMap<String, PendingRequest>()
 	override val subscriptions: Map<String, Subscription>
 		get() = _subscriptions
 
-	internal val connectionManager = ConnectionManagerImpl(configuration, _subscriptions)
+	internal val connectionManager = ConnectionManagerImpl(configuration, _subscriptions, pendingRequests)
 
 	@OptIn(ExperimentalAtomicApi::class)
-	private val sidAllocator = AtomicInt(1)
+	private val sidAllocator = AtomicLong(1)
 
 	override suspend fun connect(): Result<Unit> {
 		connectionManager.start()
@@ -196,29 +200,70 @@ internal class NatsClientImpl(
 		message: ByteArray,
 		headers: Map<String, List<String>>?,
 		timeoutMs: Long,
-		launchIn: CoroutineScope?,
-	): Deferred<Message> {
+	): Message {
 		val inboxSubject = configuration.createInbox()
 		val sid = sidAllocator.fetchAndAdd(1).toString()
-		val inbox =
-			RequestSubscriptionImpl(
-				sid = sid,
-			)
-		onSubscriptionStart(inbox, sid, inboxSubject, null)
-		val scope = launchIn ?: clientScope
-		publishUnchecked(subject, message, headers, replyTo = inboxSubject)
-		scope.launch {
-			try {
-				withTimeout(timeoutMs) {
-					inbox.response.await()
+		var subscribed = false
+
+		return try {
+			withTimeout(timeoutMs) {
+				suspendCancellableCoroutine { cont ->
+					val pending = PendingRequest(cont)
+					pendingRequests[sid] = pending
+
+					cont.invokeOnCancellation {
+						if (pendingRequests.remove(sid) != null) {
+							suspend {
+								connectionManager.send(ClientOperation.UnSubOp(sid, null))
+							}.startCoroutine(
+								object : Continuation<Unit> {
+									override val context = cont.context
+
+									override fun resumeWith(result: Result<Unit>) {
+										// ignore outcome
+									}
+								},
+							)
+						}
+					}
+
+					suspend {
+						connectionManager.send(
+							ClientOperation.SubOp(
+								sid = sid,
+								subject = inboxSubject,
+								queueGroup = null,
+							),
+						)
+						publishUnchecked(subject, message, headers, replyTo = inboxSubject)
+					}.startCoroutine(
+						object : Continuation<Unit> {
+							override val context = cont.context
+
+							override fun resumeWith(result: Result<Unit>) {
+								if (result.isSuccess) {
+									subscribed = true
+								} else {
+									val error = result.exceptionOrNull()
+									if (error != null && pendingRequests.remove(sid) != null && cont.isActive) {
+										cont.resumeWithException(error)
+									}
+								}
+							}
+						},
+					)
 				}
-			} catch (e: Exception) {
-				logger.error { "request failed to $subject - ${e::class.simpleName}" }
-				inbox.response.completeExceptionally(e)
 			}
-			onSubscriptionStop(sid, null)
+		} finally {
+			pendingRequests.remove(sid)
+			if (subscribed) {
+				try {
+					connectionManager.send(ClientOperation.UnSubOp(sid, null))
+				} catch (_: Throwable) {
+					// ignore
+				}
+			}
 		}
-		return inbox.response
 	}
 
 	private val onSubscriptionStart =
