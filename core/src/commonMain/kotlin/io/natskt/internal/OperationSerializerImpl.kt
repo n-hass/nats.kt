@@ -387,7 +387,7 @@ private suspend fun ByteReadChannel.readExact(n: Int): ByteArray {
 	return out
 }
 
-private const val HEADER_START = "NATS/1.0$LINE_END"
+private const val HEADER_START = "NATS/1.0"
 private const val HEADER_START_LENGTH = HEADER_START.length
 private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
 
