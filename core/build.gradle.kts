@@ -87,6 +87,10 @@ kotlin {
             implementation(libs.ktor.client.engine.cio)
         }
 
+		jvmTest.dependencies {
+			implementation(projects.architecture)
+		}
+
     }
 }
 

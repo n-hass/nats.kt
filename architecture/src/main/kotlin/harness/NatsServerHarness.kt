@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package harness
 
 import kotlinx.coroutines.delay
@@ -7,11 +9,19 @@ import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.io.path.Path
+import kotlin.io.path.absolute
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
-class NatsServerHarness : AutoCloseable {
+class NatsServerHarness(
+	private val enableJetStream: Boolean = false,
+) : AutoCloseable {
 	private val port: Int = ServerSocket(0).use { it.localPort }
+	private val tmpDir = Files.createTempDirectory("nats") ?: Path("/tmp/nats-test/${Uuid.random()}")
 	private val process: Process = startProcess()
 	private val outputLines = mutableListOf<String>()
 	private val stdoutReader: Thread = consumeOutput(process.inputStream.bufferedReader())
@@ -27,7 +37,19 @@ class NatsServerHarness : AutoCloseable {
 	}
 
 	private fun startProcess(): Process {
-		val builder = ProcessBuilder("nats-server", "-DV", "-a", "127.0.0.1", "-p", port.toString())
+		val command =
+			mutableListOf(
+				"nats-server",
+				"-DV",
+			).apply {
+				if (enableJetStream) {
+					add("-js")
+					add("-sd")
+					add(tmpDir.absolute().toString())
+				}
+				addAll(listOf("-a", "127.0.0.1", "-p", port.toString()))
+			}
+		val builder = ProcessBuilder(command)
 		builder.redirectErrorStream(true)
 		return builder.start()
 	}
