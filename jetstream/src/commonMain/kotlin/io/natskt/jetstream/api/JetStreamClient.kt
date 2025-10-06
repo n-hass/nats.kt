@@ -7,7 +7,6 @@ import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.StringMessageBuilder
 import io.natskt.jetstream.client.JetStreamClientImpl
 import io.natskt.jetstream.client.JetStreamConfiguration
-import kotlinx.coroutines.Deferred
 
 public interface JetStreamClient {
 	public suspend fun publish(
@@ -15,20 +14,20 @@ public interface JetStreamClient {
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
 		replyTo: String? = null,
-	): Deferred<PublishAck>
+	): PublishAck
 
 	public suspend fun publish(
 		subject: Subject,
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
 		replyTo: Subject? = null,
-	): Deferred<PublishAck>
+	): PublishAck
 
-	public suspend fun publish(message: Message): Deferred<PublishAck>
+	public suspend fun publish(message: Message): PublishAck
 
-	public suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit): Deferred<PublishAck>
+	public suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit): PublishAck
 
-	public suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit): Deferred<PublishAck>
+	public suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit): PublishAck
 
 	public companion object {
 		internal operator fun invoke(

@@ -294,4 +294,6 @@ internal class NatsClientImpl(
 			_subscriptions.remove(sid)
 			connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
 		}
+
+	override fun nextInbox(): String = configuration.createInbox()
 }

@@ -6,6 +6,7 @@ import io.natskt.api.AckAction
 import io.natskt.api.Subject
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.JetStreamMessageInternal
+import io.natskt.jetstream.api.JetStreamMessageMetadata
 
 internal data class IncomingJetStreamMessage(
 	override val sid: String,
@@ -64,13 +65,3 @@ internal data class IncomingJetStreamMessage(
 		return result
 	}
 }
-
-public data class JetStreamMessageMetadata(
-	val stream: String,
-	val consumer: String,
-	val streamSequence: Long,
-	val consumerSequence: Long,
-	val deliveryCount: Long?,
-	val pending: Long?,
-	val timestamp: String?,
-)

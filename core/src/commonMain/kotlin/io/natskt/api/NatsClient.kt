@@ -1,5 +1,6 @@
 package io.natskt.api
 
+import io.natskt.api.internal.InternalNatsApi
 import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsClientImpl
@@ -73,6 +74,9 @@ public interface NatsClient {
 		headers: Map<String, List<String>>? = null,
 		timeoutMs: Long = 5000,
 	): Message
+
+	@InternalNatsApi
+	public fun nextInbox(): String
 
 	public companion object {
 		internal operator fun invoke(config: ClientConfiguration): NatsClientImpl = NatsClientImpl(config)
