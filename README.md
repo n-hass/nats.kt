@@ -84,13 +84,13 @@ NATS.kt is under **active development**.
 | Publish/Subscribe                     | ✅ |                               |
 | Request/Reply                         | ✅ |                               |
 | **Jetstream**                         |   |                               |
-| Basic API                             | 🚧 | Foundational client + pull    |
+| Basic API                             | 🚧 |                               |
 | Pull consumer                         | 🚧 | Core fetch/ack implementation |
 | Push consumer                         | ❌ |                               |
 | Key-Value Store                       | ❌ |                               |
 | Object Store                          | ❌ |                               |
 | **JetStream Management**              |   |                               |
-| Streams                               | ❌ |                               |
+| Streams                               | 🚧 |                               |
 | Consumers                             | ❌ |                               |
 
 **Legend**: ✅ Complete | 🚧 In Progress | ❌ Planned
