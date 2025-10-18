@@ -26,8 +26,8 @@ allprojects {
 val pluginId = libs.plugins.mavenPublish.get().pluginId
 
 subprojects {
-    group = "io.github.n-hass"
-    version = "0.1.1"
+	group = "io.github.n-hass"
+	version = properties["natskt.version"].toString()
 
 	apply(plugin = pluginId)
 	apply(plugin = "signing")
@@ -61,7 +61,10 @@ subprojects {
 		}
 	}
 
-//	extensions.getByType<SigningExtension>().apply {
-//		useGpgCmd()
-//	}
+	if (properties["natskt.gpgsign"].toString().toBoolean()) {
+		println("Build signing enabled")
+		extensions.getByType<SigningExtension>().apply {
+			useGpgCmd()
+		}
+	}
 }
