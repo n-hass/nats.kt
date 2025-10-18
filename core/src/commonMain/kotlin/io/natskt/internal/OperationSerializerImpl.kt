@@ -246,6 +246,7 @@ internal class OperationSerializerImpl(
 				val headerBytes =
 					buildString {
 						append(HEADER_START)
+						append(LINE_END)
 						op.headers?.forEach { (name, values) ->
 							if (values.isEmpty()) {
 								append(name)
@@ -388,7 +389,7 @@ private suspend fun ByteReadChannel.readExact(n: Int): ByteArray {
 }
 
 private const val HEADER_START = "NATS/1.0"
-private const val HEADER_START_LENGTH = HEADER_START.length
+private const val HEADER_START_LENGTH = HEADER_START.length + LINE_END.length
 private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
 
 private fun parseHeaders(raw: ByteArray): Map<String, List<String>>? {

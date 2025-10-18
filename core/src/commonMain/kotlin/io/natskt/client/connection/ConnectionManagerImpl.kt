@@ -14,12 +14,8 @@ import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
-import io.natskt.internal.connectionCoroutineDispatcher
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,11 +36,9 @@ internal class ConnectionManagerImpl(
 	val subscriptions: ConcurrentMap<String, InternalSubscriptionHandler>,
 	val pendingRequests: ConcurrentMap<String, PendingRequest>,
 ) {
-	private val scope: CoroutineScope = CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("ConnectionManager"))
-
 	internal val current: MutableStateFlow<ProtocolEngine> = MutableStateFlow(ProtocolEngine.Empty)
 
-	val connectionStatus: StateFlow<ConnectionState> = current.flatMapLatest { it.state }.stateIn(scope, SharingStarted.WhileSubscribed(), current.value.state.value)
+	val connectionStatus: StateFlow<ConnectionState> = current.flatMapLatest { it.state }.stateIn(config.scope, SharingStarted.WhileSubscribed(), current.value.state.value)
 
 	val serverInfo = MutableStateFlow<ServerOperation.InfoOp?>(null)
 
@@ -57,7 +51,7 @@ internal class ConnectionManagerImpl(
 
 	fun start() {
 		reconnectJob =
-			scope.launch {
+			config.scope.launch {
 				while (config.maxReconnects == null || failureCount < config.maxReconnects) {
 					val address = selectAddress()
 					current.emit(
@@ -70,12 +64,12 @@ internal class ConnectionManagerImpl(
 							serverInfo,
 							config.credentials,
 							config.tlsRequired,
-							scope,
+							config.scope,
 						),
 					)
 
 					val eventJob =
-						scope
+						config.scope
 							.launch {
 								serverInfo.collect {
 									when (it) {

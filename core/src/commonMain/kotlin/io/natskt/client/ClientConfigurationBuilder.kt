@@ -5,8 +5,11 @@ import io.natskt.api.Credentials
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
 import io.natskt.internal.OperationSerializerImpl
+import io.natskt.internal.connectionCoroutineDispatcher
 import io.natskt.internal.platformDefaultTransport
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 
 internal interface ClientConfigurationValues {
 	val servers: Collection<String>?
@@ -21,7 +24,7 @@ internal interface ClientConfigurationValues {
 	val scope: CoroutineScope?
 }
 
-public class ClientConfigurationBuilder : ClientConfigurationValues {
+public class ClientConfigurationBuilder internal constructor() : ClientConfigurationValues {
 	public var server: String? = null
 	public override var servers: Collection<String>? = null
 	public override var authentication: Credentials? = null
@@ -60,7 +63,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		maxControlLineBytes = maxControlLineBytes,
 		tlsRequired = tlsRequired,
 		nuid = NUID.Default,
-		scope = scope,
+		scope = scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("NatsClient")),
 	)
 }
 

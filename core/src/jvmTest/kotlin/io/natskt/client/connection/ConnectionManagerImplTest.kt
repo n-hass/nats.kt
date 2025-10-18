@@ -12,7 +12,9 @@ import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.NUID
 import io.natskt.internal.ParsedOutput
 import io.natskt.internal.PendingRequest
+import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -70,7 +72,7 @@ class ConnectionManagerImplTest {
 				maxControlLineBytes = 1024,
 				tlsRequired = false,
 				nuid = NUID.Default,
-				scope = null,
+				scope = CoroutineScope(EmptyCoroutineContext),
 			)
 		return ConnectionManagerImpl(
 			config,

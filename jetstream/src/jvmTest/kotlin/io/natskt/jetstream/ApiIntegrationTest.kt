@@ -1,0 +1,38 @@
+package io.natskt.jetstream
+
+import harness.NatsServerHarness
+import io.natskt.NatsClient
+import io.natskt.jetstream.api.JetStreamApiException
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+
+class ApiIntegrationTest {
+	@Test
+	fun `it gets a stream not found error for something not found`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			val s = js.stream("test_stream")
+			assertIs<JetStreamApiException>(s.updateStreamInfo().exceptionOrNull())
+		}
+
+	@Test
+	fun `it creates a stream with given configuration`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			val s =
+				js.stream {
+					name = "abc"
+				}
+
+			val initialInfo = s.info.value
+			assertNotNull(initialInfo)
+
+			assertEquals(initialInfo.config, s.updateStreamInfo().getOrNull()?.config)
+		}
+}

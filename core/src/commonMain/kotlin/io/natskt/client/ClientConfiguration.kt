@@ -39,7 +39,7 @@ internal data class ClientConfiguration(
 	/**
 	 * The coroutine scope that the client's connections and parsing runs on
 	 */
-	val scope: CoroutineScope?,
+	val scope: CoroutineScope,
 ) {
 	/**
 	 * The length of an inbox created using [createInbox]

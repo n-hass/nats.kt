@@ -29,6 +29,24 @@ public interface JetStreamClient {
 
 	public suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit): PublishAck
 
+	/**
+	 * Bind to an existing pull consumer by name
+	 */
+	public suspend fun pull(
+		streamName: String,
+		consumerName: String,
+	): PullConsumer
+
+	/**
+	 * Return an existing [Stream], fetching its [StreamInfo]
+	 */
+	public suspend fun stream(name: String): Stream
+
+	/**
+	 * create a stream
+	 */
+	public suspend fun stream(configure: StreamConfigurationBuilder.() -> Unit): Stream
+
 	public companion object {
 		internal operator fun invoke(
 			client: NatsClient,

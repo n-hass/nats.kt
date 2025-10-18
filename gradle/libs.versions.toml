@@ -10,6 +10,7 @@ buildkonfig = "0.17.1"
 ktor = "3.2.1"
 whyoleg-crypto = "0.5.0"
 kotlinLogging = "7.0.13"
+ksp = "2.2.20-2.0.4"
 
 # Testing
 kotest = "6.0.3"
@@ -44,6 +45,8 @@ whyoleg-secureRandom = { module = "dev.whyoleg.cryptography:cryptography-random"
 curve25519-kt = { module = "io.github.andreypfau:curve25519-kotlin", version = "0.0.8" }
 
 # Testing
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", version.ref = "kotest" }
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
@@ -51,6 +54,9 @@ turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+
+kotest = { id = "io.kotest", version.ref = "kotest" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
 

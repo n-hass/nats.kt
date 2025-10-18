@@ -8,7 +8,7 @@ internal interface JetStreamConfigurationValues {
 	val domain: String?
 }
 
-public class JetStreamConfigurationBuilder : JetStreamConfigurationValues {
+public class JetStreamConfigurationBuilder internal constructor() : JetStreamConfigurationValues {
 	override var apiPrefix: String = "\$JS.API."
 	override var domain: String? = null
 }

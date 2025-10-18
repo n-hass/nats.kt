@@ -37,7 +37,7 @@ class NatsClientImplTest {
 	@Test
 	fun `publish validates subjects`() =
 		runTest {
-			val (client, engine) = newClient(this)
+			val (client, engine) = newClient(this.backgroundScope)
 
 			assertFailsWith<IllegalArgumentException> {
 				client.publish("has space", byteArrayOf())
@@ -53,7 +53,7 @@ class NatsClientImplTest {
 	@Test
 	fun `publish with headers uses HPubOp`() =
 		runTest {
-			val (client, engine) = newClient(this)
+			val (client, engine) = newClient(this.backgroundScope)
 
 			client.publish(
 				subject = Subject.from("demo"),

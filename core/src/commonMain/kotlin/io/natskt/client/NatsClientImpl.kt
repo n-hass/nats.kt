@@ -18,10 +18,7 @@ import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
-import io.natskt.internal.connectionCoroutineDispatcher
-import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -39,12 +36,12 @@ private val logger = KotlinLogging.logger { }
 internal class NatsClientImpl(
 	val configuration: ClientConfiguration,
 ) : NatsClient {
-	private val clientScope = configuration.scope ?: CoroutineScope(SupervisorJob() + connectionCoroutineDispatcher + CoroutineName("NatsClient"))
-
 	private val _subscriptions = ConcurrentMap<String, InternalSubscriptionHandler>()
 	internal val pendingRequests = ConcurrentMap<String, PendingRequest>()
 	override val subscriptions: Map<String, Subscription>
 		get() = _subscriptions
+
+	override val scope = configuration.scope
 
 	internal val connectionManager = ConnectionManagerImpl(configuration, _subscriptions, pendingRequests)
 
@@ -53,7 +50,7 @@ internal class NatsClientImpl(
 
 	override suspend fun connect(): Result<Unit> {
 		connectionManager.start()
-		clientScope.launch {
+		scope.launch {
 			connectionManager.connectionStatus.collect {
 				logger.debug { "Connection status change: $it" }
 			}
@@ -99,7 +96,7 @@ internal class NatsClientImpl(
 				subject = subject,
 				queueGroup = queueGroup,
 				sid = sid,
-				scope = scope ?: clientScope,
+				scope = scope ?: this.scope,
 				onStart = onSubscriptionStart,
 				onStop = onSubscriptionStop,
 				eagerSubscribe = eager,
@@ -162,7 +159,7 @@ internal class NatsClientImpl(
 
 	private suspend fun publishUnchecked(
 		subject: String,
-		message: ByteArray,
+		message: ByteArray?,
 		headers: Map<String, List<String>>?,
 		replyTo: String?,
 	) {
@@ -197,7 +194,7 @@ internal class NatsClientImpl(
 	@OptIn(ExperimentalAtomicApi::class)
 	override suspend fun request(
 		subject: String,
-		message: ByteArray,
+		message: ByteArray?,
 		headers: Map<String, List<String>>?,
 		timeoutMs: Long,
 	): Message {

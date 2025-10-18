@@ -70,13 +70,16 @@ public interface NatsClient {
 
 	public suspend fun request(
 		subject: String,
-		message: ByteArray,
+		message: ByteArray?,
 		headers: Map<String, List<String>>? = null,
 		timeoutMs: Long = 5000,
 	): Message
 
 	@InternalNatsApi
 	public fun nextInbox(): String
+
+	@InternalNatsApi
+	public val scope: CoroutineScope
 
 	public companion object {
 		internal operator fun invoke(config: ClientConfiguration): NatsClientImpl = NatsClientImpl(config)

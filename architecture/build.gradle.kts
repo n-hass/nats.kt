@@ -16,6 +16,7 @@ tasks.withType<Test>().configureEach {
 
 dependencies {
 	implementation(libs.kotlinx.coroutines.core)
+	implementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.konsist)
 }

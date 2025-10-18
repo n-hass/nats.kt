@@ -12,11 +12,11 @@ internal data class IncomingCoreMessage(
 	override val data: ByteArray?,
 	override val headers: Map<String, List<String>>?,
 ) : MessageInternal {
-	override val subject by lazy {
+	override val subject: Subject by lazy {
 		Subject(subjectString)
 	}
 
-	override val replyTo by lazy {
+	override val replyTo: Subject? by lazy {
 		if (replyToString == null) return@lazy null
 		Subject(replyToString)
 	}

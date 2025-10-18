@@ -7,29 +7,23 @@ import kotlinx.serialization.Serializable
 public data class ApiError(
 	val code: Int? = null,
 	@SerialName("err_code")
-	val errorCode: Int? = null,
+	val errCode: Int? = null,
 	val description: String? = null,
-) : JetStreamApi
-
-@Serializable
-public data class ApiResponse(
-	val type: String? = null,
-	val error: ApiError? = null,
-) : JetStreamApi
+) : ApiResponse
 
 @Serializable
 public data class ApiStats(
 	val total: Int = 0,
 	val errors: Int = 0,
 	val inflight: Int = 0,
-) : JetStreamApi
+)
 
 @Serializable
 public data class ApiPaged(
 	val total: Int = 0,
 	val offset: Int = 0,
 	val limit: Int = 0,
-) : JetStreamApi
+)
 
 @Serializable
 public data class AccountLimits(
@@ -51,7 +45,7 @@ public data class AccountLimits(
 	val maxStreamBytes: Long? = null,
 	@SerialName("max_bytes_required")
 	val maxBytesRequired: Long? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class AccountTier(
@@ -61,7 +55,7 @@ public data class AccountTier(
 	val consumers: Int = 0,
 	val limits: AccountLimits? = null,
 	val api: ApiStats? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class AccountInfoResponse(
@@ -81,7 +75,7 @@ public data class AccountInfoResponse(
 	val limits: AccountLimits? = null,
 	@SerialName("tiered_limits")
 	val tieredLimits: Map<String, AccountTier>? = null,
-) : JetStreamApi
+) : JetStreamApiResponse
 
 @Serializable
 public data class PublishAck(
@@ -89,10 +83,10 @@ public data class PublishAck(
 	val seq: Long,
 	val duplicate: Boolean = false,
 	val error: ApiError? = null,
-) : JetStreamApi
+)
 
 @Serializable
-public enum class RetentionPolicy : JetStreamApi {
+public enum class RetentionPolicy {
 	@SerialName("limits")
 	LIMITS,
 
@@ -104,7 +98,7 @@ public enum class RetentionPolicy : JetStreamApi {
 }
 
 @Serializable
-public enum class DiscardPolicy : JetStreamApi {
+public enum class DiscardPolicy {
 	@SerialName("old")
 	OLD,
 
@@ -113,7 +107,7 @@ public enum class DiscardPolicy : JetStreamApi {
 }
 
 @Serializable
-public enum class StorageType : JetStreamApi {
+public enum class StorageType {
 	@SerialName("file")
 	FILE,
 
@@ -122,7 +116,7 @@ public enum class StorageType : JetStreamApi {
 }
 
 @Serializable
-public enum class StreamCompression : JetStreamApi {
+public enum class StreamCompression {
 	@SerialName("none")
 	NONE,
 
@@ -134,21 +128,21 @@ public enum class StreamCompression : JetStreamApi {
 public data class SubjectTransform(
 	val source: String,
 	val destination: String,
-) : JetStreamApi
+)
 
 @Serializable
 public data class ExternalStream(
 	val api: String,
 	val deliver: String? = null,
 	val domain: String? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamPlacement(
 	val cluster: String? = null,
 	val tags: List<String>? = null,
 	val domain: String? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamRepublish(
@@ -157,7 +151,7 @@ public data class StreamRepublish(
 	@SerialName("source_keep_chars")
 	val sourceKeepChars: Int? = null,
 	val headers: Boolean? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamSource(
@@ -174,7 +168,7 @@ public data class StreamSource(
 	val domain: String? = null,
 	@SerialName("subject_transforms")
 	val subjectTransforms: List<SubjectTransform>? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamSourceInfo(
@@ -194,7 +188,7 @@ public data class StreamSourceInfo(
 	val lag: Long? = null,
 	val active: Long? = null,
 	val error: ApiError? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamAlternate(
@@ -203,7 +197,7 @@ public data class StreamAlternate(
 	val cluster: String? = null,
 	val stream: String? = null,
 	val external: ExternalStream? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamConfiguration(
@@ -254,14 +248,14 @@ public data class StreamConfiguration(
 	@SerialName("compression")
 	val compression: StreamCompression? = null,
 	val metadata: Map<String, String>? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamLostData(
 	val msgIds: List<String>? = null,
 	val messages: Long? = null,
 	val bytes: Long? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamState(
@@ -292,14 +286,14 @@ public data class StreamState(
 	@SerialName("num_pending")
 	val pendingCount: Long? = null,
 	val lost: List<StreamLostData>? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class ClusterInfo(
 	val name: String? = null,
 	val leader: String? = null,
 	val replicas: List<PeerInfo>? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class PeerInfo(
@@ -310,12 +304,11 @@ public data class PeerInfo(
 	val lag: Long? = null,
 	val peer: String? = null,
 	val cluster: String? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamInfo(
 	val type: String? = null,
-	val error: ApiError? = null,
 	val config: StreamConfiguration,
 	val created: String? = null,
 	val state: StreamState,
@@ -323,7 +316,7 @@ public data class StreamInfo(
 	val mirror: StreamSourceInfo? = null,
 	val sources: List<StreamSourceInfo>? = null,
 	val alternates: List<StreamAlternate>? = null,
-) : JetStreamApi
+) : JetStreamApiResponse
 
 @Serializable
 public data class StreamListResponse(
@@ -333,7 +326,7 @@ public data class StreamListResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val streams: List<StreamInfo> = emptyList(),
-) : JetStreamApi
+)
 
 @Serializable
 public data class StreamNamesResponse(
@@ -343,10 +336,10 @@ public data class StreamNamesResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val streams: List<String> = emptyList(),
-) : JetStreamApi
+)
 
 @Serializable
-public enum class DeliverPolicy : JetStreamApi {
+public enum class DeliverPolicy {
 	@SerialName("all")
 	ALL,
 
@@ -367,7 +360,7 @@ public enum class DeliverPolicy : JetStreamApi {
 }
 
 @Serializable
-public enum class AckPolicy : JetStreamApi {
+public enum class AckPolicy {
 	@SerialName("none")
 	NONE,
 
@@ -379,7 +372,7 @@ public enum class AckPolicy : JetStreamApi {
 }
 
 @Serializable
-public enum class ReplayPolicy : JetStreamApi {
+public enum class ReplayPolicy {
 	@SerialName("instant")
 	INSTANT,
 
@@ -453,7 +446,7 @@ public data class ConsumerConfiguration(
 	val maxRequestMaxBytes: Long? = null,
 	@SerialName("deliver_metrics")
 	val deliverMetrics: Boolean? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class SequencePair(
@@ -461,7 +454,7 @@ public data class SequencePair(
 	val consumerSequence: Long = 0,
 	@SerialName("stream_seq")
 	val streamSequence: Long = 0,
-) : JetStreamApi
+)
 
 @Serializable
 public data class SequenceInfo(
@@ -471,7 +464,7 @@ public data class SequenceInfo(
 	val streamSequence: Long = 0,
 	@SerialName("last_active")
 	val lastActive: String? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class ConsumerInfo(
@@ -497,7 +490,7 @@ public data class ConsumerInfo(
 	@SerialName("push_bound")
 	val pushBound: Boolean? = null,
 	val paused: Boolean? = null,
-) : JetStreamApi
+)
 
 @Serializable
 public data class ConsumerListResponse(
@@ -507,7 +500,7 @@ public data class ConsumerListResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val consumers: List<ConsumerInfo> = emptyList(),
-) : JetStreamApi
+)
 
 @Serializable
 public data class ConsumerNamesResponse(
@@ -517,4 +510,4 @@ public data class ConsumerNamesResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val consumers: List<String> = emptyList(),
-) : JetStreamApi
+)
