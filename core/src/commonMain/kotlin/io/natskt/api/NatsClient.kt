@@ -73,6 +73,7 @@ public interface NatsClient {
 		message: ByteArray?,
 		headers: Map<String, List<String>>? = null,
 		timeoutMs: Long = 5000,
+		replyTo: String? = null,
 	): Message
 
 	@InternalNatsApi

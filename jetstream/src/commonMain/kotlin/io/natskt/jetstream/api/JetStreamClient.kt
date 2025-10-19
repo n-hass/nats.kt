@@ -5,10 +5,15 @@ import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.StringMessageBuilder
+import io.natskt.jetstream.api.consumer.PullConsumer
+import io.natskt.jetstream.api.stream.Stream
+import io.natskt.jetstream.api.stream.StreamConfigurationBuilder
 import io.natskt.jetstream.client.JetStreamClientImpl
 import io.natskt.jetstream.client.JetStreamConfiguration
 
 public interface JetStreamClient {
+	public val client: NatsClient
+
 	public suspend fun publish(
 		subject: String,
 		message: ByteArray,
@@ -38,14 +43,14 @@ public interface JetStreamClient {
 	): PullConsumer
 
 	/**
-	 * Return an existing [Stream], fetching its [StreamInfo]
+	 * Return an existing [io.natskt.jetstream.api.stream.Stream], fetching its [StreamInfo]
 	 */
 	public suspend fun stream(name: String): Stream
 
 	/**
 	 * Create a new stream
 	 */
-	public suspend fun stream(configure: StreamConfigurationBuilder.() -> Unit): Stream
+	public suspend fun createStream(configure: StreamConfigurationBuilder.() -> Unit): Stream
 
 	public companion object {
 		internal operator fun invoke(

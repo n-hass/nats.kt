@@ -197,8 +197,9 @@ internal class NatsClientImpl(
 		message: ByteArray?,
 		headers: Map<String, List<String>>?,
 		timeoutMs: Long,
+		replyTo: String?,
 	): Message {
-		val inboxSubject = configuration.createInbox()
+		val inboxSubject = replyTo ?: configuration.createInbox()
 		val sid = sidAllocator.fetchAndAdd(1).toString()
 		var subscribed = false
 

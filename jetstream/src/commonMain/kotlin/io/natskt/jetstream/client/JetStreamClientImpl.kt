@@ -10,15 +10,16 @@ import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.StringMessageBuilder
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.PublishAck
-import io.natskt.jetstream.api.PullConsumer
-import io.natskt.jetstream.api.Stream
-import io.natskt.jetstream.api.StreamConfigurationBuilder
-import io.natskt.jetstream.api.build
+import io.natskt.jetstream.api.consumer.PullConsumer
+import io.natskt.jetstream.api.consumer.build
+import io.natskt.jetstream.api.stream.Stream
+import io.natskt.jetstream.api.stream.StreamConfigurationBuilder
+import io.natskt.jetstream.api.stream.build
 import io.natskt.jetstream.internal.StreamImpl
 import io.natskt.jetstream.internal.creatStream
 
 internal class JetStreamClientImpl(
-	internal val client: NatsClient,
+	override val client: NatsClient,
 	internal val config: JetStreamConfiguration,
 ) : JetStreamClient {
 	override suspend fun publish(
@@ -65,7 +66,7 @@ internal class JetStreamClientImpl(
 			null,
 		).also { it.updateStreamInfo() }
 
-	override suspend fun stream(configure: StreamConfigurationBuilder.() -> Unit): Stream {
+	override suspend fun createStream(configure: StreamConfigurationBuilder.() -> Unit): Stream {
 		val configuration = StreamConfigurationBuilder().apply(configure).build()
 
 		return creatStream(configuration).fold(

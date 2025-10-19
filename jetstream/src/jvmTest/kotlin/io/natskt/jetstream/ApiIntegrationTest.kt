@@ -26,7 +26,7 @@ class ApiIntegrationTest {
 			val js = JetStreamClient(c)
 
 			val s =
-				js.stream {
+				js.createStream {
 					name = "abc"
 					subject("ABC")
 					subject("124.>")
@@ -42,5 +42,34 @@ class ApiIntegrationTest {
 			assertNotNull(initialInfo)
 
 			assertEquals(initialInfo.config, s.updateStreamInfo().getOrNull()?.config)
+		}
+
+	@Test
+	fun `it creates a consumer`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			val s =
+				js.createStream {
+					name = "test_stream_for_basic_consumer"
+					subject("test.basic_consumer")
+				}
+
+			val consumer =
+				s.createPullConsumer {
+					durableName = "consumer1"
+					filterSubjects =
+						mutableListOf(
+							"test.hi.consumer1",
+						)
+				}
+
+// 			c.publish("test.hi.consumer1", "hi1".encodeToByteArray())
+
+			val initialInfo = consumer.info.value
+			assertNotNull(initialInfo)
+
+			assertEquals(initialInfo.config, consumer.updateConsumerInfo().getOrNull()?.config)
 		}
 }

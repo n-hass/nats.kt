@@ -1,0 +1,29 @@
+package io.natskt.jetstream.api.stream
+
+import io.natskt.jetstream.api.StreamInfo
+import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
+import io.natskt.jetstream.api.consumer.PullConsumer
+import kotlinx.coroutines.flow.StateFlow
+
+public interface Stream {
+	/**
+	 * The last fetched [io.natskt.jetstream.api.StreamInfo], or null if it has not been fetched yet.
+	 * On creation of the Stream object, an initial fetch will be triggered, so this value will eventually be non-null.
+	 */
+	public val info: StateFlow<StreamInfo?>
+
+	/**
+	 * Requests the latest stream info. Future access to [info] will return this new updated value.
+	 */
+	public suspend fun updateStreamInfo(): Result<StreamInfo>
+
+	/**
+	 * Create a new consumer with the given configuration
+	 */
+	public suspend fun pullConsumer(name: String): PullConsumer
+
+	/**
+	 * Create a new consumer with the given configuration
+	 */
+	public suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer
+}

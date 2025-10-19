@@ -1,5 +1,15 @@
-package io.natskt.jetstream.api
+package io.natskt.jetstream.api.stream
 
+import io.natskt.jetstream.api.DiscardPolicy
+import io.natskt.jetstream.api.ExternalStream
+import io.natskt.jetstream.api.RetentionPolicy
+import io.natskt.jetstream.api.StorageType
+import io.natskt.jetstream.api.StreamCompression
+import io.natskt.jetstream.api.StreamConfiguration
+import io.natskt.jetstream.api.StreamPlacement
+import io.natskt.jetstream.api.StreamRepublish
+import io.natskt.jetstream.api.StreamSource
+import io.natskt.jetstream.api.SubjectTransform
 import io.natskt.jetstream.internal.JetStreamDsl
 
 @JetStreamDsl

@@ -341,43 +341,43 @@ public data class StreamNamesResponse(
 @Serializable
 public enum class DeliverPolicy {
 	@SerialName("all")
-	ALL,
+	All,
 
 	@SerialName("last")
-	LAST,
+	Last,
 
 	@SerialName("new")
-	NEW,
+	New,
 
 	@SerialName("by_start_sequence")
-	BY_START_SEQUENCE,
+	ByStartSequence,
 
 	@SerialName("by_start_time")
-	BY_START_TIME,
+	ByStartTime,
 
 	@SerialName("last_per_subject")
-	LAST_PER_SUBJECT,
+	LastPerSubject,
 }
 
 @Serializable
 public enum class AckPolicy {
 	@SerialName("none")
-	NONE,
+	None,
 
 	@SerialName("all")
-	ALL,
+	All,
 
 	@SerialName("explicit")
-	EXPLICIT,
+	Explicit,
 }
 
 @Serializable
 public enum class ReplayPolicy {
 	@SerialName("instant")
-	INSTANT,
+	Instant,
 
 	@SerialName("original")
-	ORIGINAL,
+	Original,
 }
 
 @Serializable
@@ -490,7 +490,7 @@ public data class ConsumerInfo(
 	@SerialName("push_bound")
 	val pushBound: Boolean? = null,
 	val paused: Boolean? = null,
-)
+) : JetStreamApiResponse
 
 @Serializable
 public data class ConsumerListResponse(
@@ -510,4 +510,16 @@ public data class ConsumerNamesResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val consumers: List<String> = emptyList(),
+)
+
+@Serializable
+public data class ConsumerPullRequest(
+	val expires: Long? = null,
+	val batch: Int? = null,
+	@SerialName("no_wait")
+	val noWait: Boolean? = null,
+	@SerialName("max_bytes")
+	val maxBytes: Int? = null,
+	@SerialName("idle_heartbeat")
+	val idleHeartbeat: Long? = null,
 )
