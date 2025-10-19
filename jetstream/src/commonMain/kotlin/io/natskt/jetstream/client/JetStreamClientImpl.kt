@@ -66,7 +66,7 @@ internal class JetStreamClientImpl(
 		).also { it.updateStreamInfo() }
 
 	override suspend fun stream(configure: StreamConfigurationBuilder.() -> Unit): Stream {
-		val configuration = StreamConfigurationBuilder().apply { configure() }.build()
+		val configuration = StreamConfigurationBuilder().apply(configure).build()
 
 		return creatStream(configuration).fold(
 			onSuccess = {

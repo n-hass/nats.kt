@@ -28,6 +28,14 @@ class ApiIntegrationTest {
 			val s =
 				js.stream {
 					name = "abc"
+					subject("ABC")
+					subject("124.>")
+					source {
+						domain = "cloud"
+						external {
+							api = "ee"
+						}
+					}
 				}
 
 			val initialInfo = s.info.value

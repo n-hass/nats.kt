@@ -88,37 +88,37 @@ public data class PublishAck(
 @Serializable
 public enum class RetentionPolicy {
 	@SerialName("limits")
-	LIMITS,
+	Limits,
 
 	@SerialName("interest")
-	INTEREST,
+	Interest,
 
 	@SerialName("workqueue")
-	WORKQUEUE,
+	WorkQueue,
 }
 
 @Serializable
 public enum class DiscardPolicy {
 	@SerialName("old")
-	OLD,
+	Old,
 
 	@SerialName("new")
-	NEW,
+	New,
 }
 
 @Serializable
 public enum class StorageType {
 	@SerialName("file")
-	FILE,
+	File,
 
 	@SerialName("memory")
-	MEMORY,
+	Memory,
 }
 
 @Serializable
 public enum class StreamCompression {
 	@SerialName("none")
-	NONE,
+	None,
 
 	@SerialName("s2")
 	S2,

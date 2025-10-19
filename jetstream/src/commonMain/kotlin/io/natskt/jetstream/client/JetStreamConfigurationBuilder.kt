@@ -2,15 +2,12 @@ package io.natskt.jetstream.client
 
 import io.ktor.http.URLBuilder
 import io.natskt.client.NatsServerAddress
+import io.natskt.jetstream.internal.JetStreamDsl
 
-internal interface JetStreamConfigurationValues {
-	val apiPrefix: String
-	val domain: String?
-}
-
-public class JetStreamConfigurationBuilder internal constructor() : JetStreamConfigurationValues {
-	override var apiPrefix: String = "\$JS.API."
-	override var domain: String? = null
+@JetStreamDsl
+public class JetStreamConfigurationBuilder internal constructor() {
+	public var apiPrefix: String = "\$JS.API."
+	public var domain: String? = null
 }
 
 internal fun JetStreamConfigurationBuilder.build(): JetStreamConfiguration {

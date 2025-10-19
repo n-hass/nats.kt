@@ -11,31 +11,18 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
-internal interface ClientConfigurationValues {
-	val servers: Collection<String>?
-	val authentication: Credentials?
-	val inboxPrefix: String
-	val maxReconnects: Int?
-	val maxControlLineBytes: Int?
-	val connectTimeoutMs: Long?
-	val reconnectDebounceMs: Long?
-	val transport: TransportFactory?
-	val tlsRequired: Boolean
-	val scope: CoroutineScope?
-}
-
-public class ClientConfigurationBuilder internal constructor() : ClientConfigurationValues {
+public class ClientConfigurationBuilder internal constructor() {
 	public var server: String? = null
-	public override var servers: Collection<String>? = null
-	public override var authentication: Credentials? = null
-	public override var inboxPrefix: String = "_INBOX."
-	public override var maxReconnects: Int? = null
-	public override var maxControlLineBytes: Int = 1024
-	public override var connectTimeoutMs: Long = 5000
-	public override var reconnectDebounceMs: Long = 2000
-	public override var tlsRequired: Boolean = false
-	public override var transport: TransportFactory? = null
-	public override var scope: CoroutineScope? = null
+	public var servers: Collection<String>? = null
+	public var authentication: Credentials? = null
+	public var inboxPrefix: String = "_INBOX."
+	public var maxReconnects: Int? = null
+	public var maxControlLineBytes: Int = 1024
+	public var connectTimeoutMs: Long = 5000
+	public var reconnectDebounceMs: Long = 2000
+	public var tlsRequired: Boolean = false
+	public var transport: TransportFactory? = null
+	public var scope: CoroutineScope? = null
 }
 
 internal fun ClientConfigurationBuilder.build(): ClientConfiguration {

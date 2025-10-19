@@ -43,7 +43,7 @@ public interface JetStreamClient {
 	public suspend fun stream(name: String): Stream
 
 	/**
-	 * create a stream
+	 * Create a new stream
 	 */
 	public suspend fun stream(configure: StreamConfigurationBuilder.() -> Unit): Stream
 
