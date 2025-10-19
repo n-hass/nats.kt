@@ -49,7 +49,7 @@ internal class PullConsumerImpl(
 				val body =
 					wireJsonFormat.encodeToString(
 						ConsumerPullRequest(
-							expires = expires?.inWholeNanoseconds ?: defaultTimeout,
+							expires = expires?.inWholeNanoseconds ?: (if (noWait == true) null else defaultTimeout),
 							batch = batch,
 							noWait = noWait,
 							maxBytes = maxBytes,

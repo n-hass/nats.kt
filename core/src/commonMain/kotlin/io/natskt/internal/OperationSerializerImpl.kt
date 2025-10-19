@@ -418,6 +418,13 @@ private fun parseHeaders(s: String): Map<String, List<String>>? {
 	val firstCrlf = s.indexOf(LINE_END)
 	require(firstCrlf >= HEADER_START.length) { "invalid NATS header preamble" }
 	val start = firstCrlf + LINE_END.length
+
+	// Check if there are any headers after the status line
+	// If the remaining content after the first line is just CRLF, there are no headers
+	if (start >= s.length || s.substring(start) == LINE_END) {
+		return null
+	}
+
 	val end = s.lastIndexOf(DOUBLE_LINE_END).takeIf { it >= start } ?: error("headers missing terminating CRLF CRLF")
 	val map = LinkedHashMap<String, MutableList<String>>()
 	var i = start

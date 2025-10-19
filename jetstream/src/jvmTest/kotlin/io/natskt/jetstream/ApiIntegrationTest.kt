@@ -11,7 +11,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ApiIntegrationTest {
@@ -135,8 +134,7 @@ class ApiIntegrationTest {
 			}
 
 			println("a")
-
-			val messages = consumer.fetch(1, expires = 2.milliseconds)
+			val messages = consumer.fetch(1, noWait = true)
 
 			assertEquals(1, messages.size, "consumer fetch should return 1 message")
 

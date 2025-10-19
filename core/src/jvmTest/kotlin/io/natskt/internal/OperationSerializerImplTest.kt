@@ -311,150 +311,14 @@ class OperationSerializerImplTest {
 	}
 
 	@Test
-	fun `parses jetstream HMSG with a status code in the header preamble`() =
+	fun `parses jetstream HMSG with a status code in the header preamble with headers after`() =
 		runTest {
 			val ch =
 				channelOf(
 					// initial block
-					byteArrayOf(
-						72,
-						77,
-						83,
-						71,
-						32,
-						95,
-						73,
-						78,
-						66,
-						79,
-						88,
-						46,
-						89,
-						103,
-						86,
-						108,
-						122,
-						68,
-						83,
-						53,
-						120,
-						112,
-						100,
-						51,
-						69,
-						57,
-						109,
-						90,
-						122,
-						116,
-						70,
-						102,
-						66,
-						85,
-						46,
-						69,
-						57,
-						109,
-						90,
-						122,
-						116,
-						70,
-						102,
-						69,
-						87,
-						32,
-						50,
-						32,
-						56,
-						49,
-						32,
-						56,
-						49,
-					),
+					b("HMSG _INBOX.YgVlzDS5xpd3E9mZztFfBU.E9mZztFfEW 2 81 81"),
 					b("\r\n"),
-					byteArrayOf(
-						78,
-						65,
-						84,
-						83,
-						47,
-						49,
-						46,
-						48,
-						32,
-						52,
-						48,
-						56,
-						32,
-						82,
-						101,
-						113,
-						117,
-						101,
-						115,
-						116,
-						32,
-						84,
-						105,
-						109,
-						101,
-						111,
-						117,
-						116,
-						13,
-						10,
-						78,
-						97,
-						116,
-						115,
-						45,
-						80,
-						101,
-						110,
-						100,
-						105,
-						110,
-						103,
-						45,
-						77,
-						101,
-						115,
-						115,
-						97,
-						103,
-						101,
-						115,
-						58,
-						32,
-						49,
-						13,
-						10,
-						78,
-						97,
-						116,
-						115,
-						45,
-						80,
-						101,
-						110,
-						100,
-						105,
-						110,
-						103,
-						45,
-						66,
-						121,
-						116,
-						101,
-						115,
-						58,
-						32,
-						48,
-						13,
-						10,
-						13,
-						10,
-					),
+					b("NATS/1.0 408 Request Timeout\r\nNats-Pending-Messages: 1\r\nNats-Pending-Bytes: 0\r\n\r\n"),
 					b("\r\n"),
 				)
 
@@ -463,5 +327,24 @@ class OperationSerializerImplTest {
 			val op = serializer.parse(ch)
 			val hm = op as? IncomingCoreMessage ?: fail("Expected HMsgOp")
 			assertEquals(408, hm.status)
+		}
+
+	@Test
+	fun `parses jetstream HMSG with a status code in the header preamble, with no headers following`() =
+		runTest {
+			val ch =
+				channelOf(
+					// initial block
+					b("HMSG _INBOX.0896FfveaU22pvVeb1zo3R.pvVeb1zo6u 1 28 28"),
+					b("\r\n"),
+					b("NATS/1.0 404 No Messages\r\n\r\n"),
+					b("\r\n"),
+				)
+
+			val serializer = newSerializer()
+
+			val op = serializer.parse(ch)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected HMsgOp")
+			assertEquals(404, hm.status)
 		}
 }
