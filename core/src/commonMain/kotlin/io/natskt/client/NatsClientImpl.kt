@@ -117,7 +117,7 @@ internal class NatsClientImpl(
 
 	override suspend fun publish(
 		subject: String,
-		message: ByteArray,
+		message: ByteArray?,
 		headers: Map<String, List<String>>?,
 		replyTo: String?,
 	) {
@@ -133,7 +133,7 @@ internal class NatsClientImpl(
 
 	override suspend fun publish(
 		subject: Subject,
-		message: ByteArray,
+		message: ByteArray?,
 		headers: Map<String, List<String>>?,
 		replyTo: Subject?,
 	) = publishUnchecked(subject.raw, message, headers, replyTo?.raw)
@@ -197,9 +197,8 @@ internal class NatsClientImpl(
 		message: ByteArray?,
 		headers: Map<String, List<String>>?,
 		timeoutMs: Long,
-		replyTo: String?,
 	): Message {
-		val inboxSubject = replyTo ?: configuration.createInbox()
+		val inboxSubject = configuration.createInbox()
 		val sid = sidAllocator.fetchAndAdd(1).toString()
 		var subscribed = false
 

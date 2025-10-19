@@ -50,14 +50,14 @@ public interface NatsClient {
 
 	public suspend fun publish(
 		subject: String,
-		message: ByteArray,
+		message: ByteArray?,
 		headers: Map<String, List<String>>? = null,
 		replyTo: String? = null,
 	)
 
 	public suspend fun publish(
 		subject: Subject,
-		message: ByteArray,
+		message: ByteArray?,
 		headers: Map<String, List<String>>? = null,
 		replyTo: Subject? = null,
 	)
@@ -73,7 +73,6 @@ public interface NatsClient {
 		message: ByteArray?,
 		headers: Map<String, List<String>>? = null,
 		timeoutMs: Long = 5000,
-		replyTo: String? = null,
 	): Message
 
 	@InternalNatsApi

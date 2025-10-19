@@ -1,18 +1,17 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.Message
-import io.natskt.internal.NUID
 import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ApiError
 import io.natskt.jetstream.api.ConsumerConfiguration
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamUnknownResponseException
+import io.natskt.jetstream.api.PullConsumerResponse
 import io.natskt.jetstream.api.StreamConfiguration
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerCreateAction
 import io.natskt.jetstream.api.consumer.ConsumerCreateRequest
-import io.natskt.jetstream.api.internal.decodeApiResponse
 import io.natskt.jetstream.client.JetStreamClientImpl
 
 internal const val STREAM_INFO = "STREAM.INFO."
@@ -24,22 +23,20 @@ internal suspend fun JetStreamClientImpl.getStreamInfo(
 	subjectFilter: String? = null,
 	deletedDetails: Boolean = false,
 ): Result<StreamInfo> {
-	val data = client.request(config.apiPrefix + STREAM_INFO + name, null).data
-	if (data == null) return Result.failure(JetStreamApiException(null, message = "response was empty"))
-	return when (val r = wireJsonFormat.decodeApiResponse<StreamInfo>(data.decodeToString())) {
-		is StreamInfo -> Result.success(r)
-		is ApiError -> Result.failure(JetStreamApiException(r))
-		else -> Result.failure(JetStreamUnknownResponseException(r))
+	val data = request<StreamInfo>(config.apiPrefix + STREAM_INFO + name, null)
+	return when (data) {
+		is StreamInfo -> Result.success(data)
+		is ApiError -> Result.failure(JetStreamApiException(data))
+		else -> Result.failure(JetStreamUnknownResponseException(data))
 	}
 }
 
-internal suspend fun JetStreamClientImpl.creatStream(configuration: StreamConfiguration): Result<StreamInfo> {
-	val data = client.request(config.apiPrefix + STREAM_CREATE + configuration.name, wireJsonFormat.encodeToString(configuration).encodeToByteArray()).data
-	if (data == null) return Result.failure(JetStreamApiException(null, message = "response was empty"))
-	return when (val r = wireJsonFormat.decodeApiResponse<StreamInfo>(data.decodeToString())) {
-		is StreamInfo -> Result.success(r)
-		is ApiError -> Result.failure(JetStreamApiException(r))
-		else -> Result.failure(JetStreamUnknownResponseException(r))
+internal suspend fun JetStreamClientImpl.createStream(configuration: StreamConfiguration): Result<StreamInfo> {
+	val data = request<StreamInfo>(config.apiPrefix + STREAM_CREATE + configuration.name, wireJsonFormat.encodeToString(configuration))
+	return when (data) {
+		is StreamInfo -> Result.success(data)
+		is ApiError -> Result.failure(JetStreamApiException(data))
+		else -> Result.failure(JetStreamUnknownResponseException(data))
 	}
 }
 
@@ -48,38 +45,37 @@ internal suspend fun JetStreamClientImpl.createOrUpdateConsumer(
 	configuration: ConsumerConfiguration,
 ): Result<ConsumerInfo> {
 	val subject =
-		if (configuration.durableName != null) {
-			config.apiPrefix + "CONSUMER.CREATE." + streamName + "." + configuration.durableName
-		} else {
-			config.apiPrefix + "CONSUMER.CREATE." + streamName
+		when {
+			configuration.durableName != null && configuration.filterSubject != null ->
+				config.apiPrefix + "CONSUMER.CREATE." + streamName + "." + configuration.durableName + "." +
+					configuration.filterSubject
+			configuration.durableName != null -> config.apiPrefix + "CONSUMER.CREATE." + streamName + "." + configuration.durableName
+			else -> config.apiPrefix + "CONSUMER.CREATE." + streamName
 		}
 
 	val payload =
-		ConsumerCreateRequest(
-			stream = streamName,
-			config = configuration,
-			action = ConsumerCreateAction.CreateOrUpdate,
+		wireJsonFormat.encodeToString(
+			ConsumerCreateRequest(
+				streamName = streamName,
+				config = configuration,
+				action = ConsumerCreateAction.CreateOrUpdate,
+			),
 		)
 
-	val data = client.request(subject, wireJsonFormat.encodeToString(payload).encodeToByteArray()).data
-	if (data == null) return Result.failure(JetStreamApiException(null, message = "response was empty"))
+	val data = request<ConsumerInfo>(subject, payload)
 
-	val jsonString = data.decodeToString()
-	val response = wireJsonFormat.decodeApiResponse<ConsumerInfo>(jsonString)
-
-	return when (response) {
-		is ConsumerInfo -> Result.success(response)
-		is ApiError -> Result.failure(JetStreamApiException(response))
-		else -> Result.failure(JetStreamUnknownResponseException(response))
+	return when (data) {
+		is ConsumerInfo -> Result.success(data)
+		is ApiError -> Result.failure(JetStreamApiException(data))
+		else -> Result.failure(JetStreamUnknownResponseException(data))
 	}
 }
 
 internal suspend fun JetStreamClientImpl.pull(
-	deliverSubjectPrefix: String,
 	streamName: String,
 	consumerName: String,
 	requestBody: String,
-): Message {
+): Message? {
 	val subject =
 		buildString {
 			append(config.apiPrefix)
@@ -88,9 +84,29 @@ internal suspend fun JetStreamClientImpl.pull(
 			append(".")
 			append(consumerName)
 		}
-	val reqReplyTo = deliverSubjectPrefix + NUID.nextSequence()
-	val msg = client.request(subject, requestBody.encodeToByteArray(), replyTo = reqReplyTo)
-	return msg
+	val msg = request<PullConsumerResponse>(subject, requestBody)
+	when (msg) {
+		is PullConsumerResponse ->
+			msg.messages.forEach {
+				println(it)
+			}
+		is ApiError -> {
+			return null
+		}
+		else -> throw JetStreamUnknownResponseException(msg)
+	}
+
+	return IncomingJetStreamMessage(
+		sid = TODO(),
+		subjectString = TODO(),
+		replyToString = TODO(),
+		headers = TODO(),
+		data = TODO(),
+		ack = TODO(),
+		nak = TODO(),
+		metadata = TODO(),
+		status = TODO(),
+	)
 }
 
 internal suspend fun JetStreamClientImpl.getConsumerInfo(
@@ -105,11 +121,10 @@ internal suspend fun JetStreamClientImpl.getConsumerInfo(
 			append(".")
 			append(name)
 		}
-	val data = client.request(subject, null).data
-	if (data == null) return Result.failure(JetStreamApiException(null, message = "response was empty"))
-	return when (val r = wireJsonFormat.decodeApiResponse<ConsumerInfo>(data.decodeToString())) {
-		is ConsumerInfo -> Result.success(r)
-		is ApiError -> Result.failure(JetStreamApiException(r))
-		else -> Result.failure(JetStreamUnknownResponseException(r))
+	val data = request<ConsumerInfo>(subject, null)
+	return when (data) {
+		is ConsumerInfo -> Result.success(data)
+		is ApiError -> Result.failure(JetStreamApiException(data))
+		else -> Result.failure(JetStreamUnknownResponseException(data))
 	}
 }

@@ -7,4 +7,4 @@ public class JetStreamApiException(
 
 public class JetStreamUnknownResponseException(
 	public val response: ApiResponse,
-) : Exception("An unknown response was received: ${response::class.simpleName}")
+) : Exception("An unknown response was received: $response")

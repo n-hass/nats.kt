@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 internal data class ConsumerCreateRequest(
-	val stream: String,
+	@SerialName("stream_name")
+	val streamName: String,
 	val config: ConsumerConfiguration,
 	val action: ConsumerCreateAction,
 )

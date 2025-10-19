@@ -95,6 +95,7 @@ internal class OperationSerializerImpl(
 							replyToString = null,
 							data = payload,
 							headers = null,
+							status = null,
 						)
 					}
 					5 -> {
@@ -113,6 +114,7 @@ internal class OperationSerializerImpl(
 							replyToString = replyTo,
 							data = payload,
 							headers = null,
+							status = null,
 						)
 					}
 					else -> {
@@ -139,6 +141,7 @@ internal class OperationSerializerImpl(
 						}
 
 						val hdrBlock = channel.readExact(hdrBytes)
+						val hdrString = hdrBlock.decodeToString()
 						val payloadLen = totalBytes - hdrBytes
 						val payload =
 							if (payloadLen > 0) {
@@ -154,8 +157,9 @@ internal class OperationSerializerImpl(
 							sid = sid,
 							subjectString = subject,
 							replyToString = null,
-							headers = parseHeaders(hdrBlock),
+							headers = parseHeaders(hdrString),
 							data = payload,
+							status = parseStatusCode(hdrString),
 						)
 					}
 					6 -> {
@@ -173,6 +177,7 @@ internal class OperationSerializerImpl(
 						}
 
 						val hdrBlock = channel.readExact(hdrBytes) // includes trailing CRLF CRLF
+						val hdrString = hdrBlock.decodeToString()
 						val payloadLen = totalBytes - hdrBytes
 						val payload =
 							if (payloadLen > 0) {
@@ -188,8 +193,9 @@ internal class OperationSerializerImpl(
 							sid = sid,
 							subjectString = subject,
 							replyToString = replyTo,
-							headers = parseHeaders(hdrBlock),
+							headers = parseHeaders(hdrString),
 							data = payload,
+							status = parseStatusCode(hdrString),
 						)
 					}
 					else -> {
@@ -389,13 +395,29 @@ private suspend fun ByteReadChannel.readExact(n: Int): ByteArray {
 }
 
 private const val HEADER_START = "NATS/1.0"
-private const val HEADER_START_LENGTH = HEADER_START.length + LINE_END.length
 private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
 
-private fun parseHeaders(raw: ByteArray): Map<String, List<String>>? {
-	val s = raw.decodeToString()
+private fun parseStatusCode(s: String): Int? {
 	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
-	val start = HEADER_START_LENGTH
+	val firstCrlf = s.indexOf(LINE_END)
+	require(firstCrlf >= HEADER_START.length) { "invalid NATS header preamble" }
+	val firstLine = s.substring(0, firstCrlf)
+
+	// Check if there's a status code after "NATS/1.0"
+	if (firstLine.length > HEADER_START.length && firstLine[HEADER_START.length] == ' ') {
+		val statusPart = firstLine.substring(HEADER_START.length + 1).trim()
+		val statusCode = statusPart.split(' ').firstOrNull()?.toIntOrNull()
+		return statusCode
+	}
+	return null
+}
+
+private fun parseHeaders(s: String): Map<String, List<String>>? {
+	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
+	// Find the first CRLF to handle optional status codes after NATS/1.0
+	val firstCrlf = s.indexOf(LINE_END)
+	require(firstCrlf >= HEADER_START.length) { "invalid NATS header preamble" }
+	val start = firstCrlf + LINE_END.length
 	val end = s.lastIndexOf(DOUBLE_LINE_END).takeIf { it >= start } ?: error("headers missing terminating CRLF CRLF")
 	val map = LinkedHashMap<String, MutableList<String>>()
 	var i = start

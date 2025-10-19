@@ -50,6 +50,7 @@ kotlin {
 
 		jvmTest.dependencies {
 			implementation(projects.architecture)
+			implementation("io.nats:jnats:2.22.0")
 		}
     }
 }

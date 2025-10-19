@@ -8,6 +8,7 @@ internal data class OutgoingMessage(
 	override val replyTo: Subject?,
 	override val headers: Map<String, List<String>>?,
 	override val data: ByteArray?,
+	override val status: Int? = null,
 ) : Message {
 	override fun equals(other: Any?): Boolean {
 		if (this === other) return true

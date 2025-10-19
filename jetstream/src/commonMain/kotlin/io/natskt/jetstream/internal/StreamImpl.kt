@@ -1,7 +1,6 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.internal.InternalNatsApi
-import io.natskt.internal.NUID
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
@@ -32,7 +31,6 @@ internal class StreamImpl(
 			name = name,
 			streamName = this.name,
 			client = client,
-			deliverSubjectPrefix = NUID.next() + ".",
 			initialInfo = null,
 		)
 
@@ -44,7 +42,6 @@ internal class StreamImpl(
 					name = it.name,
 					streamName = it.stream,
 					client = client,
-					deliverSubjectPrefix = NUID.next() + ".",
 					initialInfo = it,
 				)
 			}.getOrThrow()

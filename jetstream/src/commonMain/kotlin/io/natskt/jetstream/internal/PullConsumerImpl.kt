@@ -18,8 +18,7 @@ internal class PullConsumerImpl(
 	val name: String,
 	val streamName: String,
 	private val client: JetStreamClientImpl,
-	private val deliverSubjectPrefix: String,
-	private val defaultTimeout: Long = 10_000,
+	private val defaultTimeout: Long = 10_000_000_000, // 10 seconds in nanoseconds
 	initialInfo: ConsumerInfo?,
 ) : PullConsumer {
 	private var lastPullCode = 0
@@ -50,11 +49,11 @@ internal class PullConsumerImpl(
 				val body =
 					wireJsonFormat.encodeToString(
 						ConsumerPullRequest(
-							expires = expires?.inWholeMilliseconds ?: defaultTimeout,
+							expires = expires?.inWholeNanoseconds ?: defaultTimeout,
 							batch = batch,
 							noWait = noWait,
 							maxBytes = maxBytes,
-							idleHeartbeat = heartbeat?.inWholeMilliseconds,
+							idleHeartbeat = heartbeat?.inWholeNanoseconds,
 						),
 					)
 				lastPullCode = code
@@ -62,8 +61,8 @@ internal class PullConsumerImpl(
 				body
 			}
 
-		val response = client.pull(deliverSubjectPrefix, streamName, name, body)
-		val data = response.data
+		val response = client.pull(streamName, name, body)
+		val data = response?.data
 		if (data == null || data.isEmpty()) {
 			return emptyList()
 		}

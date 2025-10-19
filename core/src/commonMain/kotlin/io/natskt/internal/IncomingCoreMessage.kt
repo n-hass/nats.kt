@@ -11,6 +11,7 @@ internal data class IncomingCoreMessage(
 	val replyToString: String?,
 	override val data: ByteArray?,
 	override val headers: Map<String, List<String>>?,
+	override val status: Int?,
 ) : MessageInternal {
 	override val subject: Subject by lazy {
 		Subject(subjectString)
@@ -27,19 +28,27 @@ internal data class IncomingCoreMessage(
 
 		other as IncomingCoreMessage
 
+		if (status != other.status) return false
+		if (sid != other.sid) return false
+		if (subjectString != other.subjectString) return false
+		if (replyToString != other.replyToString) return false
+		if (!data.contentEquals(other.data)) return false
+		if (headers != other.headers) return false
 		if (subject != other.subject) return false
 		if (replyTo != other.replyTo) return false
-		if (headers != other.headers) return false
-		if (!data.contentEquals(other.data)) return false
 
 		return true
 	}
 
 	override fun hashCode(): Int {
-		var result = subject.hashCode()
-		result = 31 * result + (replyTo?.hashCode() ?: 0)
-		result = 31 * result + (headers?.hashCode() ?: 0)
+		var result = status ?: 0
+		result = 31 * result + sid.hashCode()
+		result = 31 * result + subjectString.hashCode()
+		result = 31 * result + (replyToString?.hashCode() ?: 0)
 		result = 31 * result + (data?.contentHashCode() ?: 0)
+		result = 31 * result + (headers?.hashCode() ?: 0)
+		result = 31 * result + subject.hashCode()
+		result = 31 * result + (replyTo?.hashCode() ?: 0)
 		return result
 	}
 }

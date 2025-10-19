@@ -5,4 +5,5 @@ public interface Message {
 	public val replyTo: Subject?
 	public val headers: Map<String, List<String>>?
 	public val data: ByteArray?
+	public val status: Int?
 }
