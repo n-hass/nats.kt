@@ -1,17 +1,17 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.JetStreamMessage
+import io.natskt.internal.MessageInternal
 import io.natskt.internal.wireJsonFormat
-import io.natskt.jetstream.api.ApiError
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.ConsumerPullRequest
-import io.natskt.jetstream.api.JetStreamUnknownResponseException
-import io.natskt.jetstream.api.PullConsumerResponse
 import io.natskt.jetstream.api.consumer.PullConsumer
-import io.natskt.jetstream.api.internal.decodeApiResponse
 import io.natskt.jetstream.client.JetStreamClientImpl
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlin.collections.emptyList
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 
 internal class PullConsumerImpl(
@@ -61,23 +61,27 @@ internal class PullConsumerImpl(
 				body
 			}
 
-		val response = client.pull(streamName, name, body)
-		val data = response?.data
-		if (data == null || data.isEmpty()) {
-			return emptyList()
-		}
+		val serverResponseSubject = client.pull(streamName, name, body)
 
-		val apiResponse = wireJsonFormat.decodeApiResponse<PullConsumerResponse>(data.decodeToString())
+		val messages =
+			withTimeoutOrNull(expires?.inWholeMilliseconds ?: defaultTimeout) {
+				client.inboxSubscription.messages
+					.takeWhile {
+						if (serverResponseSubject == it.subject.raw) {
+							if (it.status != null && it.status !in 200..300) {
+								return@takeWhile false
+							}
+						}
+						true
+					}.take(batch)
+					.toList()
+			} ?: return emptyList()
 
-		return when (apiResponse) {
-			is PullConsumerResponse ->
-				buildList<JetStreamMessage> {
-					apiResponse.messages.forEach {
-						println("got: $it")
-					}
-				}
-			is ApiError -> emptyList()
-			else -> throw JetStreamUnknownResponseException(apiResponse)
+		return messages.map {
+			IncomingJetStreamMessage(
+				original = it as MessageInternal,
+				ackAction = { subject, body -> client.publish(subject, body) },
+			)
 		}
 	}
 }

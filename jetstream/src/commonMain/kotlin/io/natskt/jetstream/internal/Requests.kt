@@ -1,13 +1,12 @@
 package io.natskt.jetstream.internal
 
-import io.natskt.api.Message
+import io.natskt.internal.NUID
 import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ApiError
 import io.natskt.jetstream.api.ConsumerConfiguration
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamUnknownResponseException
-import io.natskt.jetstream.api.PullConsumerResponse
 import io.natskt.jetstream.api.StreamConfiguration
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerCreateAction
@@ -75,7 +74,7 @@ internal suspend fun JetStreamClientImpl.pull(
 	streamName: String,
 	consumerName: String,
 	requestBody: String,
-): Message? {
+): String {
 	val subject =
 		buildString {
 			append(config.apiPrefix)
@@ -84,29 +83,10 @@ internal suspend fun JetStreamClientImpl.pull(
 			append(".")
 			append(consumerName)
 		}
-	val msg = request<PullConsumerResponse>(subject, requestBody)
-	when (msg) {
-		is PullConsumerResponse ->
-			msg.messages.forEach {
-				println(it)
-			}
-		is ApiError -> {
-			return null
-		}
-		else -> throw JetStreamUnknownResponseException(msg)
-	}
 
-	return IncomingJetStreamMessage(
-		sid = TODO(),
-		subjectString = TODO(),
-		replyToString = TODO(),
-		headers = TODO(),
-		data = TODO(),
-		ack = TODO(),
-		nak = TODO(),
-		metadata = TODO(),
-		status = TODO(),
-	)
+	val replyTo = inboxPrefix + NUID.nextSequence()
+	client.publish(subject, requestBody.encodeToByteArray(), replyTo = replyTo)
+	return replyTo
 }
 
 internal suspend fun JetStreamClientImpl.getConsumerInfo(

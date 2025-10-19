@@ -5,8 +5,6 @@ import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.NatsClient
 import io.natskt.jetstream.api.JetStreamApiException
-import io.natskt.jetstream.client.JetStreamClientImpl
-import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -90,12 +88,6 @@ class ApiIntegrationTest {
 					subject("test.basic_consumer.>")
 				}
 
-			launch {
-				(js as JetStreamClientImpl).inboxSubscription.messages.collect {
-					println("inbox message: \n${it.data?.decodeToString()}\n${it.subject}")
-				}
-			}
-
 			val consumer =
 				s.createPullConsumer {
 					durableName = "consumer1"
@@ -133,7 +125,6 @@ class ApiIntegrationTest {
 				)
 			}
 
-			println("a")
 			val messages = consumer.fetch(1, noWait = true)
 
 			assertEquals(1, messages.size, "consumer fetch should return 1 message")

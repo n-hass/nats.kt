@@ -2,69 +2,45 @@
 
 package io.natskt.jetstream.internal
 
-import io.natskt.api.AckAction
-import io.natskt.api.Subject
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.JetStreamMessageInternal
-import io.natskt.jetstream.api.JetStreamMessageMetadata
+import io.natskt.internal.MessageInternal
+
+internal val ACK_ACK = "+ACK".encodeToByteArray()
+internal val ACK_NAK = "-NAK".encodeToByteArray()
+internal val ACK_PROGRESS = "+WPI".encodeToByteArray()
+internal val ACK_TERM = "+TERM".encodeToByteArray()
 
 internal data class IncomingJetStreamMessage(
-	override val sid: String,
-	val subjectString: String,
-	val replyToString: String?,
-	override val headers: Map<String, List<String>>?,
-	override val data: ByteArray?,
-	override val ack: AckAction,
-	override val nak: AckAction,
-	val metadata: JetStreamMessageMetadata,
-	override val status: Int?,
-) : JetStreamMessageInternal {
-	override val subject by lazy {
-		Subject(subjectString)
+	private val original: MessageInternal,
+	private val ackAction: suspend (String, ByteArray) -> Unit,
+) : JetStreamMessageInternal,
+	MessageInternal by original {
+	override suspend fun ack() {
+		if (original.replyTo != null) {
+			ackAction(original.replyTo!!.raw, ACK_ACK)
+		}
 	}
 
-	override val replyTo by lazy {
-		if (replyToString == null) return@lazy null
-		Subject(replyToString)
+	override suspend fun ackWait() {
+		ack()
 	}
 
-	override val ackWait: AckAction = { ack() }
-
-	override fun equals(other: Any?): Boolean {
-		if (this === other) return true
-		if (other == null || this::class != other::class) return false
-
-		other as IncomingJetStreamMessage
-
-		if (status != other.status) return false
-		if (sid != other.sid) return false
-		if (subjectString != other.subjectString) return false
-		if (replyToString != other.replyToString) return false
-		if (headers != other.headers) return false
-		if (!data.contentEquals(other.data)) return false
-		if (ack != other.ack) return false
-		if (nak != other.nak) return false
-		if (metadata != other.metadata) return false
-		if (ackWait != other.ackWait) return false
-		if (subject != other.subject) return false
-		if (replyTo != other.replyTo) return false
-
-		return true
+	override suspend fun nak() {
+		if (original.replyTo != null) {
+			ackAction(original.replyTo!!.raw, ACK_NAK)
+		}
 	}
 
-	override fun hashCode(): Int {
-		var result = status ?: 0
-		result = 31 * result + sid.hashCode()
-		result = 31 * result + subjectString.hashCode()
-		result = 31 * result + (replyToString?.hashCode() ?: 0)
-		result = 31 * result + (headers?.hashCode() ?: 0)
-		result = 31 * result + (data?.contentHashCode() ?: 0)
-		result = 31 * result + ack.hashCode()
-		result = 31 * result + nak.hashCode()
-		result = 31 * result + metadata.hashCode()
-		result = 31 * result + ackWait.hashCode()
-		result = 31 * result + subject.hashCode()
-		result = 31 * result + (replyTo?.hashCode() ?: 0)
-		return result
+	override suspend fun inProgress() {
+		if (original.replyTo != null) {
+			ackAction(original.replyTo!!.raw, ACK_PROGRESS)
+		}
+	}
+
+	override suspend fun term() {
+		if (original.replyTo != null) {
+			ackAction(original.replyTo!!.raw, ACK_TERM)
+		}
 	}
 }
