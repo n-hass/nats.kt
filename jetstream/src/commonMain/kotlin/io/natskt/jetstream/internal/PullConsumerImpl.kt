@@ -1,13 +1,15 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.JetStreamMessage
+import io.natskt.api.Subscription
 import io.natskt.internal.MessageInternal
 import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.ConsumerPullRequest
+import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.consumer.PullConsumer
-import io.natskt.jetstream.client.JetStreamClientImpl
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -17,17 +19,19 @@ import kotlin.time.Duration
 internal class PullConsumerImpl(
 	val name: String,
 	val streamName: String,
-	private val client: JetStreamClientImpl,
+	js: JetStreamClient,
+	inboxSubscription: Subscription,
 	private val defaultTimeout: Long = 10_000_000_000, // 10 seconds in nanoseconds
 	initialInfo: ConsumerInfo?,
-) : PullConsumer {
+) : PersistentRequestSubscription(js, inboxSubscription),
+	PullConsumer {
 	private var lastPullCode = 0
 	private var lastPullBody = ""
 
 	override val info = MutableStateFlow(initialInfo)
 
 	override suspend fun updateConsumerInfo(): Result<ConsumerInfo> {
-		val new = client.getConsumerInfo(streamName, name)
+		val new = getConsumerInfo(streamName, name)
 		new.onSuccess {
 			info.value = it
 		}
@@ -61,27 +65,43 @@ internal class PullConsumerImpl(
 				body
 			}
 
-		val serverResponseSubject = client.pull(streamName, name, body)
-
 		val messages =
 			withTimeoutOrNull(expires?.inWholeMilliseconds ?: defaultTimeout) {
-				client.inboxSubscription.messages
+				inboxSubscription.messages
 					.takeWhile {
-						if (serverResponseSubject == it.subject.raw) {
-							if (it.status != null && it.status !in 200..300) {
-								return@takeWhile false
-							}
+						if (it.status != null && it.status !in 200..300) {
+							return@takeWhile false
 						}
 						true
 					}.take(batch)
-					.toList()
+					.onStart {
+						pull(streamName, name, body, nextRequestSubject())
+					}.toList()
 			} ?: return emptyList()
 
 		return messages.map {
 			IncomingJetStreamMessage(
 				original = it as MessageInternal,
-				ackAction = { subject, body -> client.publish(subject, body) },
+				ackAction = { subject, body -> js.client.publish(subject, body) },
 			)
 		}
+	}
+
+	companion object {
+		suspend operator fun invoke(
+			name: String,
+			streamName: String,
+			js: JetStreamClient,
+			defaultTimeout: Long = 10_000_000_000,
+			initialInfo: ConsumerInfo?,
+		): PullConsumerImpl =
+			PullConsumerImpl(
+				name = name,
+				streamName = streamName,
+				js = js,
+				inboxSubscription = newSubscription(js.client),
+				defaultTimeout = defaultTimeout,
+				initialInfo = initialInfo,
+			)
 	}
 }

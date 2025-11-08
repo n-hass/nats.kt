@@ -1,28 +1,37 @@
 package io.natskt.jetstream.internal
 
-import io.natskt.internal.NUID
+import io.natskt.api.Message
 import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ApiError
+import io.natskt.jetstream.api.ApiResponse
 import io.natskt.jetstream.api.ConsumerConfiguration
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
+import io.natskt.jetstream.api.JetStreamApiResponse
 import io.natskt.jetstream.api.JetStreamUnknownResponseException
 import io.natskt.jetstream.api.StreamConfiguration
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerCreateAction
 import io.natskt.jetstream.api.consumer.ConsumerCreateRequest
-import io.natskt.jetstream.client.JetStreamClientImpl
+import io.natskt.jetstream.api.internal.decodeApiResponse
 
 internal const val STREAM_INFO = "STREAM.INFO."
 internal const val STREAM_CREATE = "STREAM.CREATE."
 internal const val CONSUMER_INFO = "CONSUMER.INFO."
 
-internal suspend fun JetStreamClientImpl.getStreamInfo(
+internal inline fun <reified T : JetStreamApiResponse> Message.decode(): ApiResponse {
+	if (data == null || data!!.isEmpty()) {
+		return ApiError(code = status)
+	}
+	return wireJsonFormat.decodeApiResponse<T>(data!!.decodeToString())
+}
+
+internal suspend fun CanRequest.getStreamInfo(
 	name: String,
 	subjectFilter: String? = null,
 	deletedDetails: Boolean = false,
 ): Result<StreamInfo> {
-	val data = request<StreamInfo>(config.apiPrefix + STREAM_INFO + name, null)
+	val data = request(config.apiPrefix + STREAM_INFO + name, null).decode<StreamInfo>()
 	return when (data) {
 		is StreamInfo -> Result.success(data)
 		is ApiError -> Result.failure(JetStreamApiException(data))
@@ -30,8 +39,8 @@ internal suspend fun JetStreamClientImpl.getStreamInfo(
 	}
 }
 
-internal suspend fun JetStreamClientImpl.createStream(configuration: StreamConfiguration): Result<StreamInfo> {
-	val data = request<StreamInfo>(config.apiPrefix + STREAM_CREATE + configuration.name, wireJsonFormat.encodeToString(configuration))
+internal suspend fun CanRequest.createStream(configuration: StreamConfiguration): Result<StreamInfo> {
+	val data = request(config.apiPrefix + STREAM_CREATE + configuration.name, wireJsonFormat.encodeToString(configuration)).decode<StreamInfo>()
 	return when (data) {
 		is StreamInfo -> Result.success(data)
 		is ApiError -> Result.failure(JetStreamApiException(data))
@@ -39,7 +48,7 @@ internal suspend fun JetStreamClientImpl.createStream(configuration: StreamConfi
 	}
 }
 
-internal suspend fun JetStreamClientImpl.createOrUpdateConsumer(
+internal suspend fun CanRequest.createOrUpdateConsumer(
 	streamName: String,
 	configuration: ConsumerConfiguration,
 ): Result<ConsumerInfo> {
@@ -61,7 +70,7 @@ internal suspend fun JetStreamClientImpl.createOrUpdateConsumer(
 			),
 		)
 
-	val data = request<ConsumerInfo>(subject, payload)
+	val data = request(subject, payload).decode<ConsumerInfo>()
 
 	return when (data) {
 		is ConsumerInfo -> Result.success(data)
@@ -70,38 +79,38 @@ internal suspend fun JetStreamClientImpl.createOrUpdateConsumer(
 	}
 }
 
-internal suspend fun JetStreamClientImpl.pull(
+internal suspend fun PersistentRequestSubscription.pull(
 	streamName: String,
 	consumerName: String,
 	requestBody: String,
-): String {
+	replyTo: String?,
+) {
 	val subject =
 		buildString {
-			append(config.apiPrefix)
+			append(js.config.apiPrefix)
 			append("CONSUMER.MSG.NEXT.")
 			append(streamName)
 			append(".")
 			append(consumerName)
 		}
 
-	val replyTo = inboxPrefix + NUID.nextSequence()
-	client.publish(subject, requestBody.encodeToByteArray(), replyTo = replyTo)
-	return replyTo
+	js.client.publish(subject, requestBody.encodeToByteArray(), replyTo = replyTo)
+	return
 }
 
-internal suspend fun JetStreamClientImpl.getConsumerInfo(
+internal suspend fun PersistentRequestSubscription.getConsumerInfo(
 	streamName: String,
 	name: String,
 ): Result<ConsumerInfo> {
 	val subject =
 		buildString {
-			append(config.apiPrefix)
+			append(js.config.apiPrefix)
 			append(CONSUMER_INFO)
 			append(streamName)
 			append(".")
 			append(name)
 		}
-	val data = request<ConsumerInfo>(subject, null)
+	val data = request(subject, null).decode<ConsumerInfo>()
 	return when (data) {
 		is ConsumerInfo -> Result.success(data)
 		is ApiError -> Result.failure(JetStreamApiException(data))

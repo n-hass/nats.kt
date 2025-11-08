@@ -1,6 +1,6 @@
 package io.natskt.jetstream.client
 
-internal data class JetStreamConfiguration(
+public data class JetStreamConfiguration(
 	val domain: String?,
 	val apiPrefix: String,
 )

@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ApiIntegrationTest {
@@ -29,14 +30,14 @@ class ApiIntegrationTest {
 			val js = JetStreamClient(c)
 
 			val s =
-				js.createStream {
+				js.management().createStream {
 					name = "abc"
 					subject("ABC")
 					subject("124.>")
 					source {
-						domain = "cloud"
+						name = "stuff"
 						external {
-							api = "ee"
+							apiPrefix = "ee"
 						}
 					}
 				}
@@ -54,7 +55,7 @@ class ApiIntegrationTest {
 			val js = JetStreamClient(c)
 
 			val s =
-				js.createStream {
+				js.management().createStream {
 					name = "test_stream_for_basic_consumer"
 					subject("test.basic_consumer")
 				}
@@ -83,7 +84,7 @@ class ApiIntegrationTest {
 			val js = JetStreamClient(c)
 
 			val s =
-				js.createStream {
+				js.management().createStream {
 					name = "test_stream_for_basic_consumer"
 					subject("test.basic_consumer.>")
 				}
@@ -101,7 +102,7 @@ class ApiIntegrationTest {
 
 			assertEquals(0, consumer.fetch(1, expires = 1.seconds).size, message = "consumer should not return any messages")
 
-			eventually(eventuallyConfig { duration = 1.seconds }) {
+			eventually(eventuallyConfig { duration = 500.milliseconds }) {
 				assertEquals(
 					1,
 					s
@@ -114,7 +115,7 @@ class ApiIntegrationTest {
 
 			c.publish("test.basic_consumer.hi.consumer1", "hi to consumer".encodeToByteArray())
 
-			eventually(eventuallyConfig { duration = 1.seconds }) {
+			eventually(eventuallyConfig { duration = 500.milliseconds }) {
 				assertEquals(
 					2,
 					s
@@ -130,5 +131,6 @@ class ApiIntegrationTest {
 			assertEquals(1, messages.size, "consumer fetch should return 1 message")
 
 			assertEquals("hi to consumer", messages.single().data?.decodeToString())
+			messages.forEach { it.ackWait() }
 		}
 }

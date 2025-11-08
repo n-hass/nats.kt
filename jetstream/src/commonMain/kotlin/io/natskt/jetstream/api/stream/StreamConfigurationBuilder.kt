@@ -14,18 +14,16 @@ import io.natskt.jetstream.internal.JetStreamDsl
 
 @JetStreamDsl
 public class ExternalStreamBuilder internal constructor() {
-	public var api: String? = null
-	public var deliver: String? = null
-	public var domain: String? = null
+	public var apiPrefix: String? = null
+	public var deliverPrefix: String? = null
 }
 
 internal fun ExternalStreamBuilder.build(): ExternalStream {
-	val api = this.api
+	val api = this.apiPrefix
 	require(api != null) { "api must be set" }
 	return ExternalStream(
 		api = api,
-		deliver = this.deliver,
-		domain = this.domain,
+		deliver = this.deliverPrefix,
 	)
 }
 

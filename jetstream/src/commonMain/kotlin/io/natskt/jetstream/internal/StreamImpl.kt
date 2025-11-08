@@ -1,25 +1,25 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
 import io.natskt.jetstream.api.consumer.build
 import io.natskt.jetstream.api.stream.Stream
-import io.natskt.jetstream.client.JetStreamClientImpl
 import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(InternalNatsApi::class)
 internal class StreamImpl(
 	private val name: String,
-	private val client: JetStreamClientImpl,
+	private val js: JetStreamClient,
 	initialInfo: StreamInfo?,
 ) : Stream {
 	@OptIn(InternalNatsApi::class)
 	override val info = MutableStateFlow(initialInfo)
 
 	override suspend fun updateStreamInfo(): Result<StreamInfo> {
-		val new = client.getStreamInfo(name)
+		val new = js.getStreamInfo(name)
 		new.onSuccess {
 			info.value = it
 		}
@@ -30,18 +30,18 @@ internal class StreamImpl(
 		PullConsumerImpl(
 			name = name,
 			streamName = this.name,
-			client = client,
+			js = js,
 			initialInfo = null,
 		)
 
 	override suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer {
-		val new = client.createOrUpdateConsumer(name, ConsumerConfigurationBuilder().apply(configure).build())
+		val new = js.createOrUpdateConsumer(name, ConsumerConfigurationBuilder().apply(configure).build())
 		return new
 			.map {
 				PullConsumerImpl(
 					name = it.name,
 					streamName = it.stream,
-					client = client,
+					js = js,
 					initialInfo = it,
 				)
 			}.getOrThrow()
