@@ -5,52 +5,30 @@ package io.natskt.jetstream.client
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
-import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.StringMessageBuilder
-import io.natskt.internal.NUID
-import io.natskt.internal.wireJsonFormat
-import io.natskt.jetstream.api.ApiError
-import io.natskt.jetstream.api.ApiResponse
-import io.natskt.jetstream.api.JetStreamApiResponse
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.PublishAck
 import io.natskt.jetstream.api.consumer.PullConsumer
-import io.natskt.jetstream.api.internal.decodeApiResponse
 import io.natskt.jetstream.api.stream.Stream
-import io.natskt.jetstream.api.stream.StreamConfigurationBuilder
-import io.natskt.jetstream.api.stream.build
+import io.natskt.jetstream.internal.PersistentRequestSubscription
 import io.natskt.jetstream.internal.StreamImpl
-import io.natskt.jetstream.internal.createStream
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.launch
+import io.natskt.jetstream.management.JetStreamManagementImpl
 
 internal class JetStreamClientImpl(
 	override val client: NatsClient,
-	internal val config: JetStreamConfiguration,
-	internal val inboxSubscription: Subscription,
+	override val config: JetStreamConfiguration,
 ) : JetStreamClient {
-	val inboxPrefix = inboxSubscription.subject.raw.dropLast(1)
+	var management: JetStreamManagementImpl? = null
 
-	suspend inline fun <reified T : JetStreamApiResponse> request(
-		subject: String,
-		message: String?,
-		headers: Map<String, List<String>>? = null,
-	): ApiResponse {
-		val replyTo = inboxPrefix + NUID.nextSequence()
-		val response =
-			inboxSubscription.messages
-				.filter { it.subject.raw == replyTo }
-				.onStart {
-					client.publish(subject, message?.encodeToByteArray(), headers, replyTo = replyTo)
-				}.first()
-		if (response.data == null || response.data!!.isEmpty()) {
-			return ApiError(code = response.status)
+	suspend fun management(): JetStreamManagementImpl {
+		if (management == null) {
+			val new = JetStreamManagementImpl(this, PersistentRequestSubscription.newSubscription(client))
+			management = new
+			return new
 		}
-		return wireJsonFormat.decodeApiResponse<T>(response.data!!.decodeToString())
+		return management!!
 	}
 
 	override suspend fun publish(
@@ -67,20 +45,43 @@ internal class JetStreamClientImpl(
 		message: ByteArray,
 		headers: Map<String, List<String>>?,
 		replyTo: Subject?,
-	): PublishAck {
-		TODO("Not yet implemented")
-	}
+	): PublishAck = publish(subject.raw, message, headers, replyTo?.raw)
 
 	override suspend fun publish(message: Message): PublishAck {
-		TODO("Not yet implemented")
+		require(message.replyTo == null) { "JetStream publish does not support custom reply subjects" }
+
+		return publish(
+			message.subject.raw,
+			message.data ?: ByteArray(0),
+			message.headers,
+			null,
+		)
 	}
 
 	override suspend fun publishBytes(byteMessageBlock: ByteMessageBuilder.() -> Unit): PublishAck {
-		TODO("Not yet implemented")
+		val builder = ByteMessageBuilder().apply(byteMessageBlock)
+		val subject = builder.subject ?: error("subject must be set")
+		require(builder.replyTo == null) { "JetStream publish does not support custom reply subjects" }
+
+		return publish(
+			subject,
+			builder.data ?: ByteArray(0),
+			builder.headers,
+			null,
+		)
 	}
 
 	override suspend fun publishString(stringMessageBlock: StringMessageBuilder.() -> Unit): PublishAck {
-		TODO("Not yet implemented")
+		val builder = StringMessageBuilder().apply(stringMessageBlock)
+		val subject = builder.subject ?: error("subject must be set")
+		require(builder.replyTo == null) { "JetStream publish does not support custom reply subjects" }
+
+		return publish(
+			subject,
+			builder.data?.encodeToByteArray() ?: ByteArray(0),
+			builder.headers,
+			null,
+		)
 	}
 
 	override suspend fun pull(
@@ -96,25 +97,4 @@ internal class JetStreamClientImpl(
 			this,
 			null,
 		).also { it.updateStreamInfo() }
-
-	override suspend fun createStream(configure: StreamConfigurationBuilder.() -> Unit): Stream {
-		val configuration = StreamConfigurationBuilder().apply(configure).build()
-
-		return createStream(configuration).fold(
-			onSuccess = {
-				StreamImpl(
-					configuration.name,
-					this,
-					it,
-				)
-			},
-			onFailure = {
-				throw it
-			},
-		)
-	}
-
-	override fun close() {
-		client.scope.launch { inboxSubscription.unsubscribe() }
-	}
 }

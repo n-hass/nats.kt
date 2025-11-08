@@ -1,28 +1,38 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.api.Message
 import io.natskt.internal.NUID
 import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ApiError
+import io.natskt.jetstream.api.ApiResponse
 import io.natskt.jetstream.api.ConsumerConfiguration
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
+import io.natskt.jetstream.api.JetStreamApiResponse
 import io.natskt.jetstream.api.JetStreamUnknownResponseException
 import io.natskt.jetstream.api.StreamConfiguration
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerCreateAction
 import io.natskt.jetstream.api.consumer.ConsumerCreateRequest
-import io.natskt.jetstream.client.JetStreamClientImpl
+import io.natskt.jetstream.api.internal.decodeApiResponse
 
 internal const val STREAM_INFO = "STREAM.INFO."
 internal const val STREAM_CREATE = "STREAM.CREATE."
 internal const val CONSUMER_INFO = "CONSUMER.INFO."
 
-internal suspend fun JetStreamClientImpl.getStreamInfo(
+internal inline fun <reified T : JetStreamApiResponse> Message.decode(): ApiResponse {
+	if (data == null || data!!.isEmpty()) {
+		return ApiError(code = status)
+	}
+	return wireJsonFormat.decodeApiResponse<T>(data!!.decodeToString())
+}
+
+internal suspend fun PersistentRequestSubscription.getStreamInfo(
 	name: String,
 	subjectFilter: String? = null,
 	deletedDetails: Boolean = false,
 ): Result<StreamInfo> {
-	val data = request<StreamInfo>(config.apiPrefix + STREAM_INFO + name, null)
+	val data = request<StreamInfo>(js.config.apiPrefix + STREAM_INFO + name, null)
 	return when (data) {
 		is StreamInfo -> Result.success(data)
 		is ApiError -> Result.failure(JetStreamApiException(data))
@@ -30,8 +40,8 @@ internal suspend fun JetStreamClientImpl.getStreamInfo(
 	}
 }
 
-internal suspend fun JetStreamClientImpl.createStream(configuration: StreamConfiguration): Result<StreamInfo> {
-	val data = request<StreamInfo>(config.apiPrefix + STREAM_CREATE + configuration.name, wireJsonFormat.encodeToString(configuration))
+internal suspend fun PersistentRequestSubscription.createStream(configuration: StreamConfiguration): Result<StreamInfo> {
+	val data = request<StreamInfo>(js.config.apiPrefix + STREAM_CREATE + configuration.name, wireJsonFormat.encodeToString(configuration))
 	return when (data) {
 		is StreamInfo -> Result.success(data)
 		is ApiError -> Result.failure(JetStreamApiException(data))
@@ -39,17 +49,17 @@ internal suspend fun JetStreamClientImpl.createStream(configuration: StreamConfi
 	}
 }
 
-internal suspend fun JetStreamClientImpl.createOrUpdateConsumer(
+internal suspend fun PersistentRequestSubscription.createOrUpdateConsumer(
 	streamName: String,
 	configuration: ConsumerConfiguration,
 ): Result<ConsumerInfo> {
 	val subject =
 		when {
 			configuration.durableName != null && configuration.filterSubject != null ->
-				config.apiPrefix + "CONSUMER.CREATE." + streamName + "." + configuration.durableName + "." +
+				js.config.apiPrefix + "CONSUMER.CREATE." + streamName + "." + configuration.durableName + "." +
 					configuration.filterSubject
-			configuration.durableName != null -> config.apiPrefix + "CONSUMER.CREATE." + streamName + "." + configuration.durableName
-			else -> config.apiPrefix + "CONSUMER.CREATE." + streamName
+			configuration.durableName != null -> js.config.apiPrefix + "CONSUMER.CREATE." + streamName + "." + configuration.durableName
+			else -> js.config.apiPrefix + "CONSUMER.CREATE." + streamName
 		}
 
 	val payload =
@@ -70,32 +80,33 @@ internal suspend fun JetStreamClientImpl.createOrUpdateConsumer(
 	}
 }
 
-internal suspend fun JetStreamClientImpl.pull(
+internal suspend fun PersistentRequestSubscription.pull(
 	streamName: String,
 	consumerName: String,
 	requestBody: String,
+	replyTo: String?,
 ): String {
 	val subject =
 		buildString {
-			append(config.apiPrefix)
+			append(js.config.apiPrefix)
 			append("CONSUMER.MSG.NEXT.")
 			append(streamName)
 			append(".")
 			append(consumerName)
 		}
 
-	val replyTo = inboxPrefix + NUID.nextSequence()
-	client.publish(subject, requestBody.encodeToByteArray(), replyTo = replyTo)
+	val replyTo = replyTo ?: (inboxPrefix + NUID.nextSequence())
+	js.client.publish(subject, requestBody.encodeToByteArray(), replyTo = replyTo)
 	return replyTo
 }
 
-internal suspend fun JetStreamClientImpl.getConsumerInfo(
+internal suspend fun PersistentRequestSubscription.getConsumerInfo(
 	streamName: String,
 	name: String,
 ): Result<ConsumerInfo> {
 	val subject =
 		buildString {
-			append(config.apiPrefix)
+			append(js.config.apiPrefix)
 			append(CONSUMER_INFO)
 			append(streamName)
 			append(".")

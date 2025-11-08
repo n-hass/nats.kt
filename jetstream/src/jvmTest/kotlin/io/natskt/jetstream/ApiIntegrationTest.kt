@@ -130,5 +130,6 @@ class ApiIntegrationTest {
 			assertEquals(1, messages.size, "consumer fetch should return 1 message")
 
 			assertEquals("hi to consumer", messages.single().data?.decodeToString())
+			messages.forEach { it.ack() }
 		}
 }

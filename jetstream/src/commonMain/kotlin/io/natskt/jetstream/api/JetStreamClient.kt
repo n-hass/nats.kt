@@ -3,17 +3,16 @@ package io.natskt.jetstream.api
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
-import io.natskt.api.Subscription
 import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.StringMessageBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
 import io.natskt.jetstream.api.stream.Stream
-import io.natskt.jetstream.api.stream.StreamConfigurationBuilder
 import io.natskt.jetstream.client.JetStreamClientImpl
 import io.natskt.jetstream.client.JetStreamConfiguration
 
-public interface JetStreamClient : AutoCloseable {
+public interface JetStreamClient : CanRequest {
 	public val client: NatsClient
+	public val config: JetStreamConfiguration
 
 	public suspend fun publish(
 		subject: String,
@@ -48,16 +47,10 @@ public interface JetStreamClient : AutoCloseable {
 	 */
 	public suspend fun stream(name: String): Stream
 
-	/**
-	 * Create a new stream
-	 */
-	public suspend fun createStream(configure: StreamConfigurationBuilder.() -> Unit): Stream
-
 	public companion object {
 		internal operator fun invoke(
 			client: NatsClient,
 			config: JetStreamConfiguration,
-			inboxSubscription: Subscription,
-		) = JetStreamClientImpl(client, config, inboxSubscription)
+		) = JetStreamClientImpl(client, config)
 	}
 }

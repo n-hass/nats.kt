@@ -12,6 +12,5 @@ public suspend fun JetStreamClient(
 	block: JetStreamConfigurationBuilder.() -> Unit = {},
 ): JetStreamClient {
 	val config = JetStreamConfigurationBuilder().apply(block).build()
-	val inbox = client.subscribe(client.nextInbox() + ".*", replayBuffer = 0, unsubscribeOnLastCollector = false, eager = true)
-	return JetStreamClient(client, config, inbox)
+	return JetStreamClient(client, config)
 }
