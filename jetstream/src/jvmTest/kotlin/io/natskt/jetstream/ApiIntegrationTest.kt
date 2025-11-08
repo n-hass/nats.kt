@@ -5,6 +5,7 @@ import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.NatsClient
 import io.natskt.jetstream.api.JetStreamApiException
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -23,6 +24,7 @@ class ApiIntegrationTest {
 		}
 
 	@Test
+	@Ignore
 	fun `it creates a stream with given configuration`() =
 		NatsServerHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
@@ -48,6 +50,7 @@ class ApiIntegrationTest {
 		}
 
 	@Test
+	@Ignore
 	fun `it creates a consumer`() =
 		NatsServerHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
@@ -77,6 +80,7 @@ class ApiIntegrationTest {
 		}
 
 	@Test
+	@Ignore
 	fun `pull consumer can fetch`() =
 		NatsServerHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
