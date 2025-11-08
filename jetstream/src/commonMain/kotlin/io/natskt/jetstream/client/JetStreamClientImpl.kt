@@ -22,7 +22,7 @@ internal class JetStreamClientImpl(
 ) : JetStreamClient {
 	var management: JetStreamManagementImpl? = null
 
-	suspend fun management(): JetStreamManagementImpl {
+	override suspend fun management(): JetStreamManagementImpl {
 		if (management == null) {
 			val new = JetStreamManagementImpl(this, PersistentRequestSubscription.newSubscription(client))
 			management = new
@@ -97,4 +97,11 @@ internal class JetStreamClientImpl(
 			this,
 			null,
 		).also { it.updateStreamInfo() }
+
+	override suspend fun request(
+		subject: String,
+		message: String?,
+		headers: Map<String, List<String>>?,
+		timeoutMs: Long,
+	): Message = client.request(subject, message?.encodeToByteArray(), headers, timeoutMs)
 }

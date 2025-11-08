@@ -9,10 +9,12 @@ import io.natskt.jetstream.api.consumer.PullConsumer
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.client.JetStreamClientImpl
 import io.natskt.jetstream.client.JetStreamConfiguration
+import io.natskt.jetstream.internal.CanRequest
 
 public interface JetStreamClient : CanRequest {
 	public val client: NatsClient
-	public val config: JetStreamConfiguration
+
+	public suspend fun management(): JetStreamManagement
 
 	public suspend fun publish(
 		subject: String,

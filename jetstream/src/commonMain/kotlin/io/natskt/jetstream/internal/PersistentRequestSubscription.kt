@@ -1,39 +1,40 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.NUID
-import io.natskt.jetstream.api.ApiResponse
-import io.natskt.jetstream.api.JetStreamApiResponse
 import io.natskt.jetstream.api.JetStreamClient
+import io.natskt.jetstream.client.JetStreamConfiguration
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
-internal abstract class PersistentRequestSubscription(
+internal open class PersistentRequestSubscription(
 	val js: JetStreamClient,
 	val inboxSubscription: Subscription,
-) : AutoCloseable {
+) : CanRequest,
+	AutoCloseable {
 	val inboxPrefix = inboxSubscription.subject.raw.dropLast(1)
+	override val config: JetStreamConfiguration
+		get() = js.config
 
 	fun nextRequestSubject() = inboxPrefix + NUID.nextSequence()
 
-	suspend inline fun <reified T : JetStreamApiResponse> request(
+	override suspend fun request(
 		subject: String,
 		message: String?,
-		headers: Map<String, List<String>>? = null,
-		timeoutMs: Long = 5000,
-	): ApiResponse {
+		headers: Map<String, List<String>>?,
+		timeoutMs: Long,
+	): Message {
 		val replyTo = nextRequestSubject()
-		val response =
-			inboxSubscription.messages
-				.filter { it.subject.raw == replyTo }
-				.onStart {
-					js.client.publish(subject, message?.encodeToByteArray(), headers, replyTo = replyTo)
-				}.first()
-		return response.decode<T>()
+		return inboxSubscription.messages
+			.filter { it.subject.raw == replyTo }
+			.onStart {
+				js.client.publish(subject, message?.encodeToByteArray(), headers, replyTo = replyTo)
+			}.first()
 	}
 
 	@OptIn(InternalNatsApi::class)

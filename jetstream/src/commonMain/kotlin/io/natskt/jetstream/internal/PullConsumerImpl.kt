@@ -88,7 +88,7 @@ internal class PullConsumerImpl(
 	}
 
 	companion object {
-		suspend fun invoke(
+		suspend operator fun invoke(
 			name: String,
 			streamName: String,
 			js: JetStreamClient,

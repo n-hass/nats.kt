@@ -35,13 +35,13 @@ internal class StreamImpl(
 		)
 
 	override suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer {
-		val new = client.createOrUpdateConsumer(name, ConsumerConfigurationBuilder().apply(configure).build())
+		val new = js.createOrUpdateConsumer(name, ConsumerConfigurationBuilder().apply(configure).build())
 		return new
 			.map {
 				PullConsumerImpl(
 					name = it.name,
 					streamName = it.stream,
-					js = client,
+					js = js,
 					initialInfo = it,
 				)
 			}.getOrThrow()

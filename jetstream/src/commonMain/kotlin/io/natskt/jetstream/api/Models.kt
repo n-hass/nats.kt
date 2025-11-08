@@ -134,7 +134,6 @@ public data class SubjectTransform(
 public data class ExternalStream(
 	val api: String,
 	val deliver: String? = null,
-	val domain: String? = null,
 )
 
 @Serializable
