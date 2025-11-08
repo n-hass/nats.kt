@@ -5,7 +5,6 @@ import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.NatsClient
 import io.natskt.jetstream.api.JetStreamApiException
-import jdk.internal.org.jline.utils.Colors.s
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
