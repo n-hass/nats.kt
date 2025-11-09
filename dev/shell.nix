@@ -1,8 +1,9 @@
 { ... }:
 
 {
-  perSystem = { system, config, pkgs, lib, ... }: {
-    miniShell = {
+  perSystem = { system, config, pkgs, lib, common, ... }: {
+
+    _module.args.common = {
       packages = with pkgs; [
         jdk21
         gradle
@@ -18,12 +19,21 @@
           "x86_64-linux" = "${lib.getExe pkgs.chromium}";
         }."${system}" or "${lib.getExe pkgs.brave}";
       };
+    };
+
+    miniShell = {
+      packages = common.packages;
+      env = common.env;
 
       returnToUserShell = true;
 
       shellHook = ''
         ${config.pre-commit.installationScript}
       '';
+    };
+
+    devShells.ci = pkgs.mkMinimalShell {
+      nativeBuildInputs = common.packages;
     };
   };
 }
