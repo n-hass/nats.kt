@@ -18,6 +18,7 @@ internal fun JetStreamConfigurationBuilder.build(): JetStreamConfiguration {
 			apiPrefix
 		}
 	return JetStreamConfiguration(
+		prefix = apiPrefix.removeSuffix("API."),
 		apiPrefix = apiPrefix,
 		domain = domain,
 	)

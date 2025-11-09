@@ -18,11 +18,11 @@ class KvIntegrationTest {
 					name = "MyCoolBucket"
 				}
 
-			assertEquals("MyCoolBucket", bucket.config.bucket)
-			assertEquals(1u, bucket.config.history)
-			assertEquals(Duration.ZERO, bucket.config.ttl)
-			assertEquals(-1, bucket.config.maxValueSize)
-			assertEquals(-1, bucket.config.maxBytes)
+			assertEquals("MyCoolBucket", bucket.config!!.bucket)
+			assertEquals(1u, bucket.config!!.history)
+			assertEquals(Duration.ZERO, bucket.config!!.ttl)
+			assertEquals(-1, bucket.config!!.maxValueSize)
+			assertEquals(-1, bucket.config!!.maxBytes)
 		}
 
 	@Test
@@ -39,5 +39,39 @@ class KvIntegrationTest {
 			val getResult = js.keyValueManager.get("MyCoolBucketAgain")
 
 			assertEquals(createResult.config, getResult.config)
+		}
+
+	@Test
+	fun `it puts on a bucket`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			js.keyValueManager.create {
+				name = "MyCoolBucket"
+			}
+
+			val bucket = js.keyValue("MyCoolBucket")
+
+			bucket.put("a.b", "test".encodeToByteArray())
+		}
+
+	@Test
+	fun `it gets on a bucket`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			js.keyValueManager.create {
+				name = "MyCoolBucket"
+			}
+
+			val bucket = js.keyValue("MyCoolBucket")
+
+			bucket.put("a.b", "test1".encodeToByteArray())
+
+			val entry = bucket.get("a.b")
+
+			assertEquals("test1", entry.value.decodeToString())
 		}
 }

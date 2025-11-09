@@ -1,5 +1,6 @@
 package io.natskt.jetstream.api
 
+import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.kv.KeyValueConfigurationBuilder
 
 public interface KeyValueManager {

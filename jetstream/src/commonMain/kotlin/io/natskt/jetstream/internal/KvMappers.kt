@@ -68,7 +68,7 @@ internal fun KeyValueConfig.asStreamConfig(apiLevel: Int): StreamConfig {
 		allowMsgTtl = true
 	}
 
-	fun kvSubjectsOf(bucket: String): String = KV_BUCKET_STREAM_NAME_PREFIX + bucket
+	fun kvSubjectsOf(bucket: String): String = "\$KV.$bucket.>"
 
 	val subjects = mutableListOf(kvSubjectsOf(bucket))
 

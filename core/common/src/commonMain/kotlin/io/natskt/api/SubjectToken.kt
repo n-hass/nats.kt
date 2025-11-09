@@ -12,6 +12,7 @@ public value class SubjectToken(
 }
 
 public fun SubjectToken.Companion.from(s: String): SubjectToken {
-	if (disallowedNatsChars.matches(s)) throw IllegalArgumentException("$s is not a valid NATS subject token")
+	if (s.isEmpty()) throw IllegalArgumentException("a blank string is not a valid subject token")
+	if (disallowedNatsChars.matches(s)) throw IllegalArgumentException("$s is not a valid subject token")
 	return SubjectToken(s)
 }

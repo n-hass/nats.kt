@@ -6,22 +6,22 @@ import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.NUID
 import io.natskt.jetstream.api.JetStreamClient
-import io.natskt.jetstream.client.JetStreamConfiguration
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
-internal open class PersistentRequestSubscription(
-	val js: JetStreamClient,
-	val inboxSubscription: Subscription,
+public open class PersistentRequestSubscription(
+	internal val js: JetStreamClient,
+	internal val inboxSubscription: Subscription,
 ) : CanRequest,
 	AutoCloseable {
-	val inboxPrefix = inboxSubscription.subject.raw.dropLast(1)
-	override val config: JetStreamConfiguration
-		get() = js.config
+	internal val inboxPrefix = inboxSubscription.subject.raw.dropLast(1)
 
-	fun nextRequestSubject() = inboxPrefix + NUID.nextSequence()
+	override val context: JetStreamContext
+		get() = js.context
+
+	internal fun nextRequestSubject() = inboxPrefix + NUID.nextSequence()
 
 	override suspend fun request(
 		subject: String,
@@ -42,8 +42,8 @@ internal open class PersistentRequestSubscription(
 		js.client.scope.launch { inboxSubscription.unsubscribe() }
 	}
 
-	companion object {
+	internal companion object {
 		@OptIn(InternalNatsApi::class)
-		suspend fun newSubscription(client: NatsClient): Subscription = client.subscribe(client.nextInbox() + ".*", replayBuffer = 0, unsubscribeOnLastCollector = false, eager = true)
+		suspend fun newSubscription(client: NatsClient): Subscription = client.subscribe(client.nextInbox() + ".*", replayBuffer = 0, unsubscribeOnLastCollector = false, eager = false)
 	}
 }
