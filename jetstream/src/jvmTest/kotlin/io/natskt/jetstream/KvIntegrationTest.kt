@@ -74,4 +74,26 @@ class KvIntegrationTest {
 
 			assertEquals("test1", entry.value.decodeToString())
 		}
+
+	@Test
+	fun `it gets a past value from a bucket`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			js.keyValueManager.create {
+				name = "Foo"
+				history = 3
+			}
+
+			val bucket = js.keyValue("Foo")
+
+			bucket.put("a.b", "test1".encodeToByteArray())
+			bucket.put("a.b", "test2".encodeToByteArray())
+			bucket.put("a.b", "test3".encodeToByteArray())
+
+			assertEquals("test1", bucket.get("a.b", revision = 1u).value.decodeToString())
+			assertEquals("test2", bucket.get("a.b", revision = 2u).value.decodeToString())
+			assertEquals("test3", bucket.get("a.b", revision = 3u).value.decodeToString())
+		}
 }
