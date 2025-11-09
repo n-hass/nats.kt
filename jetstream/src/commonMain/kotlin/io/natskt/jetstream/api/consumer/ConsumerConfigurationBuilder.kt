@@ -1,7 +1,7 @@
 package io.natskt.jetstream.api.consumer
 
 import io.natskt.jetstream.api.AckPolicy
-import io.natskt.jetstream.api.ConsumerConfiguration
+import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
 import io.natskt.jetstream.api.ReplayPolicy
 import io.natskt.jetstream.internal.JetStreamDsl
@@ -58,8 +58,8 @@ public class ConsumerConfigurationBuilder internal constructor() {
 	}
 }
 
-internal fun ConsumerConfigurationBuilder.build(): ConsumerConfiguration =
-	ConsumerConfiguration(
+internal fun ConsumerConfigurationBuilder.build(): ConsumerConfig =
+	ConsumerConfig(
 		durableName = this.durableName,
 		description = this.description,
 		deliverSubject = this.deliverSubject,

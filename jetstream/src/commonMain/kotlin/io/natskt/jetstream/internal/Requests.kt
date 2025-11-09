@@ -1,30 +1,21 @@
 package io.natskt.jetstream.internal
 
-import io.natskt.api.Message
 import io.natskt.internal.wireJsonFormat
+import io.natskt.jetstream.api.AccountInfo
 import io.natskt.jetstream.api.ApiError
-import io.natskt.jetstream.api.ApiResponse
-import io.natskt.jetstream.api.ConsumerConfiguration
+import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
-import io.natskt.jetstream.api.JetStreamApiResponse
 import io.natskt.jetstream.api.JetStreamUnknownResponseException
-import io.natskt.jetstream.api.StreamConfiguration
+import io.natskt.jetstream.api.StreamConfig
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerCreateAction
 import io.natskt.jetstream.api.consumer.ConsumerCreateRequest
-import io.natskt.jetstream.api.internal.decodeApiResponse
+import io.natskt.jetstream.api.internal.decode
 
 internal const val STREAM_INFO = "STREAM.INFO."
 internal const val STREAM_CREATE = "STREAM.CREATE."
 internal const val CONSUMER_INFO = "CONSUMER.INFO."
-
-internal inline fun <reified T : JetStreamApiResponse> Message.decode(): ApiResponse {
-	if (data == null || data!!.isEmpty()) {
-		return ApiError(code = status)
-	}
-	return wireJsonFormat.decodeApiResponse<T>(data!!.decodeToString())
-}
 
 internal suspend fun CanRequest.getStreamInfo(
 	name: String,
@@ -39,7 +30,7 @@ internal suspend fun CanRequest.getStreamInfo(
 	}
 }
 
-internal suspend fun CanRequest.createStream(configuration: StreamConfiguration): Result<StreamInfo> {
+internal suspend fun CanRequest.createStream(configuration: StreamConfig): Result<StreamInfo> {
 	val data = request(config.apiPrefix + STREAM_CREATE + configuration.name, wireJsonFormat.encodeToString(configuration)).decode<StreamInfo>()
 	return when (data) {
 		is StreamInfo -> Result.success(data)
@@ -50,7 +41,7 @@ internal suspend fun CanRequest.createStream(configuration: StreamConfiguration)
 
 internal suspend fun CanRequest.createOrUpdateConsumer(
 	streamName: String,
-	configuration: ConsumerConfiguration,
+	configuration: ConsumerConfig,
 ): Result<ConsumerInfo> {
 	val subject =
 		when {
@@ -113,6 +104,20 @@ internal suspend fun PersistentRequestSubscription.getConsumerInfo(
 	val data = request(subject, null).decode<ConsumerInfo>()
 	return when (data) {
 		is ConsumerInfo -> Result.success(data)
+		is ApiError -> Result.failure(JetStreamApiException(data))
+		else -> Result.failure(JetStreamUnknownResponseException(data))
+	}
+}
+
+internal suspend fun CanRequest.getAccountInfo(): Result<AccountInfo> {
+	val subject =
+		buildString {
+			append(config.apiPrefix)
+			append("INFO")
+		}
+	val data = request(subject, null).decode<AccountInfo>()
+	return when (data) {
+		is AccountInfo -> Result.success(data)
 		is ApiError -> Result.failure(JetStreamApiException(data))
 		else -> Result.failure(JetStreamUnknownResponseException(data))
 	}

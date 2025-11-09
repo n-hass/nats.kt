@@ -9,26 +9,25 @@ import io.natskt.api.internal.InternalNatsApi
 import io.natskt.client.ByteMessageBuilder
 import io.natskt.client.StringMessageBuilder
 import io.natskt.jetstream.api.JetStreamClient
+import io.natskt.jetstream.api.JetStreamManager
+import io.natskt.jetstream.api.KeyValueManager
 import io.natskt.jetstream.api.PublishAck
 import io.natskt.jetstream.api.consumer.PullConsumer
 import io.natskt.jetstream.api.stream.Stream
-import io.natskt.jetstream.internal.PersistentRequestSubscription
+import io.natskt.jetstream.internal.KeyValueManagerImpl
 import io.natskt.jetstream.internal.StreamImpl
-import io.natskt.jetstream.management.JetStreamManagementImpl
+import io.natskt.jetstream.management.JetStreamManagerImpl
 
 internal class JetStreamClientImpl(
 	override val client: NatsClient,
 	override val config: JetStreamConfiguration,
 ) : JetStreamClient {
-	var management: JetStreamManagementImpl? = null
+	override val manager: JetStreamManager by lazy {
+		JetStreamManagerImpl(this)
+	}
 
-	override suspend fun management(): JetStreamManagementImpl {
-		if (management == null) {
-			val new = JetStreamManagementImpl(this, PersistentRequestSubscription.newSubscription(client))
-			management = new
-			return new
-		}
-		return management!!
+	override val keyValueManager: KeyValueManager by lazy {
+		KeyValueManagerImpl(this)
 	}
 
 	override suspend fun publish(

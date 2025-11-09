@@ -1,7 +1,9 @@
 package io.natskt.jetstream.api
 
+import io.natskt.jetstream.api.internal.DurationNanosSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration
 
 @Serializable
 public data class ApiError(
@@ -13,6 +15,7 @@ public data class ApiError(
 
 @Serializable
 public data class ApiStats(
+	val level: Int = 0,
 	val total: Int = 0,
 	val errors: Int = 0,
 	val inflight: Int = 0,
@@ -44,7 +47,7 @@ public data class AccountLimits(
 	@SerialName("max_stream_bytes")
 	val maxStreamBytes: Long? = null,
 	@SerialName("max_bytes_required")
-	val maxBytesRequired: Long? = null,
+	val maxBytesRequired: Boolean? = null,
 )
 
 @Serializable
@@ -58,7 +61,7 @@ public data class AccountTier(
 )
 
 @Serializable
-public data class AccountInfoResponse(
+public data class AccountInfo(
 	val type: String? = null,
 	val error: ApiError? = null,
 	val memory: Long = 0,
@@ -71,7 +74,7 @@ public data class AccountInfoResponse(
 	val consumers: Int = 0,
 	val domain: String? = null,
 	@SerialName("api")
-	val apiStats: ApiStats? = null,
+	val api: ApiStats? = null,
 	val limits: AccountLimits? = null,
 	@SerialName("tiered_limits")
 	val tieredLimits: Map<String, AccountTier>? = null,
@@ -199,7 +202,7 @@ public data class StreamAlternate(
 )
 
 @Serializable
-public data class StreamConfiguration(
+public data class StreamConfig(
 	val name: String,
 	val description: String? = null,
 	val subjects: List<String>? = null,
@@ -213,12 +216,13 @@ public data class StreamConfiguration(
 	@SerialName("max_bytes")
 	val maxBytes: Long? = null,
 	@SerialName("max_age")
-	val maxAgeNanos: Long? = null,
+	@Serializable(with = DurationNanosSerializer::class)
+	val maxAge: Duration? = null,
 	@SerialName("max_msg_size")
 	val maxMessageSize: Int? = null,
 	val storage: StorageType? = null,
 	val discard: DiscardPolicy? = null,
-	@SerialName("discard_new_per")
+	@SerialName("discard_new_per_subject")
 	val discardNewPerSubject: String? = null,
 	@SerialName("num_replicas")
 	val replicas: Int? = null,
@@ -227,18 +231,21 @@ public data class StreamConfiguration(
 	@SerialName("template_owner")
 	val templateOwner: String? = null,
 	@SerialName("duplicate_window")
-	val duplicateWindow: Long? = null,
+	@Serializable(with = DurationNanosSerializer::class)
+	val duplicateWindow: Duration? = null,
 	val placement: StreamPlacement? = null,
 	val mirror: StreamSource? = null,
 	val sources: List<StreamSource>? = null,
 	@SerialName("allow_rollup_hdrs")
-	val allowRollupHeaders: Boolean? = null,
+	val allowRollup: Boolean? = null,
 	@SerialName("deny_delete")
 	val denyDelete: Boolean? = null,
 	@SerialName("deny_purge")
 	val denyPurge: Boolean? = null,
 	@SerialName("allow_direct")
 	val allowDirect: Boolean? = null,
+	@SerialName("allow_msg_ttl")
+	val allowMessageTtl: Boolean? = null,
 	@SerialName("mirror_direct")
 	val mirrorDirect: Boolean? = null,
 	@SerialName("republish")
@@ -246,6 +253,9 @@ public data class StreamConfiguration(
 	val sealed: Boolean? = null,
 	@SerialName("compression")
 	val compression: StreamCompression? = null,
+	@SerialName("subject_delete_marker_ttl")
+	@Serializable(with = DurationNanosSerializer::class)
+	val subjectDeleteMarkerTtl: Duration? = null,
 	val metadata: Map<String, String>? = null,
 )
 
@@ -258,14 +268,14 @@ public data class StreamLostData(
 
 @Serializable
 public data class StreamState(
-	val messages: Long = 0,
-	val bytes: Long = 0,
+	val messages: ULong = 0u,
+	val bytes: ULong = 0u,
 	@SerialName("first_seq")
-	val firstSequence: Long = 0,
+	val firstSequence: ULong = 0u,
 	@SerialName("first_ts")
 	val firstTimestamp: String? = null,
 	@SerialName("last_seq")
-	val lastSequence: Long = 0,
+	val lastSequence: ULong = 0u,
 	@SerialName("last_ts")
 	val lastTimestamp: String? = null,
 	@SerialName("consumer_count")
@@ -308,7 +318,7 @@ public data class PeerInfo(
 @Serializable
 public data class StreamInfo(
 	val type: String? = null,
-	val config: StreamConfiguration,
+	val config: StreamConfig,
 	val created: String? = null,
 	val state: StreamState,
 	val cluster: ClusterInfo? = null,
@@ -380,7 +390,7 @@ public enum class ReplayPolicy {
 }
 
 @Serializable
-public data class ConsumerConfiguration(
+public data class ConsumerConfig(
 	@SerialName("durable_name")
 	val durableName: String? = null,
 	val description: String? = null,
@@ -473,7 +483,7 @@ public data class ConsumerInfo(
 	val stream: String,
 	val name: String,
 	val created: String? = null,
-	val config: ConsumerConfiguration,
+	val config: ConsumerConfig,
 	val delivered: SequenceInfo? = null,
 	@SerialName("ack_floor")
 	val ackFloor: SequenceInfo? = null,
@@ -522,3 +532,15 @@ public data class ConsumerPullRequest(
 	@SerialName("idle_heartbeat")
 	val idleHeartbeat: Long? = null,
 )
+
+@Serializable
+public data class KeyValueStatus(
+	public val values: ULong,
+	@Serializable(with = DurationNanosSerializer::class)
+	public val ttl: Duration?,
+	@SerialName("backing_store")
+	public val backingStore: String,
+	public val bytes: ULong,
+	@SerialName("is_compressed")
+	public val isCompressed: Boolean,
+) : JetStreamApiResponse

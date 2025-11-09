@@ -1,6 +1,6 @@
 package io.natskt.jetstream.api.consumer
 
-import io.natskt.jetstream.api.ConsumerConfiguration
+import io.natskt.jetstream.api.ConsumerConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 internal data class ConsumerCreateRequest(
 	@SerialName("stream_name")
 	val streamName: String,
-	val config: ConsumerConfiguration,
+	val config: ConsumerConfig,
 	val action: ConsumerCreateAction,
 )
 
