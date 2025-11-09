@@ -1,5 +1,7 @@
 name: tests.yml
 on:
+    push:
+        branches: [main]
     pull_request:
         types: [opened, synchronize, reopened]
 
@@ -13,7 +15,8 @@ jobs:
             - uses: browser-actions/setup-chrome@v2
             - name: Spotless check
               run: nix develop .#ci -c gradle spotlessCheck -P'org.gradle.jvmargs=-Xmx512Mi -XX:MaxPermSize=512Mi'
-            - name: KMP tests - JVM, JS
-              run: nix develop .#ci -c gradle jvmTest jsTest --no-parallel
-            - name: KMP tests - linuxX64
-              run: nix develop .#ci -c gradle linuxX64Test --no-parallel
+            - name: KMP tests - JVM, JS, WASM
+              run: nix develop .#ci -c gradle jvmTest jsTest wasmJsTest --max-workers=2
+            # can't run Native tests. Gradle daemon crashes - suspect compiler getting OOM killed in link stage (:core:linkDebugTestLinuxX64)
+#            - name: KMP tests - linuxX64
+#              run: nix develop .#ci -c gradle linuxX64Test --no-parallel
