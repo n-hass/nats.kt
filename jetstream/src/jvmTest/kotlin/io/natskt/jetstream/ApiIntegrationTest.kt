@@ -32,7 +32,7 @@ class ApiIntegrationTest {
 			val js = JetStreamClient(c)
 
 			val s =
-				js.management().createStream {
+				js.manager.createStream {
 					name = "abc"
 					subject("ABC")
 					subject("124.>")
@@ -58,7 +58,7 @@ class ApiIntegrationTest {
 			val js = JetStreamClient(c)
 
 			val s =
-				js.management().createStream {
+				js.manager.createStream {
 					name = "test_stream_for_basic_consumer"
 					subject("test.basic_consumer")
 				}
@@ -88,7 +88,7 @@ class ApiIntegrationTest {
 			val js = JetStreamClient(c)
 
 			val s =
-				js.management().createStream {
+				js.manager.createStream {
 					name = "test_stream_for_basic_consumer"
 					subject("test.basic_consumer.>")
 				}
@@ -108,7 +108,7 @@ class ApiIntegrationTest {
 
 			eventually(eventuallyConfig { duration = 500.milliseconds }) {
 				assertEquals(
-					1,
+					1u,
 					s
 						.updateStreamInfo()
 						.getOrThrow()
@@ -121,7 +121,7 @@ class ApiIntegrationTest {
 
 			eventually(eventuallyConfig { duration = 500.milliseconds }) {
 				assertEquals(
-					2,
+					2u,
 					s
 						.updateStreamInfo()
 						.getOrThrow()

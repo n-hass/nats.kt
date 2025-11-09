@@ -5,12 +5,13 @@ import io.natskt.jetstream.api.ExternalStream
 import io.natskt.jetstream.api.RetentionPolicy
 import io.natskt.jetstream.api.StorageType
 import io.natskt.jetstream.api.StreamCompression
-import io.natskt.jetstream.api.StreamConfiguration
+import io.natskt.jetstream.api.StreamConfig
 import io.natskt.jetstream.api.StreamPlacement
 import io.natskt.jetstream.api.StreamRepublish
 import io.natskt.jetstream.api.StreamSource
 import io.natskt.jetstream.api.SubjectTransform
 import io.natskt.jetstream.internal.JetStreamDsl
+import kotlin.time.Duration
 
 @JetStreamDsl
 public class ExternalStreamBuilder internal constructor() {
@@ -145,7 +146,7 @@ public class StreamConfigurationBuilder internal constructor() {
 	public var maxMessages: Long? = null
 	public var maxMessagesPerSubject: Long? = null
 	public var maxBytes: Long? = null
-	public var maxAgeNanos: Long? = null
+	public var maxAge: Duration? = null
 	public var maxMessageSize: Int? = null
 	public var storage: StorageType? = null
 	public var discard: DiscardPolicy? = null
@@ -153,7 +154,7 @@ public class StreamConfigurationBuilder internal constructor() {
 	public var replicas: Int? = null
 	public var noAck: Boolean? = null
 	public var templateOwner: String? = null
-	public var duplicateWindow: Long? = null
+	public var duplicateWindow: Duration? = null
 	public var placement: StreamPlacement? = null
 	public var mirror: StreamSource? = null
 	public var sources: MutableList<StreamSource>? = null
@@ -195,11 +196,11 @@ public class StreamConfigurationBuilder internal constructor() {
 	}
 }
 
-internal fun StreamConfigurationBuilder.build(): StreamConfiguration {
+internal fun StreamConfigurationBuilder.build(): StreamConfig {
 	val name = this.name
 	require(name != null) { "Stream name must be provided" }
 
-	return StreamConfiguration(
+	return StreamConfig(
 		name = name,
 		description = this.description,
 		subjects = this.subjects?.toList(),
@@ -208,7 +209,7 @@ internal fun StreamConfigurationBuilder.build(): StreamConfiguration {
 		maxMessages = this.maxMessages,
 		maxMessagesPerSubject = this.maxMessagesPerSubject,
 		maxBytes = this.maxBytes,
-		maxAgeNanos = this.maxAgeNanos,
+		maxAge = this.maxAge,
 		maxMessageSize = this.maxMessageSize,
 		storage = this.storage,
 		discard = this.discard,
@@ -220,7 +221,7 @@ internal fun StreamConfigurationBuilder.build(): StreamConfiguration {
 		placement = this.placement,
 		mirror = this.mirror,
 		sources = this.sources?.toList(),
-		allowRollupHeaders = this.allowRollupHeaders,
+		allowRollup = this.allowRollupHeaders,
 		denyDelete = this.denyDelete,
 		denyPurge = this.denyPurge,
 		allowDirect = this.allowDirect,

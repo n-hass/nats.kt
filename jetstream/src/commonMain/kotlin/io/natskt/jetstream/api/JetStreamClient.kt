@@ -14,7 +14,8 @@ import io.natskt.jetstream.internal.CanRequest
 public interface JetStreamClient : CanRequest {
 	public val client: NatsClient
 
-	public suspend fun management(): JetStreamManagement
+	public val manager: JetStreamManager
+	public val keyValueManager: KeyValueManager
 
 	public suspend fun publish(
 		subject: String,

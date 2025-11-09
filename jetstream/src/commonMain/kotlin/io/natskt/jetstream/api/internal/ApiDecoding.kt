@@ -1,5 +1,7 @@
 package io.natskt.jetstream.api.internal
 
+import io.natskt.api.Message
+import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ApiError
 import io.natskt.jetstream.api.ApiResponse
 import io.natskt.jetstream.api.JetStreamApiResponse
@@ -16,4 +18,11 @@ internal inline fun <reified T : JetStreamApiResponse> Json.decodeApiResponse(st
 	} else {
 		decodeFromJsonElement<T>(element)
 	}
+}
+
+internal inline fun <reified T : JetStreamApiResponse> Message.decode(): ApiResponse {
+	if (data == null || data!!.isEmpty()) {
+		return ApiError(code = status)
+	}
+	return wireJsonFormat.decodeApiResponse<T>(data!!.decodeToString())
 }

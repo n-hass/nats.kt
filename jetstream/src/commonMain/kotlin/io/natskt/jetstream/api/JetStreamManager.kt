@@ -3,7 +3,7 @@ package io.natskt.jetstream.api
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.api.stream.StreamConfigurationBuilder
 
-public interface JetStreamManagement {
+public interface JetStreamManager {
 	/**
 	 * Create a new stream
 	 */
