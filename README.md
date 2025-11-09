@@ -7,6 +7,7 @@
 [![Ktor](https://img.shields.io/badge/powered%20by-ktor-blue.svg)](https://ktor.io)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-active%20development-yellow.svg)](#development-status)
+[![CI Tests](https://github.com/n-hass/nats.kt/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/n-hass/nats.kt/actions/workflows/tests.yml)
 
 **NATS.kt** is a high-performance NATS client built specifically for Kotlin Multiplatform. Powered by Ktor's networking stack, it brings NATS messaging to every platform Kotlin supports - including servers, mobile apps, browsers and native applications.
 
