@@ -65,3 +65,8 @@ gradle test
 # Apply code formatting
 gradle spotlessApply
 ```
+
+## Publishing
+
+- Must have the signing key, set up to use through GPG-Agent
+- run `gradle publishToMavenCentral -Pnatskt.gpgsign=true -Pnatskt.version=x.y.z`
