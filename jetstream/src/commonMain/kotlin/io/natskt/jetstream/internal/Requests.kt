@@ -5,6 +5,7 @@ import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.AccountInfo
 import io.natskt.jetstream.api.ApiError
 import io.natskt.jetstream.api.ConsumerConfig
+import io.natskt.jetstream.api.ConsumerDeleteResponse
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamUnknownResponseException
@@ -14,10 +15,12 @@ import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerCreateAction
 import io.natskt.jetstream.api.consumer.ConsumerCreateRequest
 import io.natskt.jetstream.api.internal.decode
+import io.natskt.jetstream.api.internal.decodeApiResponse
 
 internal const val STREAM_INFO = "STREAM.INFO."
 internal const val STREAM_CREATE = "STREAM.CREATE."
 internal const val CONSUMER_INFO = "CONSUMER.INFO."
+internal const val CONSUMER_DELETE = "CONSUMER.DELETE."
 internal const val DIRECT_GET = "DIRECT.GET."
 internal const val MSG_GET = "STREAM.MSG.GET."
 
@@ -74,7 +77,36 @@ internal suspend fun CanRequest.createOrUpdateConsumer(
 	}
 }
 
-internal suspend fun PersistentRequestSubscription.pull(
+internal suspend fun CanRequest.deleteConsumer(
+	streamName: String,
+	consumerName: String,
+): Result<Unit> {
+	val subject =
+		buildString {
+			append(context.config.apiPrefix)
+			append(CONSUMER_DELETE)
+			append(streamName)
+			append(".")
+			append(consumerName)
+		}
+
+	val response = request(subject, null)
+
+	if (response.data != null && response.data!!.isNotEmpty()) {
+		val data = response.data!!.decodeToString()
+		val body = wireJsonFormat.decodeApiResponse<ConsumerDeleteResponse>(data)
+		return Result.failure(
+			when (body) {
+				is ApiError -> JetStreamApiException(body)
+				else -> JetStreamUnknownResponseException(body)
+			},
+		)
+	}
+
+	return Result.success(Unit)
+}
+
+internal suspend fun PersistentRequestSubscription.publishMsgNext(
 	streamName: String,
 	consumerName: String,
 	requestBody: String,

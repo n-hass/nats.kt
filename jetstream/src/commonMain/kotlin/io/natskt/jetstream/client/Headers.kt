@@ -8,3 +8,4 @@ public const val EXPECTED_LAST_SUBJECT_SEQUENCE_HEADER: String = "Nats-Expected-
 public const val MSG_TTL_HEADER: String = "Nats-TTL"
 public const val SEQUENCE_HEADER: String = "Nats-Sequence"
 public const val TIME_STAMP_HEADER: String = "Nats-Time-Stamp"
+public const val KV_OPERATION_HEADER: String = "KV-Operation"

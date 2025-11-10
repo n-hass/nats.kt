@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
+@OptIn(InternalNatsApi::class)
 public open class PersistentRequestSubscription(
 	internal val js: JetStreamClient,
 	internal val inboxSubscription: Subscription,
@@ -44,6 +45,6 @@ public open class PersistentRequestSubscription(
 
 	internal companion object {
 		@OptIn(InternalNatsApi::class)
-		suspend fun newSubscription(client: NatsClient): Subscription = client.subscribe(client.nextInbox() + ".*", replayBuffer = 0, unsubscribeOnLastCollector = false, eager = false)
+		suspend fun newSubscription(client: NatsClient): Subscription = client.subscribe(client.nextInbox() + ".*", replayBuffer = 0, unsubscribeOnLastCollector = false, eager = true)
 	}
 }

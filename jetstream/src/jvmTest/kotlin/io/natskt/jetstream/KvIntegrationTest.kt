@@ -2,9 +2,17 @@ package io.natskt.jetstream
 
 import harness.NatsServerHarness
 import io.natskt.NatsClient
+import io.natskt.jetstream.api.kv.KeyValueEntry
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class KvIntegrationTest {
 	@Test
@@ -95,5 +103,83 @@ class KvIntegrationTest {
 			assertEquals("test1", bucket.get("a.b", revision = 1u).value.decodeToString())
 			assertEquals("test2", bucket.get("a.b", revision = 2u).value.decodeToString())
 			assertEquals("test3", bucket.get("a.b", revision = 3u).value.decodeToString())
+		}
+
+	@Test
+	fun `it watches for new values`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			val bucket =
+				js.keyValueManager.create {
+					name = "Foo"
+				}
+
+			val first = CompletableDeferred<String>()
+			val updates = mutableListOf<KeyValueEntry>()
+			val job =
+				launch {
+					withTimeout(3.seconds) {
+						bucket.watch("watching").take(3).collect {
+							first.complete(it.value.decodeToString())
+							updates.add(it)
+						}
+					}
+				}
+			job.start()
+
+			bucket.put("watching", "test1".encodeToByteArray())
+			assertEquals("test1", first.await())
+			bucket.put("watching", "test2".encodeToByteArray())
+			assertEquals("test2", bucket.get("watching").value.decodeToString())
+			bucket.put("watching", "test3".encodeToByteArray())
+			assertEquals("test3", bucket.get("watching").value.decodeToString())
+
+			job.join()
+			assertTrue("no KV updates received") { updates.isNotEmpty() }
+			assertEquals(3, updates.size)
+
+			var i = 1
+			for (entry in updates) {
+				assertEquals(i.toULong(), entry.revision, "revision incorrect. full: $updates")
+				assertEquals("test$i", entry.value.decodeToString())
+				i++
+			}
+		}
+
+	@Test
+	fun `watch returns the latest value on start`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			val bucket =
+				js.keyValueManager.create {
+					name = "Foo"
+				}
+
+			bucket.put("watching", "test1".encodeToByteArray())
+			assertEquals(
+				"test1",
+				bucket
+					.watch("watching")
+					.take(1)
+					.toList()
+					.first()
+					.value
+					.decodeToString(),
+			)
+			bucket.put("watching", "test2".encodeToByteArray())
+			assertEquals(
+				"test2",
+				bucket
+					.watch("watching")
+					.take(1)
+					.toList()
+					.first()
+					.value
+					.decodeToString(),
+			)
 		}
 }

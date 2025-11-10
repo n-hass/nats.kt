@@ -564,3 +564,9 @@ public data class StreamMessage(
 	public val data: String?,
 	public val time: Long,
 ) : JetStreamApiResponse
+
+@Serializable
+public data class ConsumerDeleteResponse(
+	public val type: String,
+	public val success: Boolean,
+) : JetStreamApiResponse

@@ -2,20 +2,24 @@ package io.natskt.jetstream.internal
 
 import io.natskt.api.JetStreamMessage
 import io.natskt.api.Subscription
+import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.MessageInternal
 import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.ConsumerPullRequest
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.consumer.PullConsumer
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 
+@OptIn(InternalNatsApi::class)
 internal class PullConsumerImpl(
 	val name: String,
 	val streamName: String,
@@ -75,7 +79,10 @@ internal class PullConsumerImpl(
 						true
 					}.take(batch)
 					.onStart {
-						pull(streamName, name, body, nextRequestSubject())
+						launch {
+							delay(1)
+							publishMsgNext(streamName, name, body, nextRequestSubject())
+						}
 					}.toList()
 			} ?: return emptyList()
 

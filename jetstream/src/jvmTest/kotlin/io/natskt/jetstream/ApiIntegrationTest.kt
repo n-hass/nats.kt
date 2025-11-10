@@ -4,7 +4,11 @@ import harness.NatsServerHarness
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.NatsClient
+import io.natskt.api.Message
+import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.JetStreamApiException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -132,5 +136,49 @@ class ApiIntegrationTest {
 
 			assertEquals("hi to consumer", messages.single().data?.decodeToString())
 			messages.forEach { it.ackWait() }
+		}
+
+	@Test
+	fun `pull consumer can fetch continuously`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			val s =
+				js.manager.createStream {
+					name = "test_stream_for_basic_consumer"
+					subject("test.basic_consumer.>")
+				}
+
+			val consumer =
+				s.createPullConsumer {
+					durableName = "consumer1"
+					filterSubjects =
+						mutableListOf(
+							"test.basic_consumer.hi.consumer1",
+						)
+					ackPolicy = AckPolicy.None
+				}
+
+			val received = mutableListOf<Message>()
+			val x =
+				launch {
+					withTimeoutOrNull(5.seconds) {
+						while (received.size < 5) {
+							val fetched = consumer.fetch(1)
+							received.addAll(fetched)
+						}
+					}
+				}
+
+			c.publish("test.basic_consumer.hi.consumer1", "1".encodeToByteArray())
+			c.publish("test.basic_consumer.hi.consumer1", "2".encodeToByteArray())
+			c.publish("test.basic_consumer.hi.consumer1", "3".encodeToByteArray())
+			c.publish("test.basic_consumer.hi.consumer1", "4".encodeToByteArray())
+			c.publish("test.basic_consumer.hi.consumer1", "5".encodeToByteArray())
+
+			x.join()
+
+			assertEquals(5, received.size)
 		}
 }
