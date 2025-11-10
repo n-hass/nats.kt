@@ -1,0 +1,93 @@
+labels: ["needs-confirmation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > Please keep discussion on-topic and open a new discussion for new issues.
+  - type: markdown
+    attributes:
+      value: "# Issue Details"
+  - type: textarea
+    attributes:
+      label: Issue Description
+      description: |
+        Provide a detailed description of the issue.  Include relevant information, such as:
+        - The feature or configuration option you encounter the issue with.
+        - Logs (where applicable).
+        - If this is a regression of an existing issue that was closed or resolved, please include the previous item reference (Discussion, Issue, PR, commit) in your description.
+
+      placeholder: |
+        When using JetStream pull consumers on WASM, I try to run 'fetch' but do not get a message and instead get an empty list. I have confirmed with Consumer INFO that there is a message pending delivery.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: |
+        Describe how you expect NATS.kt to behave in this situation.  Include any relevant documentation links.
+      placeholder: |
+        The consumer should return 1 message on fetch(1)
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual Behavior
+      description: |
+        Describe how NATS.kt actually behaves in this situation.  If it is not immediately obvious how the actual behavior differs from the expected behavior described above, please be sure to mention the deviation specifically.
+      placeholder: |
+        The fetch function takes a long time and eventually returns with an empty list.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction Steps
+      description: |
+        Provide a detailed set of step-by-step instructions for reproducing this issue.
+      placeholder: |
+        1. Connect using TCP and no authentication.
+        2. Bind to an existing pull consumer with server default settings.
+        3. run `consumer.fetch(1)` to initiate the fetch request.
+        4. Observe empty list result.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: NATS.kt Logs
+      description: |
+        Provide any captured NATS.kt logs.  We use the [Kotlin-Logging](https://github.com/oshai/kotlin-logging) facade framework - attach a relevant backend for your platform.
+      render: text
+  - type: textarea
+    attributes:
+      label: NATS.kt Version
+      description: Specify the version of NATS.kt you are using
+      placeholder: |
+          NATS.kt 0.3.0
+      render: text
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Platform Information
+      description: |
+        Please tell us what KMP platform (eg wasmWasi, linuxX64) and Kotlin version you are using.
+      placeholder: iosArm64, Kotlin 2.2.20
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproducer
+      description: |
+        Please provide a link to reproducer, or if the code is short enough, enter it here in a `<details>` tag.
+      placeholder: |
+          <details>
+          
+          </details>
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional Information
+    validations:
+      required: false
+
