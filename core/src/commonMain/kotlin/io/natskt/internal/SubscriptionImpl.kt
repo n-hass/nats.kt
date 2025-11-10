@@ -7,9 +7,9 @@ import io.natskt.api.Subscription
 import io.natskt.api.internal.OnSubscriptionStart
 import io.natskt.api.internal.OnSubscriptionStop
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -59,13 +59,8 @@ internal class SubscriptionImpl(
 
 	override val messages: Flow<Message> =
 		channelFlow {
-			val messageCollectorJob =
-				launch {
-					bus.collect { message -> send(message) }
-				}
-
 			val activeStateWatcherJob =
-				launch {
+				launch(start = CoroutineStart.UNDISPATCHED) {
 					// suspend until the status becomes active for the first time
 					isActive.filter { active -> active }.first()
 
@@ -74,8 +69,9 @@ internal class SubscriptionImpl(
 					}
 				}
 
-			awaitClose {
-				messageCollectorJob.cancel()
+			try {
+				bus.collect { message -> send(message) }
+			} finally {
 				activeStateWatcherJob.cancel()
 			}
 		}

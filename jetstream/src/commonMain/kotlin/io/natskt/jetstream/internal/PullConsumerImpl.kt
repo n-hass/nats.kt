@@ -9,13 +9,11 @@ import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.ConsumerPullRequest
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.consumer.PullConsumer
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.toCollection
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 
@@ -69,21 +67,17 @@ internal class PullConsumerImpl(
 				body
 			}
 
+		val timeoutMillis = expires?.inWholeMilliseconds ?: 10_000
 		val messages =
-			withTimeoutOrNull(expires?.inWholeMilliseconds ?: defaultTimeout) {
-				inboxSubscription.messages
-					.takeWhile {
-						if (it.status != null && it.status !in 200..300) {
-							return@takeWhile false
-						}
-						true
+			withTimeoutOrNull(timeoutMillis) {
+				inboxMessages
+					.takeWhile { message ->
+						val status = message.status
+						status == null || status in 200..300
 					}.take(batch)
 					.onStart {
-						launch {
-							delay(1)
-							publishMsgNext(streamName, name, body, nextRequestSubject())
-						}
-					}.toList()
+						publishMsgNext(streamName, name, body, nextRequestSubject())
+					}.toCollection(ArrayList(batch))
 			} ?: return emptyList()
 
 		return messages.map {

@@ -23,6 +23,7 @@ import io.natskt.jetstream.internal.PersistentRequestSubscription
 import io.natskt.jetstream.internal.StreamImpl
 import io.natskt.jetstream.management.JetStreamManagerImpl
 import kotlinx.coroutines.delay
+import kotlin.collections.buildMap
 
 internal class JetStreamClientImpl(
 	override val client: NatsClient,
@@ -52,7 +53,11 @@ internal class JetStreamClientImpl(
 				fun put(
 					k: String,
 					v: String,
-				) = put(k, listOf(v))
+				) {
+					val list = ArrayList<String>(1)
+					list.add(v)
+					this@buildMap[k] = list
+				}
 
 				publishOptions.id?.let { put(MSG_ID_HEADER, it) }
 				publishOptions.expectedLastId?.let { put(EXPECTED_LAST_MSG_ID_HEADER, it) }
