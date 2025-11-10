@@ -1,10 +1,9 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.Message
-import io.natskt.jetstream.client.JetStreamConfiguration
 
 public interface CanRequest {
-	public val config: JetStreamConfiguration
+	public val context: JetStreamContext
 
 	public suspend fun request(
 		subject: String,

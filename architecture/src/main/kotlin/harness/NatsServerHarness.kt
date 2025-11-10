@@ -128,7 +128,9 @@ class NatsServerHarness(
 		@OptIn(ExperimentalContracts::class)
 		inline fun runBlocking(crossinline block: suspend CoroutineScope.(NatsServerHarness) -> Unit) {
 			kotlinx.coroutines.runBlocking {
-				block(NatsServerHarness())
+				withTimeout(20_000) {
+					block(NatsServerHarness())
+				}
 			}
 		}
 	}

@@ -44,7 +44,7 @@ internal fun StreamInfo.asKeyValueConfig(): KeyValueConfig =
 	)
 
 internal fun KeyValueConfig.asStreamConfig(apiLevel: Int): StreamConfig {
-	val history = (history ?: 1u).toLong()
+	val history = (this.history ?: 1u).toLong()
 	require(history <= KV_BUCKET_MAX_HISTORY_SIZE.toLong()) {
 		"KV buckets currently only support a maximum history of $KV_BUCKET_MAX_HISTORY_SIZE"
 	}
@@ -68,7 +68,7 @@ internal fun KeyValueConfig.asStreamConfig(apiLevel: Int): StreamConfig {
 		allowMsgTtl = true
 	}
 
-	fun kvSubjectsOf(bucket: String): String = KV_BUCKET_STREAM_NAME_PREFIX + bucket
+	fun kvSubjectsOf(bucket: String): String = "\$KV.$bucket.>"
 
 	val subjects = mutableListOf(kvSubjectsOf(bucket))
 

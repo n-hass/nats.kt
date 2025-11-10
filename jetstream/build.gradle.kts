@@ -50,6 +50,7 @@ kotlin {
 
 		jvmTest.dependencies {
 			implementation(projects.architecture)
+			implementation("org.slf4j:slf4j-simple:2.0.17")
 			implementation("io.nats:jnats:2.22.0")
 		}
     }

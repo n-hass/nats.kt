@@ -83,10 +83,10 @@ public data class AccountInfo(
 @Serializable
 public data class PublishAck(
 	val stream: String,
-	val seq: Long,
+	val seq: ULong,
 	val duplicate: Boolean = false,
-	val error: ApiError? = null,
-)
+	val domain: String? = null,
+) : JetStreamApiResponse
 
 @Serializable
 public enum class RetentionPolicy {
@@ -543,4 +543,30 @@ public data class KeyValueStatus(
 	public val bytes: ULong,
 	@SerialName("is_compressed")
 	public val isCompressed: Boolean,
+) : JetStreamApiResponse
+
+@Serializable
+public data class MessageGetRequest(
+	public val seq: ULong? = null,
+	@SerialName("last_by_subj")
+	public val lastFor: String? = null,
+	@SerialName("next_by_subj")
+	public val nextFor: String? = null,
+)
+
+@Serializable
+public data class StreamMessage(
+	public val subject: String,
+	@SerialName("seq")
+	public val sequence: ULong,
+	@SerialName("hdrs")
+	public val headers: String?,
+	public val data: String?,
+	public val time: Long,
+) : JetStreamApiResponse
+
+@Serializable
+public data class ConsumerDeleteResponse(
+	public val type: String,
+	public val success: Boolean,
 ) : JetStreamApiResponse

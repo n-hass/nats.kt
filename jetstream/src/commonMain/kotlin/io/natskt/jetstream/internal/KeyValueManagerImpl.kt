@@ -1,8 +1,8 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.jetstream.api.JetStreamClient
-import io.natskt.jetstream.api.KeyValueBucket
 import io.natskt.jetstream.api.KeyValueManager
+import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.kv.KeyValueConfigurationBuilder
 import io.natskt.jetstream.api.kv.build
 
@@ -16,7 +16,8 @@ internal class KeyValueManagerImpl(
 
 		val createdInfo = js.createStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
 
-		return KeyValueBucket(createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
+		val inboxSubscription = PersistentRequestSubscription.newSubscription(js.client)
+		return KeyValueBucket(js, inboxSubscription, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
 	}
 
 	override suspend fun get(bucket: String): KeyValueBucket {
@@ -30,6 +31,7 @@ internal class KeyValueManagerImpl(
 
 		val bucketConfig = status.map { it.asKeyValueConfig() }.getOrThrow()
 
-		return KeyValueBucket(bucketStatus, bucketConfig)
+		val inboxSubscription = PersistentRequestSubscription.newSubscription(js.client)
+		return KeyValueBucket(js, inboxSubscription, bucket, bucketStatus, bucketConfig)
 	}
 }
