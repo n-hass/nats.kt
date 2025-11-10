@@ -77,22 +77,22 @@ subscription.messages.collect { message ->
 
 NATS.kt is under **active development**.
 
-| Feature                               | Status | Notes                         |
-|---------------------------------------|---|-------------------------------|
-| **Core Protocol**                     |   |                               |
-| Multiplatform TCP/WebSocket transport | ✅ |                               |
-| Authentication                        | ✅ | * See security notice at end! |
-| Publish/Subscribe                     | ✅ |                               |
-| Request/Reply                         | ✅ |                               |
-| **Jetstream**                         |   |                               |
-| Basic API                             | 🚧 |                               |
-| Pull consumer                         | 🟠 |                               |
-| Push consumer                         | ❌ |                               |
-| Key-Value Store                       | ❌ |                               |
-| Object Store                          | ❌ |                               |
-| **JetStream Management**              |   |                               |
-| Streams                               | 🟠 |                               |
-| Consumers                             | 🟠 |                               |
+| Feature                               | Status | Notes                        |
+|---------------------------------------|--|------------------------------|
+| **Core Protocol**                     |  |                              |
+| Multiplatform TCP/WebSocket transport |✅ |                              |
+| Authentication                        |✅ | * See security notice below! |
+| Publish/Subscribe                     |✅ |                              |
+| Request/Reply                         |✅ |                              |
+| **Jetstream**                         |  |                              |
+| Basic API client                      |✅ |                              |
+| Pull consumer                         |🟠 |                              |
+| Push consumer                         |❌ |                              |
+| Key-Value Store                       |🟠 |                              |
+| Object Store                          |❌ |                              |
+| **JetStream Management**              |  |                              |
+| Streams                               | 🟠 |                              |
+| Consumers                             | 🟠 |                              |
 
 **Legend**: ✅ Complete | 🟠 Partially Complete | 🚧 In Progress |  ❌ Planned
 
