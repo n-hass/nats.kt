@@ -7,7 +7,7 @@ import io.natskt.jetstream.internal.JetStreamDsl
 @JetStreamDsl
 public class KeyValueConfigurationBuilder internal constructor() {
 	public var name: String = ""
-	public var history: Int? = null
+	public var history: Int = 1
 }
 
 internal fun KeyValueConfigurationBuilder.build(): KeyValueConfig {
@@ -15,5 +15,6 @@ internal fun KeyValueConfigurationBuilder.build(): KeyValueConfig {
 	SubjectToken.from(name) // parse as token to validate the name
 	return KeyValueConfig(
 		bucket = name,
+		history = history.toUShort(),
 	)
 }

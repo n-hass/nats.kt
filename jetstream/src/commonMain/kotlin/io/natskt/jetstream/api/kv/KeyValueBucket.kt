@@ -3,7 +3,7 @@ package io.natskt.jetstream.api.kv
 import io.natskt.api.Message
 import io.natskt.api.Subject
 import io.natskt.api.Subscription
-import io.natskt.api.from
+import io.natskt.api.fullyQualified
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.KeyValueStatus
 import io.natskt.jetstream.api.MessageGetRequest
@@ -48,13 +48,7 @@ public class KeyValueBucket internal constructor(
 		key: String,
 		value: ByteArray,
 	): ULong {
-		val key =
-			try {
-				Subject.from(key)
-			} catch (e: Exception) {
-// 			return Result.failure(e)
-				throw e
-			}
+		val key = Subject.fullyQualified(key)
 
 		val subject =
 			buildString {
@@ -72,12 +66,7 @@ public class KeyValueBucket internal constructor(
 		key: String,
 		revision: ULong? = null,
 	): KeyValueEntry {
-		val key =
-			try {
-				Subject.from(key)
-			} catch (e: Exception) {
-				throw e
-			}
+		val key = Subject.fullyQualified(key)
 
 		val lastFor =
 			buildString {
@@ -87,7 +76,14 @@ public class KeyValueBucket internal constructor(
 				append(key.raw)
 			}
 
-		val message = js.getMessage(KV_BUCKET_STREAM_NAME_PREFIX + name, MessageGetRequest(seq = revision, lastFor = lastFor))
+		val req =
+			if (revision != null) {
+				MessageGetRequest(seq = revision)
+			} else {
+				MessageGetRequest(lastFor = lastFor)
+			}
+
+		val message = js.getMessage(KV_BUCKET_STREAM_NAME_PREFIX + name, req)
 
 		return message
 			.map {
