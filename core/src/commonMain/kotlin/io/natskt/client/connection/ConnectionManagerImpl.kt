@@ -38,7 +38,7 @@ internal class ConnectionManagerImpl(
 ) {
 	internal val current: MutableStateFlow<ProtocolEngine> = MutableStateFlow(ProtocolEngine.Empty)
 
-	val connectionStatus: StateFlow<ConnectionState> = current.flatMapLatest { it.state }.stateIn(config.scope, SharingStarted.WhileSubscribed(), current.value.state.value)
+	val connectionState: StateFlow<ConnectionState> = current.flatMapLatest { it.state }.stateIn(config.scope, SharingStarted.WhileSubscribed(), current.value.state.value)
 
 	val serverInfo = MutableStateFlow<ServerOperation.InfoOp?>(null)
 
@@ -143,6 +143,8 @@ internal class ConnectionManagerImpl(
 			now - entry.value >= LAME_DUCK_BACKOFF_MILLIS
 		}
 	}
+
+	suspend fun ping() = current.value.ping()
 }
 
 private fun <K, V> MutableMap<K, V>.removeIf(predicate: (Map.Entry<K, V>) -> Boolean) =

@@ -27,7 +27,7 @@ class NatsClientIntegrationTest {
 						"connect failed: ${connectResult.exceptionOrNull()}\nserver logs:\n${server.logs.joinToString(separator = "\n")}",
 					)
 
-					assertEquals(ConnectionPhase.Connected, client.connectionManager.connectionStatus.value.phase)
+					assertEquals(ConnectionPhase.Connected, client.connectionManager.connectionState.value.phase)
 
 					val subscription =
 						client.subscribe(
@@ -69,7 +69,7 @@ class NatsClientIntegrationTest {
 						"connect failed: ${connectResult.exceptionOrNull()}\nserver logs:\n${server.logs.joinToString(separator = "\n")}",
 					)
 
-					assertEquals(ConnectionPhase.Connected, client.connectionManager.connectionStatus.value.phase)
+					assertEquals(ConnectionPhase.Connected, client.connectionManager.connectionState.value.phase)
 
 					val result =
 						runCatching {

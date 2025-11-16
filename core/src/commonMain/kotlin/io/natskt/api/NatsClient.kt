@@ -6,8 +6,15 @@ import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsClientImpl
 import io.natskt.client.StringMessageBuilder
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
 
 public interface NatsClient {
+	/**
+	 * [ConnectionState] shows the current [ConnectionPhase] the connection is in,
+	 * as well as statistics about the connection itself
+	 */
+	public val connectionState: StateFlow<ConnectionState>
+
 	/**
 	 * The subscriptions that have been created with this [NatsClient].
 	 */
@@ -74,6 +81,11 @@ public interface NatsClient {
 		headers: Map<String, List<String>>? = null,
 		timeoutMs: Long = 5000,
 	): Message
+
+	/**
+	 * Trigger a ping. The round-trip-time will then be updated in the client's [connectionState]
+	 */
+	public suspend fun ping(): Unit
 
 	@InternalNatsApi
 	public fun nextInbox(): String
