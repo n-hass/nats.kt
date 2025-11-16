@@ -5,6 +5,7 @@ package io.natskt.client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
 import io.natskt.api.ConnectionPhase
+import io.natskt.api.ConnectionState
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
@@ -19,6 +20,7 @@ import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -45,19 +47,21 @@ internal class NatsClientImpl(
 
 	internal val connectionManager = ConnectionManagerImpl(configuration, _subscriptions, pendingRequests)
 
+	override val connectionState: StateFlow<ConnectionState> = connectionManager.connectionState
+
 	@OptIn(ExperimentalAtomicApi::class)
 	private val sidAllocator = AtomicLong(1)
 
 	override suspend fun connect(): Result<Unit> {
 		connectionManager.start()
 		scope.launch {
-			connectionManager.connectionStatus.collect {
+			connectionManager.connectionState.collect {
 				logger.debug { "Connection status change: $it" }
 			}
 		}
 
 		withTimeoutOrNull(configuration.connectTimeoutMs) {
-			connectionManager.connectionStatus
+			connectionManager.connectionState
 				.filter {
 					it.phase == ConnectionPhase.Connected
 				}.first()
@@ -293,4 +297,6 @@ internal class NatsClientImpl(
 		}
 
 	override fun nextInbox(): String = configuration.createInbox()
+
+	override suspend fun ping() = connectionManager.ping()
 }
