@@ -32,7 +32,7 @@ public open class PersistentRequestSubscription(
 	override val context: JetStreamContext
 		get() = js.context
 
-	internal fun nextRequestSubject() = inboxPrefix + NUID.nextSequence()
+	internal fun nextRequestSubject(): String = inboxPrefix + NUID.nextSequence()
 
 	override suspend fun request(
 		subject: String,

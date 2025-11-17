@@ -65,7 +65,7 @@ internal class NatsClientImpl(
 				.filter {
 					it.phase == ConnectionPhase.Connected
 				}.first()
-		} ?: return Result.failure(Exception())
+		} ?: return Result.failure(Exception("timed out connecting to server"))
 
 		return Result.success(Unit)
 	}

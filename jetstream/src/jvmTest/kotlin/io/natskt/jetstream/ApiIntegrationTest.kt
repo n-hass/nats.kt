@@ -5,9 +5,17 @@ import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.NatsClient
 import io.natskt.api.Message
+import io.natskt.api.internal.InternalNatsApi
 import io.natskt.jetstream.api.AckPolicy
+import io.natskt.jetstream.api.ConsumerConfig
+import io.natskt.jetstream.api.DeliverPolicy
 import io.natskt.jetstream.api.JetStreamApiException
+import io.natskt.jetstream.internal.PushConsumerImpl
+import io.natskt.jetstream.internal.createOrUpdateConsumer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -180,5 +188,116 @@ class ApiIntegrationTest {
 			x.join()
 
 			assertEquals(5, received.size)
+		}
+
+	@OptIn(InternalNatsApi::class)
+	@Test
+	fun `push consumer receives messages`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			js.manager.createStream {
+				name = "push_stream_binding"
+				subject("push.binding")
+			}
+
+			val consumerName = "push_consumer"
+			val deliverSubject = c.nextInbox()
+
+			val createdInfo =
+				js
+					.createOrUpdateConsumer(
+						"push_stream_binding",
+						ConsumerConfig(
+							durableName = consumerName,
+							deliverSubject = deliverSubject,
+							filterSubject = "push.binding",
+							deliverPolicy = DeliverPolicy.All,
+							ackPolicy = AckPolicy.None,
+							flowControl = true,
+							idleHeartbeat = 5.seconds,
+						),
+					).getOrThrow()
+
+			val pushConsumer = js.stream("push_stream_binding").pushConsumer(consumerName) as PushConsumerImpl
+
+			val received = mutableListOf<String>()
+			val job =
+				launch {
+					withTimeout(5.seconds) {
+						pushConsumer.messages.take(2).collect {
+							received += it.data!!.decodeToString()
+						}
+					}
+				}
+			job.start()
+
+			delay(1)
+			c.publish("push.binding", "alpha".encodeToByteArray())
+			c.publish("push.binding", "beta".encodeToByteArray())
+
+			job.join()
+
+			assertEquals(listOf("alpha", "beta"), received)
+			assertEquals(createdInfo.config.deliverSubject, pushConsumer.subscription.subject.raw)
+
+			pushConsumer.close()
+		}
+
+	@OptIn(InternalNatsApi::class)
+	@Test
+	fun `push consumer redelivers when not acked`() =
+		NatsServerHarness.runBlocking { server ->
+			val c = NatsClient(server.uri).also { it.connect() }
+			val js = JetStreamClient(c)
+
+			js.manager.createStream {
+				name = "push_ack_stream"
+				subject("push.ack")
+			}
+
+			val consumerName = "push_ack_consumer"
+			val deliverSubject = c.nextInbox()
+
+			js
+				.createOrUpdateConsumer(
+					"push_ack_stream",
+					ConsumerConfig(
+						durableName = consumerName,
+						deliverSubject = deliverSubject,
+						filterSubject = "push.ack",
+						deliverPolicy = DeliverPolicy.All,
+						ackPolicy = AckPolicy.Explicit,
+						ackWait = 500.milliseconds, // 500ms
+						maxDeliver = 5,
+						flowControl = true,
+						idleHeartbeat = 5.seconds,
+					),
+				).getOrThrow()
+
+			val pushConsumer = js.stream("push_ack_stream").pushConsumer(consumerName)
+
+			val deliveries = mutableListOf<String>()
+			val job =
+				launch {
+					withTimeout(5.seconds) {
+						pushConsumer.messages.take(2).collect { msg ->
+							deliveries += msg.data!!.decodeToString()
+							if (deliveries.size == 2) {
+								msg.ack()
+							}
+						}
+					}
+				}
+
+			delay(100.milliseconds)
+			c.publish("push.ack", "needs ack".encodeToByteArray())
+
+			job.join()
+
+			assertEquals(listOf("needs ack", "needs ack"), deliveries)
+
+			pushConsumer.close()
 		}
 }

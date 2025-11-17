@@ -5,6 +5,7 @@ import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
 import io.natskt.jetstream.api.ReplayPolicy
 import io.natskt.jetstream.internal.JetStreamDsl
+import kotlin.time.Duration
 
 @JetStreamDsl
 public class ConsumerConfigurationBuilder internal constructor() {
@@ -16,7 +17,7 @@ public class ConsumerConfigurationBuilder internal constructor() {
 	public var optStartSequence: Long? = null
 	public var optStartTime: String? = null
 	public var ackPolicy: AckPolicy? = null
-	public var ackWait: Long? = null
+	public var ackWait: Duration? = null
 	public var maxDeliver: Int? = null
 	public var backoff: MutableList<Long>? = null
 	public var filterSubject: String? = null
@@ -29,12 +30,12 @@ public class ConsumerConfigurationBuilder internal constructor() {
 	public var maxBatch: Int? = null
 	public var maxExpires: Long? = null
 	public var maxBytes: Long? = null
-	public var inactiveThreshold: Long? = null
+	public var inactiveThreshold: Duration? = null
 	public var numReplicas: Int? = null
 	public var memoryStorage: Boolean? = null
 	public var metadata: MutableMap<String, String>? = null
 	public var headersOnly: Boolean? = null
-	public var idleHeartbeat: Long? = null
+	public var idleHeartbeat: Duration? = null
 	public var flowControl: Boolean? = null
 	public var direct: Boolean? = null
 	public var maxPullWaiting: Int? = null

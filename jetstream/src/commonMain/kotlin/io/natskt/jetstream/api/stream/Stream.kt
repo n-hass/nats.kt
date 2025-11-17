@@ -3,6 +3,7 @@ package io.natskt.jetstream.api.stream
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
+import io.natskt.jetstream.api.consumer.PushConsumer
 import kotlinx.coroutines.flow.StateFlow
 
 public interface Stream {
@@ -18,9 +19,14 @@ public interface Stream {
 	public suspend fun updateStreamInfo(): Result<StreamInfo>
 
 	/**
-	 * Create a new consumer with the given configuration
+	 * Bind a consumer with the given name
 	 */
 	public suspend fun pullConsumer(name: String): PullConsumer
+
+	/**
+	 * Bind a consumer with the given name
+	 */
+	public suspend fun pushConsumer(name: String): PushConsumer
 
 	/**
 	 * Create a new consumer with the given configuration

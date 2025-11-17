@@ -7,7 +7,7 @@ import io.natskt.jetstream.client.JetStreamConfigurationBuilder
 import io.natskt.jetstream.client.build
 
 @OptIn(InternalNatsApi::class)
-public suspend fun JetStreamClient(
+public fun JetStreamClient(
 	client: NatsClient,
 	block: JetStreamConfigurationBuilder.() -> Unit = {},
 ): JetStreamClient {
