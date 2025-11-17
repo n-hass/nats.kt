@@ -23,7 +23,6 @@ import io.natskt.jetstream.internal.PersistentRequestSubscription
 import io.natskt.jetstream.internal.StreamImpl
 import io.natskt.jetstream.management.JetStreamManagerImpl
 import kotlinx.coroutines.delay
-import kotlin.collections.buildMap
 
 internal class JetStreamClientImpl(
 	override val client: NatsClient,

@@ -24,8 +24,9 @@ import kotlin.uuid.Uuid
 
 class NatsServerHarness(
 	private val enableJetStream: Boolean = true,
+	fixedPort: Int? = null,
 ) : AutoCloseable {
-	private val port: Int = ServerSocket(0).use { it.localPort }
+	private val port: Int = fixedPort ?: ServerSocket(0).use { it.localPort }
 	private val tmpDir = Files.createTempDirectory("nats") ?: Path.of("/tmp/nats-test/${Uuid.random()}")
 	private val logFile =
 		Path
@@ -126,10 +127,14 @@ class NatsServerHarness(
 		}
 
 		@OptIn(ExperimentalContracts::class)
-		inline fun runBlocking(crossinline block: suspend CoroutineScope.(NatsServerHarness) -> Unit) {
+		inline fun runBlocking(
+			fixedPort: Int? = null,
+			timeout: Long = 20_000,
+			crossinline block: suspend CoroutineScope.(NatsServerHarness) -> Unit,
+		) {
 			kotlinx.coroutines.runBlocking {
-				withTimeout(20_000) {
-					block(NatsServerHarness())
+				withTimeout(timeout) {
+					block(NatsServerHarness(fixedPort = fixedPort))
 				}
 			}
 		}

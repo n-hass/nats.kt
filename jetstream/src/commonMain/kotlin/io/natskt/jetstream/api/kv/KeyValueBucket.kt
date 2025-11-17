@@ -6,6 +6,7 @@ import io.natskt.api.Subscription
 import io.natskt.api.from
 import io.natskt.api.fullyQualified
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.internal.NUID
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
@@ -19,19 +20,19 @@ import io.natskt.jetstream.client.SEQUENCE_HEADER
 import io.natskt.jetstream.client.TIME_STAMP_HEADER
 import io.natskt.jetstream.internal.KV_BUCKET_STREAM_NAME_PREFIX
 import io.natskt.jetstream.internal.PersistentRequestSubscription
-import io.natskt.jetstream.internal.PullConsumerImpl
+import io.natskt.jetstream.internal.PushConsumerImpl
 import io.natskt.jetstream.internal.asKeyValueConfig
 import io.natskt.jetstream.internal.asKeyValueStatus
-import io.natskt.jetstream.internal.createOrUpdateConsumer
+import io.natskt.jetstream.internal.createFilteredConsumer
 import io.natskt.jetstream.internal.deleteConsumer
 import io.natskt.jetstream.internal.getMessage
 import io.natskt.jetstream.internal.getStreamInfo
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.nanoseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -45,8 +46,7 @@ private const val ACK_DOMAIN_TOKEN_POS = 2
 private const val ACK_STREAM_SEQ_TOKEN_POS = 7
 private const val ACK_TIMESTAMP_TOKEN_POS = 9
 private const val ACK_PENDING_TOKEN_POS = 10
-private val WATCH_PULL_TIMEOUT = 2.seconds
-private const val WATCH_PULL_BATCH = 1
+private const val WATCH_IDLE_HEARTBEAT = 5000000000
 
 public class KeyValueBucket internal constructor(
 	js: JetStreamClient,
@@ -130,33 +130,56 @@ public class KeyValueBucket internal constructor(
 				append(searchKey)
 			}
 
+		val consumerName = NUID.nextSequence()
+
+		val deliverSubscription =
+			js.client.subscribe(
+				subject = js.client.nextInbox(),
+				queueGroup = null,
+				eager = true,
+				replayBuffer = 1,
+				unsubscribeOnLastCollector = false,
+			)
+
+		val consumer =
+			PushConsumerImpl(
+				name = consumerName,
+				streamName = streamName,
+				js = js,
+				subscription = deliverSubscription,
+				initialInfo = null,
+			)
+
 		val consumerConfig =
 			ConsumerConfig(
 				deliverPolicy = DeliverPolicy.LastPerSubject,
 				ackPolicy = AckPolicy.None,
+				maxDeliver = 1,
 				filterSubject = filterSubject,
-				inactiveThreshold = WATCH_CONSUMER_INACTIVE_THRESHOLD_NANOS,
 				replayPolicy = ReplayPolicy.Instant,
+				flowControl = true,
+				idleHeartbeat = WATCH_IDLE_HEARTBEAT,
+				deliverSubject = deliverSubscription.subject.raw,
 				numReplicas = 1,
 				memoryStorage = true,
 			)
 
-		val consumerInfo = js.createOrUpdateConsumer(streamName, consumerConfig).getOrThrow()
-		val consumer =
-			PullConsumerImpl(
-				name = consumerInfo.name,
-				streamName = streamName,
-				js = js,
-				inboxSubscription = PersistentRequestSubscription.newSubscription(js.client),
-				defaultTimeout = WATCH_PULL_TIMEOUT.inWholeNanoseconds,
-				initialInfo = consumerInfo,
-			)
+		val consumerInfo =
+			js
+				.createFilteredConsumer(
+					streamName = streamName,
+					consumerName = consumerName,
+					filterSubject = filterSubject,
+					configuration = consumerConfig,
+				).getOrThrow()
+
+		consumer.info.value = consumerInfo
 
 		return callbackFlow<KeyValueEntry> {
 			val job =
 				launch {
-					while (true) {
-						consumer.fetch(1).forEach {
+					while (isActive) {
+						consumer.messages.collect {
 							val entry = it.toKeyValueEntry(name)
 							this@callbackFlow.send(entry)
 						}
