@@ -3,7 +3,6 @@ package io.natskt.jetstream.internal
 import io.natskt.api.JetStreamMessage
 import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
-import io.natskt.internal.MessageInternal
 import io.natskt.internal.wireJsonFormat
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.ConsumerPullRequest
@@ -23,8 +22,8 @@ internal class PullConsumerImpl(
 	val streamName: String,
 	js: JetStreamClient,
 	inboxSubscription: Subscription,
-	private val defaultTimeout: Long = 10_000_000_000, // 10 seconds in nanoseconds
 	initialInfo: ConsumerInfo?,
+	private val defaultTimeout: Long = 10_000_000_000, // 10 seconds in nanoseconds
 ) : PersistentRequestSubscription(js, inboxSubscription),
 	PullConsumer {
 	private var lastPullCode = 0
@@ -81,10 +80,7 @@ internal class PullConsumerImpl(
 			} ?: return emptyList()
 
 		return messages.map {
-			IncomingJetStreamMessage(
-				original = it as MessageInternal,
-				ackAction = { subject, body -> js.client.publish(subject, body) },
-			)
+			wrapJetstreamMessage(it, js)
 		}
 	}
 

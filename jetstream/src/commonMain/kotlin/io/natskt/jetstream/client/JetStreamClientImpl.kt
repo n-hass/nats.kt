@@ -7,20 +7,27 @@ import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.jetstream.api.ApiError
+import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.JetStreamManager
 import io.natskt.jetstream.api.KeyValueManager
 import io.natskt.jetstream.api.PublishAck
 import io.natskt.jetstream.api.PublishOptions
-import io.natskt.jetstream.api.consumer.PullConsumer
+import io.natskt.jetstream.api.SubscribeOptions
+import io.natskt.jetstream.api.consumer.Consumer
 import io.natskt.jetstream.api.internal.decode
 import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.internal.JetStreamContext
 import io.natskt.jetstream.internal.KeyValueManagerImpl
 import io.natskt.jetstream.internal.PersistentRequestSubscription
+import io.natskt.jetstream.internal.PullConsumerImpl
+import io.natskt.jetstream.internal.PushConsumerImpl
 import io.natskt.jetstream.internal.StreamImpl
+import io.natskt.jetstream.internal.createOrUpdateConsumer
+import io.natskt.jetstream.internal.getConsumerInfo
+import io.natskt.jetstream.internal.isPush
 import io.natskt.jetstream.management.JetStreamManagerImpl
 import kotlinx.coroutines.delay
 
@@ -28,8 +35,6 @@ internal class JetStreamClientImpl(
 	override val client: NatsClient,
 	config: JetStreamConfiguration,
 ) : JetStreamClient {
-	private val baseRequest = client.nextInbox() + "."
-
 	override val context = JetStreamContext(config)
 
 	override val manager: JetStreamManager by lazy {
@@ -121,12 +126,40 @@ internal class JetStreamClientImpl(
 		)
 	}
 
-	override suspend fun pull(
-		streamName: String,
-		consumerName: String,
-	): PullConsumer {
-		TODO("Not yet implemented")
+	private suspend fun consumerFromInfo(consumerInfo: ConsumerInfo): Consumer {
+		if (consumerInfo.isPush() && consumerInfo.config.deliverSubject != null) {
+			return PushConsumerImpl(
+				name = consumerInfo.name,
+				streamName = consumerInfo.stream,
+				subscription = PushConsumerImpl.newSubscription(client, consumerInfo.config.deliverSubject),
+				js = this,
+				initialInfo = consumerInfo,
+			)
+		}
+
+		return PullConsumerImpl(
+			name = consumerInfo.name,
+			streamName = consumerInfo.stream,
+			js = this,
+			inboxSubscription = PersistentRequestSubscription.newSubscription(client),
+			initialInfo = consumerInfo,
+		)
 	}
+
+	override suspend fun subscribe(
+		subject: String,
+		subscribeOptions: SubscribeOptions,
+	): Consumer =
+		when (subscribeOptions) {
+			is SubscribeOptions.Attach -> {
+				val consumerInfo = getConsumerInfo(subscribeOptions.streamName, subscribeOptions.consumerName).getOrThrow()
+				consumerFromInfo(consumerInfo)
+			}
+			is SubscribeOptions.CreateOrUpdate -> {
+				val consumerInfo = createOrUpdateConsumer(subscribeOptions.streamName, subscribeOptions.config).getOrThrow()
+				consumerFromInfo(consumerInfo)
+			}
+		}
 
 	override suspend fun stream(name: String): Stream =
 		StreamImpl(

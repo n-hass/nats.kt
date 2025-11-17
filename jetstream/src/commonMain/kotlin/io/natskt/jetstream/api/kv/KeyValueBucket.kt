@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -46,7 +47,7 @@ private const val ACK_DOMAIN_TOKEN_POS = 2
 private const val ACK_STREAM_SEQ_TOKEN_POS = 7
 private const val ACK_TIMESTAMP_TOKEN_POS = 9
 private const val ACK_PENDING_TOKEN_POS = 10
-private const val WATCH_IDLE_HEARTBEAT = 5000000000
+private val WATCH_IDLE_HEARTBEAT = 5.seconds
 
 public class KeyValueBucket internal constructor(
 	js: JetStreamClient,
@@ -132,21 +133,13 @@ public class KeyValueBucket internal constructor(
 
 		val consumerName = NUID.nextSequence()
 
-		val deliverSubscription =
-			js.client.subscribe(
-				subject = js.client.nextInbox(),
-				queueGroup = null,
-				eager = true,
-				replayBuffer = 1,
-				unsubscribeOnLastCollector = false,
-			)
-
+		val deliverySubscription = PushConsumerImpl.newSubscription(js.client)
 		val consumer =
 			PushConsumerImpl(
 				name = consumerName,
 				streamName = streamName,
 				js = js,
-				subscription = deliverSubscription,
+				subscription = deliverySubscription,
 				initialInfo = null,
 			)
 
@@ -159,7 +152,7 @@ public class KeyValueBucket internal constructor(
 				replayPolicy = ReplayPolicy.Instant,
 				flowControl = true,
 				idleHeartbeat = WATCH_IDLE_HEARTBEAT,
-				deliverSubject = deliverSubscription.subject.raw,
+				deliverSubject = deliverySubscription.subject.raw,
 				numReplicas = 1,
 				memoryStorage = true,
 			)

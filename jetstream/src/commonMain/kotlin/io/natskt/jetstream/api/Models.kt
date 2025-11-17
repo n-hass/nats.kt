@@ -406,8 +406,9 @@ public data class ConsumerConfig(
 	val optStartTime: String? = null,
 	@SerialName("ack_policy")
 	val ackPolicy: AckPolicy? = null,
+	@Serializable(with = DurationNanosSerializer::class)
 	@SerialName("ack_wait")
-	val ackWait: Long? = null,
+	val ackWait: Duration? = null,
 	@SerialName("max_deliver")
 	val maxDeliver: Int? = null,
 	val backoff: List<Long>? = null,
@@ -431,8 +432,9 @@ public data class ConsumerConfig(
 	val maxExpires: Long? = null,
 	@SerialName("max_bytes")
 	val maxBytes: Long? = null,
+	@Serializable(with = DurationNanosSerializer::class)
 	@SerialName("inactive_threshold")
-	val inactiveThreshold: Long? = null,
+	val inactiveThreshold: Duration? = null,
 	@SerialName("num_replicas")
 	val numReplicas: Int? = null,
 	@SerialName("mem_storage")
@@ -440,8 +442,9 @@ public data class ConsumerConfig(
 	val metadata: Map<String, String>? = null,
 	@SerialName("headers_only")
 	val headersOnly: Boolean? = null,
+	@Serializable(with = DurationNanosSerializer::class)
 	@SerialName("idle_heartbeat")
-	val idleHeartbeat: Long? = null,
+	val idleHeartbeat: Duration? = null,
 	@SerialName("flow_control")
 	val flowControl: Boolean? = null,
 	val direct: Boolean? = null,

@@ -1,6 +1,8 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.api.JetStreamMessage
 import io.natskt.api.Message
+import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.jetstream.api.ConsumerInfo
@@ -10,6 +12,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+
+private const val FLOW_CONTROL_REQUEST_STATUS = 409
+private const val IDLE_HEARTBEAT_STATUS = 100
+private const val NATS_CONSUMER_STALLED_HEADER = "Nats-Consumer-Stalled"
 
 @OptIn(InternalNatsApi::class)
 internal class PushConsumerImpl(
@@ -21,7 +27,7 @@ internal class PushConsumerImpl(
 ) : PushConsumer {
 	override val info = MutableStateFlow(initialInfo)
 
-	override val messages: Flow<Message> =
+	override val messages: Flow<JetStreamMessage> =
 		channelFlow {
 			subscription.messages.collect { msg ->
 				when (msg.status) {
@@ -29,7 +35,7 @@ internal class PushConsumerImpl(
 					IDLE_HEARTBEAT_STATUS -> handleIdleHeartbeat(msg)
 					else -> {
 						if (msg.status == null) {
-							send(msg)
+							send(wrapJetstreamMessage(msg, js))
 						}
 					}
 				}
@@ -60,9 +66,17 @@ internal class PushConsumerImpl(
 		js.client.publish(stalledSubject, null, null, null)
 	}
 
-	private companion object {
-		private const val FLOW_CONTROL_REQUEST_STATUS = 409
-		private const val IDLE_HEARTBEAT_STATUS = 100
-		private const val NATS_CONSUMER_STALLED_HEADER = "Nats-Consumer-Stalled"
+	companion object {
+		suspend fun newSubscription(
+			client: NatsClient,
+			subject: String = client.nextInbox(),
+		): Subscription =
+			client.subscribe(
+				subject = subject,
+				queueGroup = null,
+				eager = true,
+				replayBuffer = 1,
+				unsubscribeOnLastCollector = false,
+			)
 	}
 }

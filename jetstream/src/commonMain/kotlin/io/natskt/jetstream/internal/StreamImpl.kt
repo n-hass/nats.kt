@@ -5,6 +5,7 @@ import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
+import io.natskt.jetstream.api.consumer.PushConsumer
 import io.natskt.jetstream.api.consumer.build
 import io.natskt.jetstream.api.stream.Stream
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,5 +46,20 @@ internal class StreamImpl(
 					initialInfo = it,
 				)
 			}.getOrThrow()
+	}
+
+	override suspend fun pushConsumer(name: String): PushConsumer {
+		val info = js.getConsumerInfo(streamName = this.name, name = name).getOrThrow()
+		if (!info.isPush() || info.config.deliverSubject == null) {
+			throw IllegalStateException("consumer $name is not a push consumer")
+		}
+
+		return PushConsumerImpl(
+			name = name,
+			streamName = this.name,
+			js = js,
+			subscription = PushConsumerImpl.newSubscription(js.client, info.config.deliverSubject),
+			initialInfo = info,
+		)
 	}
 }

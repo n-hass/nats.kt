@@ -1,8 +1,8 @@
 package io.natskt.jetstream.api.consumer
 
-import io.natskt.api.Message
+import io.natskt.api.JetStreamMessage
 import kotlinx.coroutines.flow.Flow
 
 public interface PushConsumer : Consumer {
-	public val messages: Flow<Message>
+	public val messages: Flow<JetStreamMessage>
 }

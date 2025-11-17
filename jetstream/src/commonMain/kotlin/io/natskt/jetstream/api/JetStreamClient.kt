@@ -3,7 +3,7 @@ package io.natskt.jetstream.api
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
-import io.natskt.jetstream.api.consumer.PullConsumer
+import io.natskt.jetstream.api.consumer.Consumer
 import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.client.JetStreamClientImpl
@@ -38,18 +38,25 @@ public interface JetStreamClient : CanRequest {
 	): PublishAck
 
 	/**
-	 * Bind to an existing pull consumer by name
+	 * Create a [Consumer] instance to read messages from a stream.
+	 * You can attach to an existing consumer with [SubscribeOptions.Attach],
+	 * or upsert one with [SubscribeOptions.CreateOrUpdate]
 	 */
-	public suspend fun pull(
-		streamName: String,
-		consumerName: String,
-	): PullConsumer
+	public suspend fun subscribe(
+		subject: String,
+		subscribeOptions: SubscribeOptions,
+	): Consumer
 
 	/**
 	 * Return an existing [io.natskt.jetstream.api.stream.Stream], fetching its [StreamInfo]
 	 */
 	public suspend fun stream(name: String): Stream
 
+	/**
+	 * Create a key-value bucket binding.
+	 * **Creates a request subscription** that must be closed when you are finished,
+	 * or you can wrap its usage with [AutoCloseable.use]
+	 */
 	public suspend fun keyValue(bucket: String): KeyValueBucket
 
 	public companion object {
