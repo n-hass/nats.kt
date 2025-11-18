@@ -7,6 +7,7 @@ import io.natskt.client.NatsClientImpl
 import io.natskt.client.StringMessageBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.time.Duration
 
 public interface NatsClient {
 	/**
@@ -27,7 +28,7 @@ public interface NatsClient {
 	public suspend fun connect(): Result<Unit>
 
 	/**
-	 * Deactivates the client's connection
+	 * Deactivates the client's connection, closing the transport
 	 */
 	public suspend fun disconnect()
 
@@ -86,6 +87,12 @@ public interface NatsClient {
 	 * Trigger a ping. The round-trip-time will then be updated in the client's [connectionState]
 	 */
 	public suspend fun ping(): Unit
+
+	/**
+	 * Initiate a protocol drain. Unsubscribes on all subscriptions and flushes the transport,
+	 * but does NOT close transport; returns when drained or timeout.
+	 */
+	public suspend fun drain(timeout: Duration): Unit
 
 	@InternalNatsApi
 	public fun nextInbox(): String

@@ -29,6 +29,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -253,7 +254,17 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun drain(timeout: Duration) {
-		TODO("Not yet implemented")
+		withTimeoutOrNull(timeout) {
+			subscriptions.forEach {
+				it.value.close()
+			}
+		}
+		when (val transport = this.transport) {
+			null -> {}
+			else -> {
+				transport.flush()
+			}
+		}
 	}
 
 	override suspend fun close() {

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger { }
@@ -145,6 +146,8 @@ internal class ConnectionManagerImpl(
 	}
 
 	suspend fun ping() = current.value.ping()
+
+	suspend fun drain(timeout: Duration) = current.value.drain(timeout)
 }
 
 private fun <K, V> MutableMap<K, V>.removeIf(predicate: (Map.Entry<K, V>) -> Boolean) =
