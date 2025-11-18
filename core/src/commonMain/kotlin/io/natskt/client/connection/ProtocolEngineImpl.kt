@@ -75,7 +75,7 @@ internal class ProtocolEngineImpl(
 			user = auth.user,
 			pass = auth.pass,
 			name = null,
-			protocol = null,
+			protocol = 1,
 			echo = false,
 			sig = auth.signature,
 			jwt = auth.jwt,

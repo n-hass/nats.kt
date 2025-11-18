@@ -23,8 +23,8 @@ sealed interface ClientOperation : Operation {
 		val lang: String = "Kotlin",
 		@EncodeDefault
 		val version: String = CLIENT_VERSION,
-		val protocol: Int?,
-		val echo: Boolean,
+		val protocol: Int = 1,
+		val echo: Boolean = false,
 		val sig: String?,
 		val jwt: String?,
 		@SerialName("no_responders")
