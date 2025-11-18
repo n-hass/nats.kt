@@ -46,7 +46,7 @@ Gradle:
 
 ```kotlin
 commonMain.dependencies {
-	implementation("io.github.n-hass:natskt-core:0.3.1")
+	implementation("io.github.n-hass:natskt-core:0.4.0")
 }
 ```
 
