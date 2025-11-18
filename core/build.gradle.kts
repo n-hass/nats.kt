@@ -68,13 +68,6 @@ kotlin {
             implementation(libs.ktor.http)
         }
 
-        commonTest.dependencies {
-            implementation(kotlin("test"))
-            implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kotlinx.coroutines.test)
-            implementation(libs.turbine)
-        }
-
         nativeAndJvmSharedMain.dependencies {
             api(projects.core.transportTcp)
         }
@@ -87,10 +80,22 @@ kotlin {
             implementation(libs.ktor.client.engine.cio)
         }
 
-		jvmTest.dependencies {
-			implementation(projects.architecture)
+		/* Tests */
+
+		commonTest.dependencies {
+			implementation(kotlin("test"))
+			implementation(libs.kotlinx.coroutines.core)
+			implementation(libs.kotlinx.coroutines.test)
+			implementation(libs.turbine)
+			implementation(projects.testHarness)
+			implementation(libs.ktor.client.engine.cio)
 		}
 
+		jvmTest.dependencies {
+			implementation(libs.ktor.client.engine.java)
+			implementation(libs.ktor.client.engine.jetty)
+			implementation(libs.ktor.client.engine.okhttp)
+		}
     }
 }
 

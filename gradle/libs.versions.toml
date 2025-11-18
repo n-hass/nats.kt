@@ -12,7 +12,7 @@ kotlinx-coroutines = "1.10.2"
 kotlinx-serialisation = "1.9.0"
 buildkonfig = "0.17.1"
 
-ktor = "3.2.1"
+ktor = "3.3.2"
 whyoleg-crypto = "0.5.0"
 kotlinLogging = "7.0.13"
 ksp = "2.2.20-2.0.4"
@@ -24,6 +24,7 @@ konsist = "0.17.3"
 spotless = "7.2.1"
 ktlint = "1.7.1"
 maven-publish = "0.34.0"
+slf4j-simple = "2.0.17"
 
 [libraries]
 # Kotlin
@@ -38,6 +39,8 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor"}
 ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor"}
 ktor-client-engine-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor"}
 ktor-client-engine-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor"}
+ktor-client-engine-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor"}
+ktor-client-engine-curl = { module = "io.ktor:ktor-client-curl", version.ref = "ktor"}
 ktor-io = { module = "io.ktor:ktor-io", version.ref = "ktor"}
 ktor-http = { module = "io.ktor:ktor-http", version.ref = "ktor"}
 ktor-network = { module = "io.ktor:ktor-network", version.ref = "ktor"}
@@ -55,6 +58,17 @@ kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", versio
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-simple" }
+ktor-client-engine-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor"}
+ktor-client-engine-jetty = { module = "io.ktor:ktor-client-jetty", version.ref = "ktor"}
+ktor-client-engine-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor"}
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor"}
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor"}
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor"}
+ktor-server-cors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor"}
+ktor-server-callLogging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor"}
+ktor-server-engine-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor"}
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor"}
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin-stdlib" }

@@ -2,10 +2,6 @@
 
 package harness
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.withTimeout
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
@@ -18,19 +14,19 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
-import kotlin.contracts.ExperimentalContracts
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class NatsServerHarness(
+public class NatsServerHarness(
 	private val enableJetStream: Boolean = true,
+	private val logId: String,
 	fixedPort: Int? = null,
 ) : AutoCloseable {
 	private val port: Int = fixedPort ?: ServerSocket(0).use { it.localPort }
 	private val tmpDir = Files.createTempDirectory("nats") ?: Path.of("/tmp/nats-test/${Uuid.random()}")
 	private val logFile =
 		Path
-			.of("build/test-results/logs/nats.out")
+			.of("build/test-results/logs/nats/$logId.out")
 			.also {
 				Files.createDirectories(it.parent)
 				Files.deleteIfExists(it)
@@ -41,10 +37,10 @@ class NatsServerHarness(
 	private val outputLines = mutableListOf<String>()
 	private val stdoutReader: Thread = consumeOutput(process.inputStream.bufferedReader(), logFile)
 
-	val uri: String
+	public val uri: String
 		get() = "nats://127.0.0.1:$port"
 
-	val logs: List<String>
+	public val logs: List<String>
 		get() = synchronized(outputLines) { outputLines.toList() }
 
 	init {
@@ -118,37 +114,5 @@ class NatsServerHarness(
 		stdoutReader.join(500)
 	}
 
-	companion object {
-		@OptIn(ExperimentalContracts::class)
-		inline fun runTest(crossinline block: suspend TestScope.(NatsServerHarness) -> Unit) {
-			kotlinx.coroutines.test.runTest {
-				block(NatsServerHarness())
-			}
-		}
-
-		@OptIn(ExperimentalContracts::class)
-		inline fun runBlocking(
-			fixedPort: Int? = null,
-			timeout: Long = 20_000,
-			crossinline block: suspend CoroutineScope.(NatsServerHarness) -> Unit,
-		) {
-			kotlinx.coroutines.runBlocking {
-				withTimeout(timeout) {
-					block(NatsServerHarness(fixedPort = fixedPort))
-				}
-			}
-		}
-	}
-}
-
-suspend fun waitForLog(
-	server: NatsServerHarness,
-	predicate: (String) -> Boolean,
-) {
-	withTimeout(5_000) {
-		while (true) {
-			if (server.logs.any(predicate)) return@withTimeout
-			delay(50)
-		}
-	}
+	public companion object
 }

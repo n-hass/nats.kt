@@ -1,7 +1,4 @@
-package io.natskt.jetstream.api
-
-import io.natskt.jetstream.api.kv.KeyValueBucket
-import io.natskt.jetstream.api.kv.KeyValueConfigurationBuilder
+package io.natskt.jetstream.api.kv
 
 public interface KeyValueManager {
 	public suspend fun get(bucket: String): KeyValueBucket

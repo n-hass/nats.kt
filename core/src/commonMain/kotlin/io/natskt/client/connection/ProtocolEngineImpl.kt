@@ -268,12 +268,10 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun close() {
-		if (transport == null) {
-			throw IllegalStateException("Cannot close connection as it is not open")
-		}
+		val t = transport ?: throw IllegalStateException("Cannot close connection as it is not open")
 		closed.complete(CloseReason.CleanClose)
-		transport!!.flush()
-		transport!!.close()
+		t.flush()
+		t.close()
 	}
 
 	private suspend fun enterLameDuckMode() {

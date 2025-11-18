@@ -1,11 +1,13 @@
-package io.natskt.jetstream
+package io.natskt.jetstream.integration
 
-import harness.NatsServerHarness
+import harness.RemoteNatsHarness
+import harness.runBlocking
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.NatsClient
 import io.natskt.api.Message
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.jetstream.JetStreamClient
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
@@ -27,7 +29,7 @@ import kotlin.time.Duration.Companion.seconds
 class ApiIntegrationTest {
 	@Test
 	fun `it gets a stream not found error for something not found`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -37,7 +39,7 @@ class ApiIntegrationTest {
 
 	@Test
 	fun `it creates a stream with given configuration`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -62,7 +64,7 @@ class ApiIntegrationTest {
 
 	@Test
 	fun `it creates a consumer`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -91,7 +93,7 @@ class ApiIntegrationTest {
 
 	@Test
 	fun `pull consumer can fetch`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -148,7 +150,7 @@ class ApiIntegrationTest {
 
 	@Test
 	fun `pull consumer can fetch continuously`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -193,7 +195,7 @@ class ApiIntegrationTest {
 	@OptIn(InternalNatsApi::class)
 	@Test
 	fun `push consumer receives messages`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -248,7 +250,7 @@ class ApiIntegrationTest {
 	@OptIn(InternalNatsApi::class)
 	@Test
 	fun `push consumer redelivers when not acked`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 

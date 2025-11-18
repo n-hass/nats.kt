@@ -1,4 +1,6 @@
-package io.natskt.jetstream.api
+package io.natskt.jetstream.api.consumer
+
+import io.natskt.jetstream.api.ConsumerConfig
 
 public sealed class SubscribeOptions private constructor() {
 	public abstract val streamName: String

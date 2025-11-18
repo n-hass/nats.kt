@@ -1,7 +1,9 @@
-package io.natskt.jetstream
+package io.natskt.jetstream.integration
 
-import harness.NatsServerHarness
+import harness.RemoteNatsHarness
+import harness.runBlocking
 import io.natskt.NatsClient
+import io.natskt.jetstream.JetStreamClient
 import io.natskt.jetstream.api.kv.KeyValueEntry
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.take
@@ -17,7 +19,7 @@ import kotlin.time.Duration.Companion.seconds
 class KvIntegrationTest {
 	@Test
 	fun `it creates a bucket`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -35,7 +37,7 @@ class KvIntegrationTest {
 
 	@Test
 	fun `it gets an existing bucket`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -51,7 +53,7 @@ class KvIntegrationTest {
 
 	@Test
 	fun `it puts on a bucket`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -66,7 +68,7 @@ class KvIntegrationTest {
 
 	@Test
 	fun `it gets on a bucket`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -85,7 +87,7 @@ class KvIntegrationTest {
 
 	@Test
 	fun `it gets a past value from a bucket`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -107,7 +109,7 @@ class KvIntegrationTest {
 
 	@Test
 	fun `it watches for new values`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
@@ -150,7 +152,7 @@ class KvIntegrationTest {
 
 	@Test
 	fun `watch returns the latest value on start`() =
-		NatsServerHarness.runBlocking { server ->
+		RemoteNatsHarness.runBlocking { server ->
 			val c = NatsClient(server.uri).also { it.connect() }
 			val js = JetStreamClient(c)
 
