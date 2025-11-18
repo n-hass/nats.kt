@@ -1,5 +1,5 @@
 plugins {
-    kotlin("multiplatform") version libs.versions.kotlin.get()
+    kotlin("multiplatform") version libs.versions.kotlin.stdlib.get()
 }
 
 kotlin {

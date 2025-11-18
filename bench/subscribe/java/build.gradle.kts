@@ -1,6 +1,6 @@
 plugins {
     id("application")
-    kotlin("jvm") version libs.versions.kotlin.get()
+    kotlin("jvm") version libs.versions.kotlin.stdlib.get()
 }
 
 application {

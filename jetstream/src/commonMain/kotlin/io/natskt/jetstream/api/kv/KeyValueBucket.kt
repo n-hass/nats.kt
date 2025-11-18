@@ -207,7 +207,13 @@ private fun Message.toKeyValueEntry(bucketName: String): KeyValueEntry {
 			headers
 				?.get(TIME_STAMP_HEADER)
 				?.firstOrNull()
-				?.let { Instant.parseOrNull(it) } ?: Instant.DISTANT_PAST
+				?.let {
+					try {
+						Instant.parse(it)
+					} catch (_: Throwable) {
+						null
+					}
+				} ?: Instant.DISTANT_PAST
 
 		return KeyValueEntry(
 			bucket = bucketName,
