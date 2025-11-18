@@ -69,14 +69,16 @@ internal class PushConsumerImpl(
 	companion object {
 		suspend fun newSubscription(
 			client: NatsClient,
-			subject: String = client.nextInbox(),
-		): Subscription =
-			client.subscribe(
+			subject: String?,
+		): Subscription {
+			val subject = subject ?: client.nextInbox()
+			return client.subscribe(
 				subject = subject,
 				queueGroup = null,
 				eager = true,
 				replayBuffer = 1,
 				unsubscribeOnLastCollector = false,
 			)
+		}
 	}
 }

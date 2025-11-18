@@ -32,6 +32,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.startCoroutine
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger { }
 
@@ -299,4 +300,6 @@ internal class NatsClientImpl(
 	override fun nextInbox(): String = configuration.createInbox()
 
 	override suspend fun ping() = connectionManager.ping()
+
+	override suspend fun drain(timeout: Duration) = connectionManager.drain(timeout)
 }

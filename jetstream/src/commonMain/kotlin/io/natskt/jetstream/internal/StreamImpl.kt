@@ -62,4 +62,19 @@ internal class StreamImpl(
 			initialInfo = info,
 		)
 	}
+
+	override suspend fun createPushConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PushConsumer {
+		val new = js.createOrUpdateConsumer(name, ConsumerConfigurationBuilder().apply(configure).build())
+		return new
+			.map {
+				it.config.deliverSubject ?: throw IllegalStateException("ConsumerInfo response from server has no deliver subject set")
+				PushConsumerImpl(
+					name = it.name,
+					streamName = it.stream,
+					js = js,
+					subscription = PushConsumerImpl.newSubscription(js.client, it.config.deliverSubject),
+					initialInfo = it,
+				)
+			}.getOrThrow()
+	}
 }

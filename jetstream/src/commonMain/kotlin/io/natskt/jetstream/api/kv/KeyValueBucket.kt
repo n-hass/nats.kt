@@ -133,7 +133,7 @@ public class KeyValueBucket internal constructor(
 
 		val consumerName = NUID.nextSequence()
 
-		val deliverySubscription = PushConsumerImpl.newSubscription(js.client)
+		val deliverySubscription = PushConsumerImpl.newSubscription(js.client, null)
 		val consumer =
 			PushConsumerImpl(
 				name = consumerName,

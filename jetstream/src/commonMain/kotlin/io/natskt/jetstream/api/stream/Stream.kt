@@ -29,7 +29,12 @@ public interface Stream {
 	public suspend fun pushConsumer(name: String): PushConsumer
 
 	/**
-	 * Create a new consumer with the given configuration
+	 * Create a new [PullConsumer] with the given configuration
 	 */
 	public suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer
+
+	/**
+	 * Create a new [PushConsumer] with the given configuration
+	 */
+	public suspend fun createPushConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PushConsumer
 }
