@@ -34,6 +34,10 @@
 | JavaScript (Node.js) | ✅ Full Support |
 | WebAssembly | ✅ Full Support |
 
+**Minimum JVM**: 17
+
+**Minimum Kotlin**: 2.1
+
 ## 🚀 Quick Start
 
 ### Installation
@@ -42,7 +46,7 @@ Gradle:
 
 ```kotlin
 commonMain.dependencies {
-	implementation("io.github.n-hass:natskt-core:0.3.0")
+	implementation("io.github.n-hass:natskt-core:0.3.1")
 }
 ```
 

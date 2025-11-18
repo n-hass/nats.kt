@@ -1,6 +1,11 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import com.diffplug.spotless.LineEnding
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.internal.descriptors.annotations.KotlinTarget
+import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
@@ -23,14 +28,36 @@ allprojects {
     }
 }
 
-val pluginId = libs.plugins.mavenPublish.get().pluginId
+val mavenPublishId = libs.plugins.mavenPublish.get().pluginId
+val kotlinMultiplatformId = libs.plugins.kotlin.multiplatform.get().pluginId
 
 subprojects {
 	group = "io.github.n-hass"
 	version = properties["natskt.version"].toString()
 
-	apply(plugin = pluginId)
+	apply(plugin = mavenPublishId)
 	apply(plugin = "signing")
+
+	plugins.withId(kotlinMultiplatformId) {
+		extensions.findByType<KotlinMultiplatformExtension>()?.apply {
+			jvmToolchain(libs.versions.jdk.get().toInt())
+
+			compilerOptions {
+				languageVersion = KotlinVersion.fromVersion(libs.versions.kotlin.languageVersion.get())
+				apiVersion = KotlinVersion.fromVersion(libs.versions.kotlin.apiVersion.get())
+			}
+
+			targets.withType<KotlinJvmTarget>().configureEach {
+				val main by compilations.getting {
+					compileTaskProvider.configure {
+						compilerOptions {
+							jvmTarget = JvmTarget.fromTarget(libs.versions.jvmTarget.get())
+						}
+					}
+				}
+			}
+		}
+	}
 
 	extensions.getByType<MavenPublishBaseExtension>().apply {
 		signAllPublications()

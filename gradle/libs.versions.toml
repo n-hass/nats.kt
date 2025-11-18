@@ -1,8 +1,13 @@
 [versions]
+# API / ABI compat
 jdk = "21"
 
+kotlin-languageVersion = "2.1"
+kotlin-apiVersion = "2.1"
+jvmTarget = "17"
+
 # Kotlin
-kotlin = "2.2.20"
+kotlin-stdlib = "2.2.20"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialisation = "1.9.0"
 buildkonfig = "0.17.1"
@@ -52,8 +57,8 @@ konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 
 [plugins]
-kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin-stdlib" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin-stdlib" }
 
 kotest = { id = "io.kotest", version.ref = "kotest" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

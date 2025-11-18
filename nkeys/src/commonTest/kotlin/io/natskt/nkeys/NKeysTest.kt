@@ -2,9 +2,11 @@ package io.natskt.nkeys
 
 import io.github.andreypfau.curve25519.ed25519.Ed25519
 import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@OptIn(ExperimentalEncodingApi::class)
 class NKeysTest {
 	@Test
 	fun parseCredentialsExtractsJwtAndSeed() {
@@ -42,7 +44,7 @@ class NKeysTest {
 		val seedString = NKeySeed.encodeSeed(NKeyType.User, privateKey)
 		val parsed = NKeys.parseSeed(seedString)
 		val nonce = "deadbeef"
-		val expectedSignature = Base64.Default.encode(privateKey.sign(nonce.encodeToByteArray()))
+		val expectedSignature = Base64.encode(privateKey.sign(nonce.encodeToByteArray()))
 		assertEquals(expectedSignature, parsed.signNonce(nonce))
 		assertEquals(
 			NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray()),
