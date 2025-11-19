@@ -1,5 +1,6 @@
 package io.natskt.jetstream.internal
 
+import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.JetStreamMessage
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
@@ -52,7 +53,11 @@ internal class PushConsumerImpl(
 
 	override fun close() {
 		js.client.scope.launch {
-			subscription.unsubscribe()
+			try {
+				subscription.unsubscribe()
+			} catch (_: ClosedWriteChannelException) {
+				// ignore if this runs on a closed connection
+			}
 		}
 	}
 

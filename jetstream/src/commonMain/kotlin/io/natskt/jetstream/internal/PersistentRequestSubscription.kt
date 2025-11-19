@@ -1,5 +1,6 @@
 package io.natskt.jetstream.internal
 
+import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
@@ -52,7 +53,13 @@ public open class PersistentRequestSubscription(
 
 	@OptIn(InternalNatsApi::class)
 	override fun close() {
-		js.client.scope.launch { inboxSubscription.unsubscribe() }
+		js.client.scope.launch {
+			try {
+				inboxSubscription.unsubscribe()
+			} catch (_: ClosedWriteChannelException) {
+				// ignore if this runs on a closed connection
+			}
+		}
 	}
 
 	internal companion object {
