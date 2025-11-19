@@ -77,7 +77,7 @@ kotlin {
         }
 
         wasmJsMain.dependencies {
-            implementation(libs.ktor.client.engine.cio)
+            implementation(libs.ktor.client.engine.js)
         }
 
 		/* Tests */

@@ -42,7 +42,7 @@ class TransportIntegrationTest {
 				}
 			job.start()
 
-			delay(1)
+			delay(10)
 			c.publish("test.sub", "alpha".encodeToByteArray())
 			c.publish("test.sub", "beta".encodeToByteArray())
 
