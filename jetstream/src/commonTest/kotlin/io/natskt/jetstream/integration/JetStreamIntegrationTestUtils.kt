@@ -12,7 +12,12 @@ internal suspend fun <T> withJetStreamClient(
 	server: RemoteNatsServer,
 	block: suspend (ApiNatsClient, ApiJetStreamClient) -> T,
 ): T {
-	val client = NatsClient(server.uri)
+	val client =
+		NatsClient {
+			this.server = server.uri
+			connectTimeoutMs = 10_000
+			maxReconnects = 3
+		}
 	client.connect().getOrThrow()
 	val js = JetStreamClient(client)
 	return try {

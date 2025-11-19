@@ -40,6 +40,7 @@ private val natsServerDaemonService =
 				"NATS_HARNESS_PORT" to "4500",
 			),
 		)
+		maxParallelUsages.set(3)
 	}
 
 private val ensureNatsHarness =

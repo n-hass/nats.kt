@@ -2,6 +2,9 @@ package io.natskt.jetstream.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
+import io.natskt.api.Message
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
@@ -10,13 +13,17 @@ import io.natskt.jetstream.api.consumer.PullConsumer
 import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.internal.PushConsumerImpl
 import io.natskt.jetstream.internal.createOrUpdateConsumer
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ConsumerIntegrationTest {
@@ -51,19 +58,25 @@ class ConsumerIntegrationTest {
 				val pushConsumer = js.stream("push_stream_binding").pushConsumer(consumerName) as PushConsumerImpl
 
 				val received = mutableListOf<String>()
+				val deferred = CompletableDeferred(Unit)
 				val job =
 					launch {
 						withTimeout(5.seconds) {
-							pushConsumer.messages.take(2).collect {
-								received += it.data!!.decodeToString()
-							}
+							pushConsumer.messages
+								.take(2)
+								.onStart {
+									deferred.complete(Unit)
+								}.collect {
+									received += it.data!!.decodeToString()
+								}
 						}
 					}
 				job.start()
 
-				delay(1)
-				c.publish("push.binding", "alpha".encodeToByteArray())
-				c.publish("push.binding", "beta".encodeToByteArray())
+				deferred.await()
+				delay(100)
+				js.publish("push.binding", "alpha".encodeToByteArray())
+				js.publish("push.binding", "beta".encodeToByteArray())
 
 				job.join()
 
@@ -107,17 +120,19 @@ class ConsumerIntegrationTest {
 					) as PushConsumerImpl
 
 				val received = mutableListOf<String>()
+				val deferred = CompletableDeferred(Unit)
 				val job =
 					launch {
 						withTimeout(5.seconds) {
-							consumer.messages.take(2).collect {
+							consumer.messages.take(2).onStart { deferred.complete(Unit) }.collect {
 								received += it.data!!.decodeToString()
 							}
 						}
 					}
 				job.start()
 
-				delay(1)
+				deferred.await()
+				delay(100)
 				c.publish("subscribe.create", "create-one".encodeToByteArray())
 				c.publish("subscribe.create", "create-two".encodeToByteArray())
 
@@ -166,19 +181,23 @@ class ConsumerIntegrationTest {
 					) as PushConsumerImpl
 
 				val received = mutableListOf<String>()
+				val deferred = CompletableDeferred(Unit)
 				val job =
 					launch {
 						withTimeout(5.seconds) {
 							consumer.messages
 								.take(2)
-								.collect {
+								.onStart {
+									deferred.complete(Unit)
+								}.collect {
 									received += it.data!!.decodeToString()
 								}
 						}
 					}
 				job.start()
 
-				delay(10)
+				deferred.await()
+				delay(100)
 				c.publish("subscribe.a", "attach-one".encodeToByteArray())
 				c.publish("subscribe.b.attach", "attach-two".encodeToByteArray())
 				c.publish("subscribe.c", "attach-three".encodeToByteArray())
@@ -217,8 +236,8 @@ class ConsumerIntegrationTest {
 
 				val pullConsumer = assertIs<PullConsumer>(consumer)
 
-				c.publish("subscribe.pull.create", "pull-create-one".encodeToByteArray())
-				c.publish("subscribe.pull.create", "pull-create-two".encodeToByteArray())
+				js.publish("subscribe.pull.create", "pull-create-one".encodeToByteArray())
+				js.publish("subscribe.pull.create", "pull-create-two".encodeToByteArray())
 
 				val payloads = collectPullMessages(pullConsumer, expected = 2)
 
@@ -256,8 +275,8 @@ class ConsumerIntegrationTest {
 
 				val pullConsumer = assertIs<PullConsumer>(consumer)
 
-				c.publish("subscribe.pull.attach", "pull-attach-one".encodeToByteArray())
-				c.publish("subscribe.pull.attach", "pull-attach-two".encodeToByteArray())
+				js.publish("subscribe.pull.attach", "pull-attach-one".encodeToByteArray())
+				js.publish("subscribe.pull.attach", "pull-attach-two".encodeToByteArray())
 
 				val payloads = collectPullMessages(pullConsumer, expected = 2)
 
@@ -319,9 +338,9 @@ class ConsumerIntegrationTest {
 					}
 				job.start()
 
-				c.publish("subscribe.attach.subject.mismatch", "ignored".encodeToByteArray())
+				js.publish("subscribe.attach.subject.mismatch", "ignored".encodeToByteArray())
 				delay(200)
-				c.publish("subscribe.attach.subject.correct", "respected-filter".encodeToByteArray())
+				js.publish("subscribe.attach.subject.correct", "respected-filter".encodeToByteArray())
 
 				job.join()
 
@@ -329,6 +348,176 @@ class ConsumerIntegrationTest {
 				assertEquals(deliverSubject, consumer.subscription.subject.raw)
 
 				ignoreClosedWrite { consumer.close() }
+			}
+		}
+
+	@Test
+	fun `pull consumer can fetch`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { c, js ->
+				val s =
+					js.manager.createStream {
+						name = "test_stream_for_basic_consumer"
+						subject("test.basic_consumer.>")
+					}
+
+				val consumer =
+					s.createPullConsumer {
+						durableName = "consumer1"
+						filterSubjects =
+							mutableListOf(
+								"test.basic_consumer.hi.consumer1",
+							)
+					}
+
+				js.publish(subject = "test.basic_consumer.foo", message = "hi1".encodeToByteArray())
+
+				assertEquals(0, consumer.fetch(1, expires = 1.seconds).size, message = "consumer should not return any messages")
+
+				eventually(
+					eventuallyConfig {
+						duration = 5.seconds
+						interval = 250.milliseconds
+					},
+				) {
+					assertEquals(
+						1u,
+						s
+							.updateStreamInfo()
+							.getOrThrow()
+							.state.messages,
+						"stream should contain a message",
+					)
+				}
+
+				js.publish("test.basic_consumer.hi.consumer1", "hi to consumer".encodeToByteArray())
+
+				eventually(
+					eventuallyConfig {
+						duration = 5.seconds
+						interval = 250.milliseconds
+					},
+				) {
+					assertEquals(
+						2u,
+						s
+							.updateStreamInfo()
+							.getOrThrow()
+							.state.messages,
+						"stream should contain both messages",
+					)
+				}
+
+				val messages = consumer.fetch(1)
+
+				assertEquals(1, messages.size, "consumer fetch should return 1 message")
+
+				assertEquals("hi to consumer", messages.single().data?.decodeToString())
+				messages.forEach { it.ackWait() }
+			}
+		}
+
+	@Test
+	fun `pull consumer can fetch continuously`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { c, js ->
+				val s =
+					js.manager.createStream {
+						name = "test_stream_for_basic_consumer"
+						subject("test.basic_consumer.>")
+					}
+
+				val consumer =
+					s.createPullConsumer {
+						durableName = "consumer1"
+						filterSubjects =
+							mutableListOf(
+								"test.basic_consumer.hi.consumer1",
+							)
+						ackPolicy = AckPolicy.None
+					}
+
+				val received = mutableListOf<Message>()
+				val x =
+					launch {
+						withTimeoutOrNull(5.seconds) {
+							while (received.size < 5) {
+								val fetched = consumer.fetch(1)
+								received.addAll(fetched)
+							}
+						}
+					}
+
+				js.publish("test.basic_consumer.hi.consumer1", "1".encodeToByteArray())
+				js.publish("test.basic_consumer.hi.consumer1", "2".encodeToByteArray())
+				js.publish("test.basic_consumer.hi.consumer1", "3".encodeToByteArray())
+				js.publish("test.basic_consumer.hi.consumer1", "4".encodeToByteArray())
+				js.publish("test.basic_consumer.hi.consumer1", "5".encodeToByteArray())
+
+				x.join()
+
+				assertEquals(5, received.size)
+			}
+		}
+
+	@OptIn(InternalNatsApi::class)
+	@Test
+	fun `push consumer redelivers when not acked`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { c, js ->
+				js.manager.createStream {
+					name = "push_ack_stream"
+					subject("push.ack")
+				}
+
+				val consumerName = "push_ack_consumer"
+				val deliverSubject = c.nextInbox()
+
+				js
+					.createOrUpdateConsumer(
+						"push_ack_stream",
+						ConsumerConfig(
+							durableName = consumerName,
+							deliverSubject = deliverSubject,
+							filterSubject = "push.ack",
+							deliverPolicy = DeliverPolicy.All,
+							ackPolicy = AckPolicy.Explicit,
+							ackWait = 500.milliseconds, // 500ms
+							maxDeliver = 5,
+							flowControl = true,
+							idleHeartbeat = 5.seconds,
+						),
+					).getOrThrow()
+
+				val pushConsumer = js.stream("push_ack_stream").pushConsumer(consumerName)
+
+				val deliveries = mutableListOf<String>()
+				val deferred = CompletableDeferred(Unit)
+				val job =
+					launch {
+						withTimeout(5.seconds) {
+							pushConsumer.messages
+								.take(2)
+								.onStart {
+									deferred.complete(Unit)
+								}.collect { msg ->
+									deliveries += msg.data!!.decodeToString()
+									if (deliveries.size == 2) {
+										msg.ack()
+									}
+								}
+						}
+					}
+
+				deferred.await()
+				delay(100)
+				js.publish("push.ack", "needs ack".encodeToByteArray())
+
+				job.join()
+
+				assertEquals(listOf("needs ack", "needs ack"), deliveries)
+
+				ignoreClosedWrite { pushConsumer.close() }
 			}
 		}
 

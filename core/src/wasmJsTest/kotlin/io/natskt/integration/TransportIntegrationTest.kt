@@ -7,7 +7,9 @@ import io.ktor.client.engine.js.Js
 import io.natskt.NatsClient
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.client.transport.WebSocketTransport
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -32,17 +34,25 @@ class TransportIntegrationTest {
 				}
 
 			val received = mutableListOf<String>()
+			val delayed = CompletableDeferred(Unit)
 			val job =
 				launch {
 					withTimeout(5.seconds) {
-						c.subscribe("test.sub").messages.take(2).collect {
-							received += it.data!!.decodeToString()
-						}
+						c
+							.subscribe("test.sub")
+							.messages
+							.take(2)
+							.onStart {
+								delayed.complete(Unit)
+							}.collect {
+								received += it.data!!.decodeToString()
+							}
 					}
 				}
 			job.start()
 
-			delay(10)
+			delayed.await()
+			delay(100)
 			c.publish("test.sub", "alpha".encodeToByteArray())
 			c.publish("test.sub", "beta".encodeToByteArray())
 

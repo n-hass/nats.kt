@@ -21,9 +21,9 @@ public interface JetStreamClient : CanRequest {
 	public suspend fun publish(
 		subject: String,
 		message: ByteArray,
-		headers: Map<String, List<String>>?,
-		replyTo: String?,
-		publishOptions: PublishOptions,
+		headers: Map<String, List<String>>? = null,
+		replyTo: String? = null,
+		publishOptions: PublishOptions = PublishOptions.Default,
 	): PublishAck
 
 	public suspend fun publish(
@@ -31,12 +31,12 @@ public interface JetStreamClient : CanRequest {
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
 		replyTo: Subject? = null,
-		publishOptions: PublishOptions,
+		publishOptions: PublishOptions = PublishOptions.Default,
 	): PublishAck
 
 	public suspend fun publish(
 		message: Message,
-		publishOptions: PublishOptions,
+		publishOptions: PublishOptions = PublishOptions.Default,
 	): PublishAck
 
 	/**

@@ -4,6 +4,7 @@ package io.natskt.client
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
+import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Message
@@ -69,10 +70,6 @@ internal class NatsClientImpl(
 		} ?: return Result.failure(Exception("timed out connecting to server"))
 
 		return Result.success(Unit)
-	}
-
-	override suspend fun disconnect() {
-		connectionManager.stop()
 	}
 
 	@OptIn(ExperimentalAtomicApi::class)
@@ -294,7 +291,11 @@ internal class NatsClientImpl(
 			->
 			_subscriptions[sid] ?: return@OnSubscriptionStop
 			_subscriptions.remove(sid)
-			connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
+			try {
+				connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
+			} catch (_: ClosedWriteChannelException) {
+				// already closed - ignore it
+			}
 		}
 
 	override fun nextInbox(): String = configuration.createInbox()
@@ -302,4 +303,8 @@ internal class NatsClientImpl(
 	override suspend fun ping() = connectionManager.ping()
 
 	override suspend fun drain(timeout: Duration) = connectionManager.drain(timeout)
+
+	override suspend fun disconnect() {
+		connectionManager.stop()
+	}
 }

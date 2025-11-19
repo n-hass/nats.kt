@@ -102,6 +102,11 @@ private fun Application.harnessRoutes(manager: NatsHarnessManager) {
 private class NatsHarnessManager(
 	private val ttlMillis: Long,
 ) {
+	private companion object {
+		private const val START_ATTEMPTS = 3
+		private const val RETRY_DELAY_MILLIS = 200L
+	}
+
 	private data class ManagedServer(
 		val harness: NatsServerHarness,
 		val expiry: ScheduledFuture<*>,
@@ -116,17 +121,34 @@ private class NatsHarnessManager(
 	@OptIn(ExperimentalUuidApi::class)
 	fun create(enableJetStream: Boolean): RemoteNatsServerInfo {
 		val id = Uuid.random().toHexDashString()
-		val harness = NatsServerHarness(enableJetStream = enableJetStream, logId = id)
-		val expiry =
-			scheduler.schedule(
-				{
-					close(id)
-				},
-				ttlMillis,
-				TimeUnit.MILLISECONDS,
-			)
-		servers[id] = ManagedServer(harness, expiry)
-		return RemoteNatsServerInfo(id = id, tcpUri = harness.uri, websocketUri = harness.websocketUri)
+		var lastError: Throwable? = null
+
+		repeat(START_ATTEMPTS) { attempt ->
+			if (attempt >= 2) {
+				Thread.sleep(RETRY_DELAY_MILLIS)
+			}
+
+			val harness =
+				runCatching {
+					NatsServerHarness(enableJetStream = enableJetStream, logId = if (attempt == 0) id else "$id-retry$attempt")
+				}.getOrElse {
+					lastError = it
+					return@repeat
+				}
+
+			val expiry =
+				scheduler.schedule(
+					{
+						close(id)
+					},
+					ttlMillis,
+					TimeUnit.MILLISECONDS,
+				)
+			servers[id] = ManagedServer(harness, expiry)
+			return RemoteNatsServerInfo(id = id, tcpUri = harness.uri, websocketUri = harness.websocketUri)
+		}
+
+		throw IllegalStateException("failed to start nats-server after $START_ATTEMPTS attempts", lastError)
 	}
 
 	fun close(id: String): Boolean {

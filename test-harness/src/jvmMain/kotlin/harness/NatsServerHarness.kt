@@ -111,22 +111,34 @@ public class NatsServerHarness(
 
 	private fun waitForReady() {
 		val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+		var tcpReady = false
+		var wsReady = false
 		while (System.nanoTime() < deadline) {
 			if (!process.isAlive) {
 				throw IllegalStateException("nats-server exited early with ${process.exitValue()}")
 			}
 
-			try {
-				Socket().use { socket ->
-					socket.connect(InetSocketAddress("127.0.0.1", port), 200)
-					return
-				}
-			} catch (_: Exception) {
-				Thread.sleep(50)
+			tcpReady = tcpReady || probePort(port)
+			wsReady = wsReady || probePort(websocketPort)
+
+			if (tcpReady && wsReady) {
+				return
 			}
+
+			Thread.sleep(50)
 		}
 		throw IllegalStateException("Timed out waiting for nats-server to start")
 	}
+
+	private fun probePort(port: Int): Boolean =
+		try {
+			Socket().use { socket ->
+				socket.connect(InetSocketAddress("127.0.0.1", port), 200)
+			}
+			true
+		} catch (_: Exception) {
+			false
+		}
 
 	override fun close() {
 		process.destroy()

@@ -1,5 +1,6 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
+import java.time.Duration
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
@@ -28,11 +29,22 @@ kotlin {
 				}
 			}
 		}
-        nodejs()
+        nodejs {
+			testTask {
+				useMocha {
+					timeout = "15000"
+				}
+			}
+		}
     }
     wasmJs {
         browser()
-        nodejs()
+		nodejs {
+			testTask {
+				useKarma()
+				timeout = Duration.ofSeconds(15)
+			}
+		}
     }
 
     sourceSets {
@@ -94,6 +106,10 @@ kotlin {
 		jvmTest.dependencies {
 			implementation(libs.ktor.client.engine.java)
 			implementation(libs.ktor.client.engine.okhttp)
+		}
+
+		nativeTest.dependencies {
+			implementation(libs.ktor.client.engine.curl)
 		}
     }
 }

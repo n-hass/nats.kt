@@ -3,8 +3,7 @@ package io.natskt.integration
 import harness.RemoteNatsHarness
 import harness.runBlocking
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.engine.java.Java
-import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.engine.curl.Curl
 import io.natskt.NatsClient
 import io.natskt.api.NatsClient
 import io.natskt.api.internal.InternalNatsApi
@@ -59,8 +58,9 @@ class TransportIntegrationTest {
 		RemoteNatsHarness.runBlocking { server ->
 			testDelivery(
 				NatsClient {
-					this.server = server.uri
+					this.server = server.tcpUri
 					transport = TcpTransport
+					maxReconnects = 3
 				}.also {
 					it.connect()
 				},
@@ -75,6 +75,7 @@ class TransportIntegrationTest {
 				NatsClient {
 					this.server = server.websocketUri
 					transport = WebSocketTransport.Factory(CIO)
+					maxReconnects = 3
 				}.also {
 					it.connect()
 				},
@@ -83,26 +84,13 @@ class TransportIntegrationTest {
 
 	@OptIn(InternalNatsApi::class)
 	@Test
-	fun `receives messages with WebSocket Java transport`() =
+	fun `receives messages with WebSocket Curl transport`() =
 		RemoteNatsHarness.runBlocking { server ->
 			testDelivery(
 				NatsClient {
 					this.server = server.websocketUri
-					transport = WebSocketTransport.Factory(Java)
-				}.also {
-					it.connect()
-				},
-			)
-		}
-
-	@OptIn(InternalNatsApi::class)
-	@Test
-	fun `receives messages with WebSocket OkHttp transport`() =
-		RemoteNatsHarness.runBlocking { server ->
-			testDelivery(
-				NatsClient {
-					this.server = server.websocketUri
-					transport = WebSocketTransport.Factory(OkHttp)
+					transport = WebSocketTransport.Factory(Curl)
+					maxReconnects = 3
 				}.also {
 					it.connect()
 				},
