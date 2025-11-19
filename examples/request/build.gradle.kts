@@ -1,6 +1,6 @@
 plugins {
     id("application")
-    kotlin("jvm") version libs.versions.kotlin.stdlib.get()
+    kotlin("jvm") version "2.1.0"
 }
 
 application {
@@ -14,7 +14,7 @@ dependencies {
     implementation(libs.ktor.client.engine.cio)
     implementation(libs.ktor.client.engine.okhttp)
     implementation(libs.ktor.client.websockets)
-	implementation("org.slf4j:slf4j-simple:2.0.17")
+	implementation(libs.slf4j.simple)
 }
 
 tasks.withType<JavaExec>().configureEach {

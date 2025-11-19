@@ -93,7 +93,6 @@ kotlin {
 
 		jvmTest.dependencies {
 			implementation(libs.ktor.client.engine.java)
-			implementation(libs.ktor.client.engine.jetty)
 			implementation(libs.ktor.client.engine.okhttp)
 		}
     }

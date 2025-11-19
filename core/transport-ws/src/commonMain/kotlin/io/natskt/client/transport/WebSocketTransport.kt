@@ -21,6 +21,7 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.natskt.client.NatsServerAddress
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.isActive
 import kotlin.coroutines.CoroutineContext
 import kotlin.jvm.JvmInline
@@ -36,7 +37,7 @@ public data class WebSocketTransport internal constructor(
 	CoroutineScope by session {
 	@JvmInline
 	public value class Factory(
-		public val httpClient: HttpClient,
+		private val httpClient: HttpClient,
 	) : TransportFactory {
 		public constructor(engine: HttpClientEngineFactory<*>) : this(
 			HttpClient(engine) {
@@ -86,6 +87,9 @@ public data class WebSocketTransport internal constructor(
 					val frame =
 						try {
 							session.incoming.receive()
+						} catch (ex: ClosedReceiveChannelException) {
+							channel.flushAndClose()
+							break
 						} catch (ex: CancellationException) {
 							channel.close(ex)
 							break

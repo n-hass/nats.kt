@@ -145,6 +145,7 @@ internal class ProtocolEngineImpl(
 			runCatching {
 				transportFactory.connect(address, scope.coroutineContext)
 			}.getOrElse {
+				logger.error(it) { "failed to open transport to ${address.url}" }
 				state.update { phase = ConnectionPhase.Failed }
 				closed.complete(CloseReason.IoError(it))
 				return

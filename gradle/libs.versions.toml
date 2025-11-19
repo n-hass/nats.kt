@@ -60,7 +60,6 @@ konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-simple" }
 ktor-client-engine-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor"}
-ktor-client-engine-jetty = { module = "io.ktor:ktor-client-jetty", version.ref = "ktor"}
 ktor-client-engine-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor"}
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor"}
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor"}

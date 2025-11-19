@@ -2,8 +2,6 @@ package io.natskt.jetstream.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
-import io.natskt.NatsClient
-import io.natskt.jetstream.JetStreamClient
 import io.natskt.jetstream.api.kv.KeyValueEntry
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.take
@@ -20,168 +18,161 @@ class KvIntegrationTest {
 	@Test
 	fun `it creates a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val c = NatsClient(server.uri).also { it.connect() }
-			val js = JetStreamClient(c)
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "MyCoolBucket"
+					}
 
-			val bucket =
-				js.keyValueManager.create {
-					name = "MyCoolBucket"
-				}
-
-			assertEquals("MyCoolBucket", bucket.config!!.bucket)
-			assertEquals(1u, bucket.config!!.history)
-			assertEquals(Duration.ZERO, bucket.config!!.ttl)
-			assertEquals(-1, bucket.config!!.maxValueSize)
-			assertEquals(-1, bucket.config!!.maxBytes)
+				assertEquals("MyCoolBucket", bucket.config!!.bucket)
+				assertEquals(1u, bucket.config!!.history)
+				assertEquals(Duration.ZERO, bucket.config!!.ttl)
+				assertEquals(-1, bucket.config!!.maxValueSize)
+				assertEquals(-1, bucket.config!!.maxBytes)
+			}
 		}
 
 	@Test
 	fun `it gets an existing bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val c = NatsClient(server.uri).also { it.connect() }
-			val js = JetStreamClient(c)
+			withJetStreamClient(server) { _, js ->
+				val createResult =
+					js.keyValueManager.create {
+						name = "MyCoolBucketAgain"
+					}
 
-			val createResult =
-				js.keyValueManager.create {
-					name = "MyCoolBucketAgain"
-				}
+				val getResult = js.keyValueManager.get("MyCoolBucketAgain")
 
-			val getResult = js.keyValueManager.get("MyCoolBucketAgain")
-
-			assertEquals(createResult.config, getResult.config)
+				assertEquals(createResult.config, getResult.config)
+			}
 		}
 
 	@Test
 	fun `it puts on a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val c = NatsClient(server.uri).also { it.connect() }
-			val js = JetStreamClient(c)
+			withJetStreamClient(server) { _, js ->
+				js.keyValueManager.create {
+					name = "MyCoolBucket"
+				}
 
-			js.keyValueManager.create {
-				name = "MyCoolBucket"
+				val bucket = js.keyValue("MyCoolBucket")
+
+				bucket.put("a.b", "test".encodeToByteArray())
 			}
-
-			val bucket = js.keyValue("MyCoolBucket")
-
-			bucket.put("a.b", "test".encodeToByteArray())
 		}
 
 	@Test
 	fun `it gets on a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val c = NatsClient(server.uri).also { it.connect() }
-			val js = JetStreamClient(c)
+			withJetStreamClient(server) { _, js ->
+				js.keyValueManager.create {
+					name = "MyCoolBucket"
+				}
 
-			js.keyValueManager.create {
-				name = "MyCoolBucket"
+				val bucket = js.keyValue("MyCoolBucket")
+
+				bucket.put("a.b", "test1".encodeToByteArray())
+
+				val entry = bucket.get("a.b")
+
+				assertEquals("test1", entry.value.decodeToString())
 			}
-
-			val bucket = js.keyValue("MyCoolBucket")
-
-			bucket.put("a.b", "test1".encodeToByteArray())
-
-			val entry = bucket.get("a.b")
-
-			assertEquals("test1", entry.value.decodeToString())
 		}
 
 	@Test
 	fun `it gets a past value from a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val c = NatsClient(server.uri).also { it.connect() }
-			val js = JetStreamClient(c)
+			withJetStreamClient(server) { _, js ->
+				js.keyValueManager.create {
+					name = "Foo"
+					history = 3
+				}
 
-			js.keyValueManager.create {
-				name = "Foo"
-				history = 3
+				val bucket = js.keyValue("Foo")
+
+				bucket.put("a.b", "test1".encodeToByteArray())
+				bucket.put("a.b", "test2".encodeToByteArray())
+				bucket.put("a.b", "test3".encodeToByteArray())
+
+				assertEquals("test1", bucket.get("a.b", revision = 1u).value.decodeToString())
+				assertEquals("test2", bucket.get("a.b", revision = 2u).value.decodeToString())
+				assertEquals("test3", bucket.get("a.b", revision = 3u).value.decodeToString())
 			}
-
-			val bucket = js.keyValue("Foo")
-
-			bucket.put("a.b", "test1".encodeToByteArray())
-			bucket.put("a.b", "test2".encodeToByteArray())
-			bucket.put("a.b", "test3".encodeToByteArray())
-
-			assertEquals("test1", bucket.get("a.b", revision = 1u).value.decodeToString())
-			assertEquals("test2", bucket.get("a.b", revision = 2u).value.decodeToString())
-			assertEquals("test3", bucket.get("a.b", revision = 3u).value.decodeToString())
 		}
 
 	@Test
 	fun `it watches for new values`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val c = NatsClient(server.uri).also { it.connect() }
-			val js = JetStreamClient(c)
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "Foo"
+					}
 
-			val bucket =
-				js.keyValueManager.create {
-					name = "Foo"
-				}
-
-			val first = CompletableDeferred<String>()
-			val updates = mutableListOf<KeyValueEntry>()
-			val job =
-				launch {
-					withTimeout(3.seconds) {
-						bucket.watch("watching").take(3).collect {
-							first.complete(it.value.decodeToString())
-							updates.add(it)
+				val first = CompletableDeferred<String>()
+				val updates = mutableListOf<KeyValueEntry>()
+				val job =
+					launch {
+						withTimeout(3.seconds) {
+							bucket.watch("watching").take(3).collect {
+								first.complete(it.value.decodeToString())
+								updates.add(it)
+							}
 						}
 					}
+				job.start()
+
+				bucket.put("watching", "test1".encodeToByteArray())
+				assertEquals("test1", first.await())
+				bucket.put("watching", "test2".encodeToByteArray())
+				assertEquals("test2", bucket.get("watching").value.decodeToString())
+				bucket.put("watching", "test3".encodeToByteArray())
+				assertEquals("test3", bucket.get("watching").value.decodeToString())
+
+				job.join()
+				assertTrue("no KV updates received") { updates.isNotEmpty() }
+				assertEquals(3, updates.size)
+
+				var i = 1
+				for (entry in updates) {
+					assertEquals(i.toULong(), entry.revision, "revision incorrect. full: $updates")
+					assertEquals("test$i", entry.value.decodeToString())
+					i++
 				}
-			job.start()
-
-			bucket.put("watching", "test1".encodeToByteArray())
-			assertEquals("test1", first.await())
-			bucket.put("watching", "test2".encodeToByteArray())
-			assertEquals("test2", bucket.get("watching").value.decodeToString())
-			bucket.put("watching", "test3".encodeToByteArray())
-			assertEquals("test3", bucket.get("watching").value.decodeToString())
-
-			job.join()
-			assertTrue("no KV updates received") { updates.isNotEmpty() }
-			assertEquals(3, updates.size)
-
-			var i = 1
-			for (entry in updates) {
-				assertEquals(i.toULong(), entry.revision, "revision incorrect. full: $updates")
-				assertEquals("test$i", entry.value.decodeToString())
-				i++
 			}
 		}
 
 	@Test
 	fun `watch returns the latest value on start`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val c = NatsClient(server.uri).also { it.connect() }
-			val js = JetStreamClient(c)
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "Foo"
+					}
 
-			val bucket =
-				js.keyValueManager.create {
-					name = "Foo"
-				}
-
-			bucket.put("watching", "test1".encodeToByteArray())
-			assertEquals(
-				"test1",
-				bucket
-					.watch("watching")
-					.take(1)
-					.toList()
-					.first()
-					.value
-					.decodeToString(),
-			)
-			bucket.put("watching", "test2".encodeToByteArray())
-			assertEquals(
-				"test2",
-				bucket
-					.watch("watching")
-					.take(1)
-					.toList()
-					.first()
-					.value
-					.decodeToString(),
-			)
+				bucket.put("watching", "test1".encodeToByteArray())
+				assertEquals(
+					"test1",
+					bucket
+						.watch("watching")
+						.take(1)
+						.toList()
+						.first()
+						.value
+						.decodeToString(),
+				)
+				bucket.put("watching", "test2".encodeToByteArray())
+				assertEquals(
+					"test2",
+					bucket
+						.watch("watching")
+						.take(1)
+						.toList()
+						.first()
+						.value
+						.decodeToString(),
+				)
+			}
 		}
 }
