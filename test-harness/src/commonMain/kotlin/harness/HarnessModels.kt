@@ -12,7 +12,10 @@ public data class RemoteNatsServerRequest(
 @Serializable
 public data class RemoteNatsServerInfo(
 	val id: String,
-	val uri: String,
+	@SerialName("tcp_uri")
+	val tcpUri: String,
+	@SerialName("websocket_uri")
+	val websocketUri: String,
 )
 
 @Serializable

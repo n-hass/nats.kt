@@ -6,8 +6,20 @@ public class RemoteNatsServer internal constructor(
 ) {
 	private var closed = false
 
+	public val tcpUri: String
+		get() = info.tcpUri
+
+	public val websocketUri: String
+		get() = info.websocketUri
+
 	public val uri: String
-		get() = info.uri
+		get() = uriFor(platformHarnessTransport)
+
+	public fun uriFor(transport: RemoteNatsServerTransport): String =
+		when (transport) {
+			RemoteNatsServerTransport.Tcp -> tcpUri
+			RemoteNatsServerTransport.WebSocket -> websocketUri
+		}
 
 	internal suspend fun fetchLogs(from: Int): RemoteNatsServerLogs = client.fetchLogs(info.id, from)
 

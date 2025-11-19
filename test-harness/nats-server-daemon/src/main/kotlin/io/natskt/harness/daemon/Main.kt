@@ -126,7 +126,7 @@ private class NatsHarnessManager(
 				TimeUnit.MILLISECONDS,
 			)
 		servers[id] = ManagedServer(harness, expiry)
-		return RemoteNatsServerInfo(id = id, uri = harness.uri)
+		return RemoteNatsServerInfo(id = id, tcpUri = harness.uri, websocketUri = harness.websocketUri)
 	}
 
 	fun close(id: String): Boolean {

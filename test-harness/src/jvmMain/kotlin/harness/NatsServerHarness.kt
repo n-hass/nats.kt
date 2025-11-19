@@ -23,7 +23,9 @@ public class NatsServerHarness(
 	fixedPort: Int? = null,
 ) : AutoCloseable {
 	private val port: Int = fixedPort ?: ServerSocket(0).use { it.localPort }
+	private val websocketPort: Int = ServerSocket(0).use { it.localPort }
 	private val tmpDir = Files.createTempDirectory("nats") ?: Path.of("/tmp/nats-test/${Uuid.random()}")
+	private val configFile = createConfigFile()
 	private val logFile =
 		Path
 			.of("build/test-results/logs/nats/$logId.out")
@@ -39,6 +41,9 @@ public class NatsServerHarness(
 
 	public val uri: String
 		get() = "nats://127.0.0.1:$port"
+
+	public val websocketUri: String
+		get() = "ws://127.0.0.1:$websocketPort"
 
 	public val logs: List<String>
 		get() = synchronized(outputLines) { outputLines.toList() }
@@ -59,11 +64,29 @@ public class NatsServerHarness(
 					add(tmpDir.toAbsolutePath().toString())
 				}
 				addAll(listOf("-a", "127.0.0.1", "-p", port.toString()))
+				addAll(listOf("-c", configFile.toAbsolutePath().toString()))
 			}
 
 		val builder = ProcessBuilder(command)
 		builder.redirectErrorStream(true)
 		return builder.start()
+	}
+
+	private fun createConfigFile(): Path {
+		val config =
+			"""
+			websocket {
+				no_tls: true
+				same_origin: false
+				port: $websocketPort
+			}
+			""".trimIndent()
+
+		return Files
+			.createTempFile(tmpDir, "nats-server", ".conf")
+			.also { path ->
+				Files.writeString(path, config)
+			}
 	}
 
 	private fun consumeOutput(

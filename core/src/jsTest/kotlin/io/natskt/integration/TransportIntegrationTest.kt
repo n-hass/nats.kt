@@ -1,6 +1,7 @@
 package io.natskt.integration
 
 import harness.RemoteNatsHarness
+import harness.RemoteNatsServerTransport
 import harness.runBlocking
 import io.ktor.client.engine.cio.CIO
 import io.natskt.NatsClient
@@ -21,7 +22,7 @@ class TransportIntegrationTest {
 		RemoteNatsHarness.runBlocking { server ->
 			val c =
 				NatsClient {
-					this.server = server.uri
+					this.server = server.uriFor(RemoteNatsServerTransport.WebSocket)
 					transport = WebSocketTransport.Factory(CIO)
 				}.also {
 					println("connecting...")
