@@ -81,8 +81,13 @@ internal class ConnectionManagerImpl(
 														NatsServerAddress(Url(url))
 													}.orEmpty()
 
-											allServers.clear()
-											allServers.addAll(newServers)
+											if (newServers.isNotEmpty()) {
+												allServers.clear()
+												allServers.add(address)
+												allServers.addAll(newServers)
+											} else if (allServers.isEmpty()) {
+												allServers.add(address)
+											}
 											if (it.ldm == true) {
 												markLameDuck(address)
 											}
