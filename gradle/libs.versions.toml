@@ -7,7 +7,7 @@ kotlin-apiVersion = "2.1"
 jvmTarget = "17"
 
 # Kotlin
-kotlin-stdlib = "2.2.20"
+kotlin-stdlib = "2.2.21"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialisation = "1.9.0"
 buildkonfig = "0.17.1"
@@ -15,7 +15,7 @@ buildkonfig = "0.17.1"
 ktor = "3.3.2"
 whyoleg-crypto = "0.5.0"
 kotlinLogging = "7.0.13"
-ksp = "2.2.20-2.0.4"
+ksp = "2.3.2"
 
 # Testing
 kotest = "6.0.3"
