@@ -4,7 +4,9 @@ import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.jetstream.api.consumer.Consumer
+import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.api.kv.KeyValueBucket
+import io.natskt.jetstream.api.kv.KeyValueManager
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.client.JetStreamClientImpl
 import io.natskt.jetstream.client.JetStreamConfiguration
@@ -19,9 +21,9 @@ public interface JetStreamClient : CanRequest {
 	public suspend fun publish(
 		subject: String,
 		message: ByteArray,
-		headers: Map<String, List<String>>?,
-		replyTo: String?,
-		publishOptions: PublishOptions,
+		headers: Map<String, List<String>>? = null,
+		replyTo: String? = null,
+		publishOptions: PublishOptions = PublishOptions.Default,
 	): PublishAck
 
 	public suspend fun publish(
@@ -29,18 +31,24 @@ public interface JetStreamClient : CanRequest {
 		message: ByteArray,
 		headers: Map<String, List<String>>? = null,
 		replyTo: Subject? = null,
-		publishOptions: PublishOptions,
+		publishOptions: PublishOptions = PublishOptions.Default,
 	): PublishAck
 
 	public suspend fun publish(
 		message: Message,
-		publishOptions: PublishOptions,
+		publishOptions: PublishOptions = PublishOptions.Default,
 	): PublishAck
 
 	/**
 	 * Create a [Consumer] instance to read messages from a stream.
-	 * You can attach to an existing consumer with [SubscribeOptions.Attach],
-	 * or upsert one with [SubscribeOptions.CreateOrUpdate]
+	 * Binds to an existing consumer with [io.natskt.jetstream.api.consumer.SubscribeOptions.Attach],
+	 */
+	public suspend fun subscribe(subscribeOptions: SubscribeOptions.Attach): Consumer
+
+	/**
+	 * Create a [Consumer] instance to read messages from a stream.
+	 * You can attach to an existing consumer with [io.natskt.jetstream.api.consumer.SubscribeOptions.Attach],
+	 * or upsert one with [io.natskt.jetstream.api.consumer.SubscribeOptions.CreateOrUpdate]
 	 */
 	public suspend fun subscribe(
 		subject: String,

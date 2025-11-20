@@ -11,13 +11,13 @@ import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.JetStreamManager
-import io.natskt.jetstream.api.KeyValueManager
 import io.natskt.jetstream.api.PublishAck
 import io.natskt.jetstream.api.PublishOptions
-import io.natskt.jetstream.api.SubscribeOptions
 import io.natskt.jetstream.api.consumer.Consumer
+import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.api.internal.decode
 import io.natskt.jetstream.api.kv.KeyValueBucket
+import io.natskt.jetstream.api.kv.KeyValueManager
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.internal.JetStreamContext
 import io.natskt.jetstream.internal.KeyValueManagerImpl
@@ -80,8 +80,7 @@ internal class JetStreamClientImpl(
 
 		for (attempt in 0..retryAttempts) {
 			try {
-				val data = client.request(subject, message, msgHeaders).decode<PublishAck>()
-				when (data) {
+				when (val data = client.request(subject, message, msgHeaders).decode<PublishAck>()) {
 					is PublishAck -> return data
 					is ApiError -> {
 						apiError = data
@@ -152,14 +151,24 @@ internal class JetStreamClientImpl(
 	): Consumer =
 		when (subscribeOptions) {
 			is SubscribeOptions.Attach -> {
-				val consumerInfo = getConsumerInfo(subscribeOptions.streamName, subscribeOptions.consumerName).getOrThrow()
-				consumerFromInfo(consumerInfo)
+				subscribe(subscribeOptions)
 			}
 			is SubscribeOptions.CreateOrUpdate -> {
-				val consumerInfo = createOrUpdateConsumer(subscribeOptions.streamName, subscribeOptions.config).getOrThrow()
+				val config =
+					if (subscribeOptions.config.filterSubject == null && subscribeOptions.config.filterSubjects == null) {
+						subscribeOptions.config.copy(filterSubject = subject)
+					} else {
+						subscribeOptions.config
+					}
+				val consumerInfo = createOrUpdateConsumer(subscribeOptions.streamName, config).getOrThrow()
 				consumerFromInfo(consumerInfo)
 			}
 		}
+
+	override suspend fun subscribe(subscribeOptions: SubscribeOptions.Attach): Consumer {
+		val consumerInfo = getConsumerInfo(subscribeOptions.streamName, subscribeOptions.consumerName).getOrThrow()
+		return consumerFromInfo(consumerInfo)
+	}
 
 	override suspend fun stream(name: String): Stream =
 		StreamImpl(

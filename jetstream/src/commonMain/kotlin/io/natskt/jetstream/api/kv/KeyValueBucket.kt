@@ -1,5 +1,6 @@
 package io.natskt.jetstream.api.kv
 
+import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.Message
 import io.natskt.api.Subject
 import io.natskt.api.Subscription
@@ -183,7 +184,11 @@ public class KeyValueBucket internal constructor(
 				job.cancel()
 				consumer.close()
 				js.client.scope.launch {
-					deleteConsumer(streamName, consumer.name)
+					try {
+						deleteConsumer(streamName, consumer.name)
+					} catch (_: ClosedWriteChannelException) {
+						// ignore if this runs on a closed connection
+					}
 				}
 			}
 		}

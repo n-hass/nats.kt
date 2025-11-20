@@ -142,5 +142,7 @@ internal class SubscriptionImpl(
 		ensureStopped()
 	}
 
-	override fun close() { }
+	override fun close() {
+		interestWatchJob?.cancel()
+	}
 }

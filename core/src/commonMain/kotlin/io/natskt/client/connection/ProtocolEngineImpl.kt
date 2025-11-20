@@ -145,6 +145,7 @@ internal class ProtocolEngineImpl(
 			runCatching {
 				transportFactory.connect(address, scope.coroutineContext)
 			}.getOrElse {
+				logger.error(it) { "failed to open transport to ${address.url}" }
 				state.update { phase = ConnectionPhase.Failed }
 				closed.complete(CloseReason.IoError(it))
 				return
@@ -268,12 +269,10 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun close() {
-		if (transport == null) {
-			throw IllegalStateException("Cannot close connection as it is not open")
-		}
+		val t = transport ?: throw IllegalStateException("Cannot close connection as it is not open")
 		closed.complete(CloseReason.CleanClose)
-		transport!!.flush()
-		transport!!.close()
+		t.flush()
+		t.close()
 	}
 
 	private suspend fun enterLameDuckMode() {

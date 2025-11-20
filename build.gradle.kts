@@ -1,17 +1,57 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import com.diffplug.spotless.LineEnding
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import org.gradle.api.Task
+import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
-import org.jetbrains.kotlin.gradle.internal.descriptors.annotations.KotlinTarget
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
+import java.util.Locale
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.spotless) apply false
 	alias(libs.plugins.mavenPublish) apply false
 }
+
+private val isWindowsHost = System.getProperty("os.name").lowercase(Locale.US).contains("windows")
+private val natsHarnessExecutable =
+	layout.projectDirectory
+		.dir("test-harness/nats-server-daemon/build/install/nats-server-daemon/bin")
+		.file(if (isWindowsHost) "nats-server-daemon.bat" else "nats-server-daemon")
+
+private val kotlinJsTestClass =
+	runCatching { Class.forName("org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest") }.getOrNull()
+private val kotlinWasmJsTestClass =
+	runCatching { Class.forName("org.jetbrains.kotlin.gradle.targets.js.testing.KotlinWasmJsTest") }.getOrNull()
+private val kotlinNativeTestClass =
+	runCatching { Class.forName("org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest") }.getOrNull()
+
+private val natsServerDaemonService =
+	gradle.sharedServices.registerIfAbsent("natsServerDaemonService", NatsServerDaemonService::class) {
+		parameters.executable.set(natsHarnessExecutable)
+		parameters.args.set(emptyList())
+		parameters.readyCheckUrl.set("http://127.0.0.1:4500/health")
+		parameters.startupTimeoutSeconds.set(60)
+		parameters.environment.putAll(
+			mapOf(
+				"NATS_HARNESS_HOST" to "127.0.0.1",
+				"NATS_HARNESS_PORT" to "4500",
+			),
+		)
+		maxParallelUsages.set(3)
+	}
+
+private val ensureNatsHarness =
+	tasks.register<EnsureNatsHarnessTask>("ensureNatsHarness") {
+		group = "verification"
+		description = "Ensures the NATS test harness daemon is running before tests execute"
+		dependsOn(natsHarnessInstallTaskPath)
+		harnessService = natsServerDaemonService
+		usesService(natsServerDaemonService)
+	}
+private val natsHarnessInstallTaskPath = ":test-harness:nats-server-daemon:installDist"
 
 allprojects {
     apply(plugin = "com.diffplug.spotless")
@@ -94,4 +134,33 @@ subprojects {
 			useGpgCmd()
 		}
 	}
+
+	tasks.configureEach {
+		if (!requiresNatsHarness(this, kotlinJsTestClass, kotlinWasmJsTestClass, kotlinNativeTestClass)) {
+			return@configureEach
+		}
+		dependsOn(ensureNatsHarness)
+		usesService(natsServerDaemonService)
+	}
+}
+
+private fun requiresNatsHarness(
+	task: Task,
+	jsTestClass: Class<*>?,
+	wasmJsTestClass: Class<*>?,
+	nativeTestClass: Class<*>?,
+): Boolean {
+	if (task is Test) {
+		return true
+	}
+	if (jsTestClass?.isInstance(task) == true) {
+		return true
+	}
+	if (wasmJsTestClass?.isInstance(task) == true) {
+		return true
+	}
+	if (nativeTestClass?.isInstance(task) == true) {
+		return true
+	}
+	return false
 }

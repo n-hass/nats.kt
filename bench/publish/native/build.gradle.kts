@@ -20,7 +20,7 @@ kotlin {
 				implementation("io.github.n-hass:core")
 				implementation(libs.kotlinx.coroutines.core)
 				implementation(libs.ktor.client.core)
-				implementation("io.ktor:ktor-client-cio:${libs.versions.ktor.get()}")
+				implementation(libs.ktor.client.engine.cio)
 				implementation(libs.ktor.client.websockets)
 			}
 		}

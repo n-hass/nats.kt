@@ -1,9 +1,9 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.jetstream.api.JetStreamClient
-import io.natskt.jetstream.api.KeyValueManager
 import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.kv.KeyValueConfigurationBuilder
+import io.natskt.jetstream.api.kv.KeyValueManager
 import io.natskt.jetstream.api.kv.build
 
 internal class KeyValueManagerImpl(

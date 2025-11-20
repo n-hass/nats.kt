@@ -1,5 +1,6 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
+import java.time.Duration
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
@@ -28,11 +29,22 @@ kotlin {
 				}
 			}
 		}
-        nodejs()
+        nodejs {
+			testTask {
+				useMocha {
+					timeout = "15000"
+				}
+			}
+		}
     }
     wasmJs {
         browser()
-        nodejs()
+		nodejs {
+			testTask {
+				useKarma()
+				timeout = Duration.ofSeconds(15)
+			}
+		}
     }
 
     sourceSets {
@@ -68,13 +80,6 @@ kotlin {
             implementation(libs.ktor.http)
         }
 
-        commonTest.dependencies {
-            implementation(kotlin("test"))
-            implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kotlinx.coroutines.test)
-            implementation(libs.turbine)
-        }
-
         nativeAndJvmSharedMain.dependencies {
             api(projects.core.transportTcp)
         }
@@ -84,13 +89,36 @@ kotlin {
         }
 
         wasmJsMain.dependencies {
-            implementation(libs.ktor.client.engine.cio)
+            implementation(libs.ktor.client.engine.js)
         }
 
-		jvmTest.dependencies {
-			implementation(projects.architecture)
+		/* Tests */
+
+		commonTest.dependencies {
+			implementation(kotlin("test"))
+			implementation(libs.kotlinx.coroutines.core)
+			implementation(libs.kotlinx.coroutines.test)
+			implementation(libs.turbine)
+			implementation(projects.testHarness)
+			implementation(libs.ktor.client.engine.cio)
 		}
 
+		appleTest.dependencies {
+			implementation(libs.ktor.client.engine.darwin)
+		}
+
+		jvmTest.dependencies {
+			implementation(libs.ktor.client.engine.java)
+			implementation(libs.ktor.client.engine.okhttp)
+		}
+
+		macosTest.dependencies {
+			implementation(libs.ktor.client.engine.curl)
+		}
+
+		linuxTest.dependencies {
+			implementation(libs.ktor.client.engine.curl)
+		}
     }
 }
 

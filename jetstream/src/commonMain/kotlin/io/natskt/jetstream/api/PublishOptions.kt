@@ -12,4 +12,8 @@ public data class PublishOptions(
 	public val expectedLastSubjectSequence: ULong? = null,
 	public val retryWait: Duration = 250.milliseconds,
 	public val retryAttempts: Int = 2,
-)
+) {
+	public companion object {
+		public val Default: PublishOptions = PublishOptions()
+	}
+}

@@ -1,4 +1,4 @@
-## 🤝 Contributing
+# 🤝 Contributing
 
 We welcome contributions! NATS.kt is in active development and there are many opportunities to help:
 
@@ -23,7 +23,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). Examples:
 - `fix(transport): handle connection timeouts`
 - `docs(readme): update installation instructions`
 
-## 🛠️ Development Environment
+## Development Environment
 
 We use **Nix** for a consistent, reproducible development environment.
 
@@ -53,7 +53,7 @@ Our Nix environment provides:
 - **NATS CLI**
 - **Pre-commit hooks**
 
-## 🔧 Building
+## Building
 
 ```bash
 # Build all targets
@@ -65,6 +65,16 @@ gradle test
 # Apply code formatting
 gradle spotlessApply
 ```
+
+## Integration Test Harness
+
+The integration suites spin up ephemeral `nats-server` instances through a sidecar Ktor server so that the same end-to-end tests can run on every supported platform.
+
+1. In a separate terminal, start the harness (listens on `http://127.0.0.1:4500` and expires servers after 60s; override with `NATS_HARNESS_HOST/PORT/TTL` if needed): `gradle :test-harness:nats-server-daemon:run`
+2. Run any `gradle …Test` task and each test will `PUT /servers` and `DELETE /servers/{id}` on the harness to provision its own broker
+
+The shared client lives in `test-harness/` and is entirely KMP-safe, so when we promote more suites into `commonTest` or JS/Native targets they can reuse the same HTTP workflow without falling back to JVM-only process management.
+
 
 ## Publishing
 
