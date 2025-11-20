@@ -2,7 +2,7 @@ package io.natskt.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
-import io.ktor.client.engine.darwin.Darwin
+import io.ktor.client.engine.curl.Curl
 import io.natskt.NatsClient
 import io.natskt.api.NatsClient
 import io.natskt.api.internal.InternalNatsApi
@@ -18,7 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 
-class TransportDarwinIntegrationTest {
+class TransportLinuxIntegrationTest {
 	private suspend fun CoroutineScope.testDelivery(c: NatsClient) {
 		val received = mutableListOf<String>()
 		val delayed = CompletableDeferred(Unit)
@@ -52,12 +52,12 @@ class TransportDarwinIntegrationTest {
 
 	@OptIn(InternalNatsApi::class)
 	@Test
-	fun `receives messages with WebSocket Darwin transport`() =
+	fun `receives messages with WebSocket Curl transport`() =
 		RemoteNatsHarness.runBlocking { server ->
 			testDelivery(
 				NatsClient {
 					this.server = server.websocketUri
-					transport = WebSocketTransport.Factory(Darwin)
+					transport = WebSocketTransport.Factory(Curl)
 					maxReconnects = 3
 				}.also {
 					it.connect()

@@ -103,12 +103,20 @@ kotlin {
 			implementation(libs.ktor.client.engine.cio)
 		}
 
+		appleTest.dependencies {
+			implementation(libs.ktor.client.engine.darwin)
+		}
+
 		jvmTest.dependencies {
 			implementation(libs.ktor.client.engine.java)
 			implementation(libs.ktor.client.engine.okhttp)
 		}
 
-		nativeTest.dependencies {
+		macosTest.dependencies {
+			implementation(libs.ktor.client.engine.curl)
+		}
+
+		linuxTest.dependencies {
 			implementation(libs.ktor.client.engine.curl)
 		}
     }
