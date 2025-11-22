@@ -9,5 +9,5 @@ internal fun wrapJetstreamMessage(
 	js: JetStreamClient,
 ) = IncomingJetStreamMessage(
 	original = msg as? MessageInternal ?: throw RuntimeException("internal error: Message cast fail"),
-	ackAction = { subject, body -> js.client.publish(subject, body) },
+	client = js.client,
 )
