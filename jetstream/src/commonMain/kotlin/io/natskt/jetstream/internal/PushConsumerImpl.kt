@@ -6,6 +6,7 @@ import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.consumer.PushConsumer
@@ -26,6 +27,11 @@ internal class PushConsumerImpl(
 	private val js: JetStreamClient,
 	initialInfo: ConsumerInfo?,
 ) : PushConsumer {
+	init {
+		name.throwOnInvalidToken()
+		streamName.throwOnInvalidToken()
+	}
+
 	override val info = MutableStateFlow(initialInfo)
 
 	override val messages: Flow<JetStreamMessage> =

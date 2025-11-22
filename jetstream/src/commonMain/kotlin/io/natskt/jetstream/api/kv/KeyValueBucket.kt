@@ -3,11 +3,12 @@ package io.natskt.jetstream.api.kv
 import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.Message
 import io.natskt.api.Subject
-import io.natskt.api.Subscription
 import io.natskt.api.from
 import io.natskt.api.fullyQualified
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.NUID
+import io.natskt.internal.suspendLazy
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
@@ -50,21 +51,33 @@ private const val ACK_TIMESTAMP_TOKEN_POS = 9
 private const val ACK_PENDING_TOKEN_POS = 10
 private val WATCH_IDLE_HEARTBEAT = 5.seconds
 
+@OptIn(InternalNatsApi::class)
 public class KeyValueBucket internal constructor(
-	js: JetStreamClient,
-	inboxSubscription: Subscription,
+	private val js: JetStreamClient,
 	private val name: String,
 	initialStatus: KeyValueStatus?,
 	initialConfig: KeyValueConfig?,
-) : PersistentRequestSubscription(js, inboxSubscription) {
+) : AutoCloseable {
+	init {
+		name.throwOnInvalidToken()
+	}
+
 	private var _status: KeyValueStatus? = initialStatus
 	public val status: KeyValueStatus? get() = _status
 	private var _config: KeyValueConfig? = initialConfig
 	public val config: KeyValueConfig? get() = _config
 
+	private val req =
+		suspendLazy {
+			PersistentRequestSubscription(
+				js,
+				PersistentRequestSubscription.newSubscription(js.client),
+			)
+		}
+
 	public suspend fun updateBucketStatus(): Result<KeyValueStatus> {
 		val status =
-			js.getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + name).getOrElse {
+			req().getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + name).getOrElse {
 				return Result.failure(it)
 			}
 		_status = status.asKeyValueStatus()
@@ -111,12 +124,9 @@ public class KeyValueBucket internal constructor(
 				MessageGetRequest(lastFor = lastFor)
 			}
 
-		val message = js.getMessage(KV_BUCKET_STREAM_NAME_PREFIX + name, req)
+		val message = req().getMessage(KV_BUCKET_STREAM_NAME_PREFIX + name, req)
 
-		return message
-			.map {
-				it.toKeyValueEntry(name)
-			}.getOrThrow()
+		return message.getOrThrow().toKeyValueEntry(name)
 	}
 
 	@OptIn(ExperimentalTime::class, InternalNatsApi::class)
@@ -185,13 +195,17 @@ public class KeyValueBucket internal constructor(
 				consumer.close()
 				js.client.scope.launch {
 					try {
-						deleteConsumer(streamName, consumer.name)
+						js.deleteConsumer(streamName, consumer.name)
 					} catch (_: ClosedWriteChannelException) {
 						// ignore if this runs on a closed connection
 					}
 				}
 			}
 		}
+	}
+
+	override fun close() {
+		req.valueOrNull()?.close()
 	}
 }
 

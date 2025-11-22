@@ -3,8 +3,15 @@ package io.natskt.api
 import io.natskt.api.internal.InternalNatsApi
 import kotlin.jvm.JvmInline
 
-private val disallowedSubjectChars = Regex("[\\u0000 ]")
+private val disallowedSubjectChars = Regex("[\\u0000 \\t\\r\\n]")
 private val wildcardChars = Regex("[*>]")
+
+public class InvalidSubjectException(
+	subject: String,
+	message: String? = null,
+) : IllegalArgumentException(
+		message ?: "`$subject` is not a valid NATS subject",
+	)
 
 @JvmInline
 public value class Subject
@@ -17,12 +24,12 @@ public value class Subject
 
 @OptIn(InternalNatsApi::class)
 public fun Subject.Companion.fromOrNull(s: String): Subject? {
-	if (disallowedSubjectChars.containsMatchIn(s)) return null
+	if (isInvalidSubject(s)) return null
 
 	return Subject(s)
 }
 
-public fun Subject.Companion.from(s: String): Subject = fromOrNull(s) ?: throw IllegalArgumentException("'$s' contains invalid subject token characters")
+public fun Subject.Companion.from(s: String): Subject = fromOrNull(s) ?: throw InvalidSubjectException(s)
 
 /**
  * Create a subject from a fully-qualified string (contains no wildcards)
@@ -30,12 +37,15 @@ public fun Subject.Companion.from(s: String): Subject = fromOrNull(s) ?: throw I
  */
 @OptIn(InternalNatsApi::class)
 public fun Subject.Companion.fullyQualified(s: String): Subject {
-	if (disallowedSubjectChars.containsMatchIn(s) || wildcardChars.containsMatchIn(s)) {
-		throw IllegalArgumentException("'$s' must not contain wildcards, or it has invalid chars")
+	if (isInvalidFullyQualifiedSubject(s)) {
+		throw InvalidSubjectException(s, message = "'$s' must be a valid subject and not contain wildcards")
 	}
 
 	return Subject(s)
 }
 
 @InternalNatsApi
-public fun validateSubject(s: String): Boolean = disallowedSubjectChars.containsMatchIn(s)
+public fun isInvalidSubject(s: String): Boolean = disallowedSubjectChars.containsMatchIn(s)
+
+@InternalNatsApi
+public fun isInvalidFullyQualifiedSubject(s: String): Boolean = disallowedSubjectChars.containsMatchIn(s) || wildcardChars.containsMatchIn(s)

@@ -6,7 +6,7 @@ import io.natskt.api.Subject
 import io.natskt.api.from
 import io.natskt.api.fromOrNull
 import io.natskt.api.internal.InternalNatsApi
-import io.natskt.api.validateSubject
+import io.natskt.api.isInvalidSubject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -18,7 +18,7 @@ class SubjectTest {
 		val subject = Subject.from("demo.token")
 
 		assertEquals("demo.token", subject.raw)
-		assertFalse(validateSubject(subject.raw))
+		assertFalse(isInvalidSubject(subject.raw))
 	}
 
 	@Test
@@ -29,8 +29,8 @@ class SubjectTest {
 
 	@Test
 	fun `validateSubject reports invalid tokens`() {
-		assertTrue(validateSubject("with space"))
-		assertTrue(validateSubject("\u0000binary"))
-		assertFalse(validateSubject("NATS"))
+		assertTrue(isInvalidSubject("with space"))
+		assertTrue(isInvalidSubject("\u0000binary"))
+		assertFalse(isInvalidSubject("NATS"))
 	}
 }

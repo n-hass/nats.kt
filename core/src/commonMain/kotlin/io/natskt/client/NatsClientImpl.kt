@@ -11,15 +11,16 @@ import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.api.Subscription
+import io.natskt.api.from
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OnSubscriptionStart
 import io.natskt.api.internal.OnSubscriptionStop
-import io.natskt.api.validateSubject
 import io.natskt.client.connection.ConnectionManagerImpl
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
+import io.natskt.internal.throwOnInvalidFullyQualifiedSubject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
@@ -80,7 +81,7 @@ internal class NatsClientImpl(
 		replayBuffer: Int,
 		unsubscribeOnLastCollector: Boolean,
 		scope: CoroutineScope?,
-	): Subscription = subscribe(Subject(subject), queueGroup, eager, replayBuffer, unsubscribeOnLastCollector, scope)
+	): Subscription = subscribe(Subject.from(subject), queueGroup, eager, replayBuffer, unsubscribeOnLastCollector, scope)
 
 	@OptIn(ExperimentalAtomicApi::class)
 	override suspend fun subscribe(
@@ -123,12 +124,8 @@ internal class NatsClientImpl(
 		headers: Map<String, List<String>>?,
 		replyTo: String?,
 	) {
-		if (validateSubject(subject)) {
-			throw IllegalArgumentException("invalid subject")
-		}
-		if (replyTo != null && validateSubject(replyTo)) {
-			throw IllegalArgumentException("invalid reply-to")
-		}
+		subject.throwOnInvalidFullyQualifiedSubject()
+		replyTo?.throwOnInvalidFullyQualifiedSubject()
 
 		publishUnchecked(subject, message, headers, replyTo)
 	}
@@ -200,6 +197,7 @@ internal class NatsClientImpl(
 		headers: Map<String, List<String>>?,
 		timeoutMs: Long,
 	): Message {
+		subject.throwOnInvalidFullyQualifiedSubject()
 		val inboxSubject = configuration.createInbox()
 		val sid = sidAllocator.fetchAndAdd(1).toString()
 		var subscribed = false

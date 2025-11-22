@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
 @OptIn(InternalNatsApi::class)
-public open class PersistentRequestSubscription(
+internal open class PersistentRequestSubscription(
 	internal val js: JetStreamClient,
 	internal val inboxSubscription: Subscription,
 ) : CanRequest,

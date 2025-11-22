@@ -16,8 +16,7 @@ internal class KeyValueManagerImpl(
 
 		val createdInfo = js.createStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
 
-		val inboxSubscription = PersistentRequestSubscription.newSubscription(js.client)
-		return KeyValueBucket(js, inboxSubscription, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
+		return KeyValueBucket(js, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
 	}
 
 	override suspend fun get(bucket: String): KeyValueBucket {
@@ -31,7 +30,6 @@ internal class KeyValueManagerImpl(
 
 		val bucketConfig = status.map { it.asKeyValueConfig() }.getOrThrow()
 
-		val inboxSubscription = PersistentRequestSubscription.newSubscription(js.client)
-		return KeyValueBucket(js, inboxSubscription, bucket, bucketStatus, bucketConfig)
+		return KeyValueBucket(js, bucket, bucketStatus, bucketConfig)
 	}
 }

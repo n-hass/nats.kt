@@ -6,6 +6,8 @@ import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.internal.throwOnInvalidSubject
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.ApiError
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
@@ -148,8 +150,10 @@ internal class JetStreamClientImpl(
 	override suspend fun subscribe(
 		subject: String,
 		subscribeOptions: SubscribeOptions,
-	): Consumer =
-		when (subscribeOptions) {
+	): Consumer {
+		subject.throwOnInvalidSubject()
+		subscribeOptions.streamName.throwOnInvalidToken()
+		return when (subscribeOptions) {
 			is SubscribeOptions.Attach -> {
 				subscribe(subscribeOptions)
 			}
@@ -164,8 +168,11 @@ internal class JetStreamClientImpl(
 				consumerFromInfo(consumerInfo)
 			}
 		}
+	}
 
 	override suspend fun subscribe(subscribeOptions: SubscribeOptions.Attach): Consumer {
+		subscribeOptions.streamName.throwOnInvalidToken()
+		subscribeOptions.consumerName.throwOnInvalidToken()
 		val consumerInfo = getConsumerInfo(subscribeOptions.streamName, subscribeOptions.consumerName).getOrThrow()
 		return consumerFromInfo(consumerInfo)
 	}
@@ -177,10 +184,7 @@ internal class JetStreamClientImpl(
 			null,
 		).also { it.updateStreamInfo() }
 
-	override suspend fun keyValue(bucket: String): KeyValueBucket {
-		val inboxSubscription = PersistentRequestSubscription.newSubscription(client)
-		return KeyValueBucket(this, inboxSubscription, bucket, null, null)
-	}
+	override suspend fun keyValue(bucket: String): KeyValueBucket = KeyValueBucket(this, bucket, null, null)
 
 	override suspend fun request(
 		subject: String,

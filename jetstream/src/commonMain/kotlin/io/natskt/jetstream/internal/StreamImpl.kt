@@ -1,6 +1,9 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.api.SubjectToken
+import io.natskt.api.from
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
@@ -16,6 +19,10 @@ internal class StreamImpl(
 	private val js: JetStreamClient,
 	initialInfo: StreamInfo?,
 ) : Stream {
+	init {
+		SubjectToken.from(name)
+	}
+
 	@OptIn(InternalNatsApi::class)
 	override val info = MutableStateFlow(initialInfo)
 
@@ -36,7 +43,9 @@ internal class StreamImpl(
 		)
 
 	override suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer {
-		val new = js.createOrUpdateConsumer(name, ConsumerConfigurationBuilder().apply(configure).build())
+		val config = ConsumerConfigurationBuilder().apply(configure).build()
+		config.durableName?.throwOnInvalidToken()
+		val new = js.createOrUpdateConsumer(name, config)
 		return new
 			.map {
 				PullConsumerImpl(
@@ -49,6 +58,7 @@ internal class StreamImpl(
 	}
 
 	override suspend fun pushConsumer(name: String): PushConsumer {
+		name.throwOnInvalidToken()
 		val info = js.getConsumerInfo(streamName = this.name, name = name).getOrThrow()
 		if (!info.isPush() || info.config.deliverSubject == null) {
 			throw IllegalStateException("consumer $name is not a push consumer")
@@ -64,7 +74,9 @@ internal class StreamImpl(
 	}
 
 	override suspend fun createPushConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PushConsumer {
-		val new = js.createOrUpdateConsumer(name, ConsumerConfigurationBuilder().apply(configure).build())
+		val config = ConsumerConfigurationBuilder().apply(configure).build()
+		config.durableName?.throwOnInvalidToken()
+		val new = js.createOrUpdateConsumer(name, config)
 		return new
 			.map {
 				it.config.deliverSubject ?: throw IllegalStateException("ConsumerInfo response from server has no deliver subject set")
