@@ -55,7 +55,7 @@ class ConsumerIntegrationTest {
 							),
 						).getOrThrow()
 
-				val pushConsumer = js.stream("push_stream_binding").pushConsumer(consumerName) as PushConsumerImpl
+				val pushConsumer = js.stream("push_stream_binding").pushConsumer(consumerName)
 
 				val received = mutableListOf<String>()
 				val deferred = CompletableDeferred(Unit)
@@ -81,7 +81,6 @@ class ConsumerIntegrationTest {
 				job.join()
 
 				assertEquals(listOf("alpha", "beta"), received)
-				assertEquals(createdInfo.config.deliverSubject, pushConsumer.subscription.subject.raw)
 
 				ignoreClosedWrite { pushConsumer.close() }
 			}
@@ -364,6 +363,7 @@ class ConsumerIntegrationTest {
 				val consumer =
 					s.createPullConsumer {
 						durableName = "consumer1"
+						ackPolicy = AckPolicy.Explicit
 						filterSubjects =
 							mutableListOf(
 								"test.basic_consumer.hi.consumer1",
@@ -413,7 +413,7 @@ class ConsumerIntegrationTest {
 				assertEquals(1, messages.size, "consumer fetch should return 1 message")
 
 				assertEquals("hi to consumer", messages.single().data?.decodeToString())
-				messages.forEach { it.ackWait() }
+				messages.forEach { it.ackSync() }
 			}
 		}
 

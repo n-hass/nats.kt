@@ -29,10 +29,9 @@ import io.natskt.jetstream.internal.createFilteredConsumer
 import io.natskt.jetstream.internal.deleteConsumer
 import io.natskt.jetstream.internal.getMessage
 import io.natskt.jetstream.internal.getStreamInfo
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
@@ -179,19 +178,9 @@ public class KeyValueBucket internal constructor(
 
 		consumer.info.value = consumerInfo
 
-		return callbackFlow<KeyValueEntry> {
-			val job =
-				launch {
-					while (isActive) {
-						consumer.messages.collect {
-							val entry = it.toKeyValueEntry(name)
-							this@callbackFlow.send(entry)
-						}
-					}
-				}
-
-			awaitClose {
-				job.cancel()
+		return consumer.messages
+			.map { it.toKeyValueEntry(name) }
+			.onCompletion {
 				consumer.close()
 				js.client.scope.launch {
 					try {
@@ -201,7 +190,6 @@ public class KeyValueBucket internal constructor(
 					}
 				}
 			}
-		}
 	}
 
 	override fun close() {
