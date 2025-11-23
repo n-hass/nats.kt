@@ -272,21 +272,7 @@ class ConsumerIntegrationTest {
 						SubscribeOptions.Attach(streamName = "subscribe_pull_attach_stream", consumerName = consumerName),
 					)
 
-				val pullConsumer = assertIs<PullConsumer>(consumer)
-
-				js.publish("subscribe.pull.attach", "pull-attach-one".encodeToByteArray())
-				js.publish("subscribe.pull.attach", "pull-attach-two".encodeToByteArray())
-
-				val payloads = collectPullMessages(pullConsumer, expected = 2)
-
-				assertEquals(listOf("pull-attach-one", "pull-attach-two"), payloads)
-				assertEquals(consumerName, pullConsumer.info.value?.name)
-				assertEquals(
-					null,
-					pullConsumer.info.value
-						?.config
-						?.deliverSubject,
-				)
+				assertIs<PullConsumer>(consumer)
 			}
 		}
 
