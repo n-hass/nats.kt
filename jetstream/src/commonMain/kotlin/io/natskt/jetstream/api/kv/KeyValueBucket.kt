@@ -48,6 +48,13 @@ private const val KV_OPERATION_PURGE = "PURGE"
 private val WATCH_IDLE_HEARTBEAT = 5.seconds
 private val EMPTY_VALUE = ByteArray(0)
 
+/**
+ * A representation of a Key-Value bucket.
+ * Use this to perform client operations on a bucket.
+ *
+ * This uses persistent requests, to be sure to call [close]
+ * once you are finished, or wrap in [AutoCloseable.use]
+ */
 @OptIn(InternalNatsApi::class)
 public class KeyValueBucket internal constructor(
 	private val js: JetStreamClient,
@@ -72,6 +79,11 @@ public class KeyValueBucket internal constructor(
 			)
 		}
 
+	/**
+	 * Refreshes the cached bucket status and configuration by querying JetStream for the latest stream info.
+	 *
+	 * @return a [Result] containing the latest [KeyValueStatus] or the error that occurred.
+	 */
 	public suspend fun updateBucketStatus(): Result<KeyValueStatus> {
 		val status =
 			req().getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + name).getOrElse {
@@ -82,6 +94,11 @@ public class KeyValueBucket internal constructor(
 		return Result.success(_status!!)
 	}
 
+	/**
+	 * Writes the provided [value] under [key], creating or replacing the latest revision without any precondition.
+	 *
+	 * @return the JetStream sequence associated with the stored revision.
+	 */
 	public suspend fun put(
 		key: String,
 		value: ByteArray,
@@ -91,6 +108,12 @@ public class KeyValueBucket internal constructor(
 		return ack.seq
 	}
 
+	/**
+	 * Creates a new entry for [key] only if no existing entry is there (or it has been deleted/purged and not replaced since)
+	 *
+	 * This mirrors the server-side `create` semantics by allowing recreation after a delete/purge.
+	 * @throws JetStreamApiException when the key is taken
+	 */
 	public suspend fun create(
 		key: String,
 		value: ByteArray,
@@ -108,6 +131,11 @@ public class KeyValueBucket internal constructor(
 			}
 		}
 
+	/**
+	 * Updates [key] with [value], asserting that the previous revision equals [lastRevision].
+	 *
+	 * @throws JetStreamApiException if the expected revision does not match or publishing fails.
+	 */
 	public suspend fun update(
 		key: String,
 		value: ByteArray,
@@ -125,16 +153,31 @@ public class KeyValueBucket internal constructor(
 		return ack.seq
 	}
 
+	/**
+	 * Appends a delete marker for [key], optionally guarding on [lastRevision] for optimistic concurrency.
+	 *
+	 * @return the sequence of the delete revision.
+	 */
 	public suspend fun delete(
 		key: String,
 		lastRevision: ULong? = null,
 	): ULong = deleteOrPurge(key, lastRevision, purge = false)
 
+	/**
+	 * Permanently purges the value and history for [key], optionally verifying [lastRevision] first.
+	 *
+	 * @return the sequence for the purge operation.
+	 */
 	public suspend fun purge(
 		key: String,
 		lastRevision: ULong? = null,
 	): ULong = deleteOrPurge(key, lastRevision, purge = true)
 
+	/**
+	 * Retrieves the latest or specified [revision] for [key] and converts it to a [KeyValueEntry].
+	 *
+	 * @throws JetStreamApiException when JetStream rejects the lookup.
+	 */
 	public suspend fun get(
 		key: String,
 		revision: ULong? = null,
@@ -155,11 +198,17 @@ public class KeyValueBucket internal constructor(
 		return message.getOrThrow().toKeyValueEntry(name)
 	}
 
+	/**
+	 * Watches revisions for [key], emitting a [Flow] of entries including future updates.
+	 */
 	@OptIn(ExperimentalTime::class, InternalNatsApi::class)
 	public suspend fun watch(key: String): Flow<KeyValueEntry> =
 		watchFiltered(key)
 			.mapNotNull { it?.toKeyValueEntry(name) }
 
+	/**
+	 * Lists the keys currently stored in the bucket, optionally constrained by a key [filter].
+	 */
 	public suspend fun keys(filter: String? = null): List<String> =
 		watchFiltered(filter ?: ">", headersOnly = true)
 			.takeWhile { it != null }
@@ -281,6 +330,9 @@ public class KeyValueBucket internal constructor(
 		return ack.seq
 	}
 
+	/**
+	 * Releases the persistent request subscription associated with this bucket instance.
+	 */
 	override fun close() {
 		req.valueOrNull()?.close()
 	}
