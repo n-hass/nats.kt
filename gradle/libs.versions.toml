@@ -73,9 +73,6 @@ ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negoti
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin-stdlib" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin-stdlib" }
 
-kotest = { id = "io.kotest", version.ref = "kotest" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
 
 buildkonfig = {id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig"}
