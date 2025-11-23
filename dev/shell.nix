@@ -31,9 +31,5 @@
         ${config.pre-commit.installationScript}
       '';
     };
-
-    devShells.ci = pkgs.mkMinimalShell {
-      nativeBuildInputs = common.packages;
-    };
   };
 }
