@@ -175,4 +175,22 @@ class KvIntegrationTest {
 				)
 			}
 		}
+
+	@Test
+	fun `it lists bucket keys`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "NEON"
+					}
+
+				bucket.put("a", "k".encodeToByteArray())
+				bucket.put("b", "1".encodeToByteArray())
+				bucket.put("b.c", "2".encodeToByteArray())
+				bucket.put("b.d.f", "3".encodeToByteArray())
+
+				assertEquals(setOf("a", "b", "b.c", "b.d.f"), bucket.keys().toSet())
+			}
+		}
 }

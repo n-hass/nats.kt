@@ -1,6 +1,5 @@
 package io.natskt.jetstream.api.kv
 
-import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.Message
 import io.natskt.api.Subject
 import io.natskt.api.from
@@ -26,14 +25,16 @@ import io.natskt.jetstream.internal.PushConsumerImpl
 import io.natskt.jetstream.internal.asKeyValueConfig
 import io.natskt.jetstream.internal.asKeyValueStatus
 import io.natskt.jetstream.internal.createFilteredConsumer
-import io.natskt.jetstream.internal.deleteConsumer
 import io.natskt.jetstream.internal.getMessage
 import io.natskt.jetstream.internal.getStreamInfo
+import io.natskt.jetstream.internal.parseAckMetadata
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.nanoseconds
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.transform
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -42,12 +43,6 @@ private const val KV_SUBJECT_PREFIX = "\$KV."
 private const val KV_OPERATION_DELETE = "DEL"
 private const val KV_OPERATION_PURGE = "PURGE"
 private const val WATCH_CONSUMER_INACTIVE_THRESHOLD_NANOS = 5L * 60L * 1_000_000_000L
-private const val ACK_V1_TOKEN_COUNT = 9
-private const val ACK_V2_MIN_TOKEN_COUNT = 11
-private const val ACK_DOMAIN_TOKEN_POS = 2
-private const val ACK_STREAM_SEQ_TOKEN_POS = 7
-private const val ACK_TIMESTAMP_TOKEN_POS = 9
-private const val ACK_PENDING_TOKEN_POS = 10
 private val WATCH_IDLE_HEARTBEAT = 5.seconds
 
 @OptIn(InternalNatsApi::class)
@@ -129,9 +124,25 @@ public class KeyValueBucket internal constructor(
 	}
 
 	@OptIn(ExperimentalTime::class, InternalNatsApi::class)
-	public suspend fun watch(key: String): Flow<KeyValueEntry> {
-		require(key.isNotEmpty()) { "key cannot be blank" }
-		val searchKey = Subject.from(key).raw
+	public suspend fun watch(key: String): Flow<KeyValueEntry> =
+		watchFiltered(key)
+			.mapNotNull { it?.toKeyValueEntry(name) }
+
+	public suspend fun keys(filter: String? = null): List<String> =
+		watchFiltered(filter ?: ">", headersOnly = true)
+			.takeWhile { it != null }
+			.map {
+				it!!.subject.raw.removePrefix("$KV_SUBJECT_PREFIX$name.")
+			}.toList()
+
+	private suspend fun watchFiltered(
+		filter: String,
+		headersOnly: Boolean = false,
+		policy: DeliverPolicy = DeliverPolicy.LastPerSubject,
+		ordered: Boolean = false,
+	): Flow<Message?> {
+		require(filter.isNotEmpty()) { "subject cannot be blank" }
+		val searchKey = Subject.from(filter).raw
 
 		val streamName = KV_BUCKET_STREAM_NAME_PREFIX + name
 		val subjectPrefix = "$KV_SUBJECT_PREFIX$name."
@@ -155,7 +166,7 @@ public class KeyValueBucket internal constructor(
 
 		val consumerConfig =
 			ConsumerConfig(
-				deliverPolicy = DeliverPolicy.LastPerSubject,
+				deliverPolicy = policy,
 				ackPolicy = AckPolicy.None,
 				maxDeliver = 1,
 				filterSubject = filterSubject,
@@ -165,6 +176,7 @@ public class KeyValueBucket internal constructor(
 				deliverSubject = deliverySubscription.subject.raw,
 				numReplicas = 1,
 				memoryStorage = true,
+				headersOnly = headersOnly,
 			)
 
 		val consumerInfo =
@@ -178,17 +190,26 @@ public class KeyValueBucket internal constructor(
 
 		consumer.info.value = consumerInfo
 
+		val initPending: ULong = (consumerInfo.numPending).toULong()
+		var received: ULong = 0u
+		var snapshotDone = (initPending == 0uL)
+
 		return consumer.messages
-			.map { it.toKeyValueEntry(name) }
-			.onCompletion {
-				consumer.close()
-				js.client.scope.launch {
-					try {
-						js.deleteConsumer(streamName, consumer.name)
-					} catch (_: ClosedWriteChannelException) {
-						// ignore if this runs on a closed connection
+			.transform { msg ->
+				emit(msg)
+
+				if (!snapshotDone) {
+					val meta = parseAckMetadata(msg.replyTo)
+					val pending = meta?.pending ?: 0u
+					received++
+
+					if (received >= initPending || pending == 0uL) {
+						snapshotDone = true
+						emit(null)
 					}
 				}
+			}.onCompletion {
+				consumer.close()
 			}
 	}
 
@@ -238,44 +259,10 @@ private fun Message.toKeyValueEntry(bucketName: String): KeyValueEntry {
 		key = key,
 		value = data ?: ByteArray(0),
 		revision = metadata.streamSequence,
-		created = ackTimestampToInstant(metadata.timestampNanos),
+		created = metadata.timestamp,
 		delta = metadata.pending,
 		operation = operation,
 	)
-}
-
-private data class AckMetadata(
-	val streamSequence: ULong,
-	val pending: ULong,
-	val timestampNanos: Long,
-)
-
-private fun parseAckMetadata(reply: Subject?): AckMetadata? {
-	val raw = reply?.raw ?: return null
-	val tokens = raw.split('.').toMutableList()
-	if (tokens.size < ACK_V1_TOKEN_COUNT) return null
-	if (tokens.size > ACK_V1_TOKEN_COUNT && tokens.size < ACK_V2_MIN_TOKEN_COUNT) return null
-	if (tokens[0] != "\$JS" || tokens[1] != "ACK") return null
-
-	if (tokens.size == ACK_V1_TOKEN_COUNT) {
-		tokens.add(ACK_DOMAIN_TOKEN_POS, "")
-		tokens.add(ACK_DOMAIN_TOKEN_POS + 1, "")
-	} else if (tokens[ACK_DOMAIN_TOKEN_POS] == "_") {
-		tokens[ACK_DOMAIN_TOKEN_POS] = ""
-	}
-
-	val streamSeq = tokens.getOrNull(ACK_STREAM_SEQ_TOKEN_POS)?.toULongOrNull() ?: return null
-	val pending = tokens.getOrNull(ACK_PENDING_TOKEN_POS)?.toULongOrNull() ?: 0u
-	val timestamp = tokens.getOrNull(ACK_TIMESTAMP_TOKEN_POS)?.toLongOrNull() ?: 0L
-	return AckMetadata(streamSeq, pending, timestamp)
-}
-
-@OptIn(ExperimentalTime::class)
-private fun ackTimestampToInstant(nanos: Long): Instant {
-	if (nanos <= 0) return Instant.DISTANT_PAST
-	val millis = nanos / 1_000_000
-	val remainder = nanos % 1_000_000
-	return Instant.fromEpochMilliseconds(millis).plus(remainder.nanoseconds)
 }
 
 private fun Map<String, List<String>>?.extractOperation(): KeyValueOperation? {

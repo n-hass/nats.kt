@@ -20,7 +20,7 @@ import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
-import io.natskt.internal.throwOnInvalidFullyQualifiedSubject
+import io.natskt.internal.throwOnInvalidSubject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
@@ -124,8 +124,8 @@ internal class NatsClientImpl(
 		headers: Map<String, List<String>>?,
 		replyTo: String?,
 	) {
-		subject.throwOnInvalidFullyQualifiedSubject()
-		replyTo?.throwOnInvalidFullyQualifiedSubject()
+		subject.throwOnInvalidSubject()
+		replyTo?.throwOnInvalidSubject()
 
 		publishUnchecked(subject, message, headers, replyTo)
 	}
@@ -197,7 +197,7 @@ internal class NatsClientImpl(
 		headers: Map<String, List<String>>?,
 		timeoutMs: Long,
 	): Message {
-		subject.throwOnInvalidFullyQualifiedSubject()
+		subject.throwOnInvalidSubject()
 		val inboxSubject = configuration.createInbox()
 		val sid = sidAllocator.fetchAndAdd(1).toString()
 		var subscribed = false

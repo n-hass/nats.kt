@@ -1,5 +1,9 @@
 package io.natskt.api
 
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
+
+@OptIn(ExperimentalTime::class)
 public interface JetStreamMessage : Message {
 	/**
 	 * Acknowledge a message
@@ -16,4 +20,12 @@ public interface JetStreamMessage : Message {
 	public suspend fun inProgress()
 
 	public suspend fun term()
+
+	public val metadata: Metadata?
+
+	public data class Metadata(
+		val streamSequence: ULong,
+		val pending: ULong,
+		val timestamp: Instant,
+	)
 }
