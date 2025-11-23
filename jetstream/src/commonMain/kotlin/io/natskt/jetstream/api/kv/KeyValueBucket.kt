@@ -11,12 +11,15 @@ import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
+import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.KeyValueStatus
 import io.natskt.jetstream.api.MessageGetRequest
 import io.natskt.jetstream.api.PublishOptions
 import io.natskt.jetstream.api.ReplayPolicy
 import io.natskt.jetstream.client.KV_OPERATION_HEADER
+import io.natskt.jetstream.client.ROLLUP_HEADER
+import io.natskt.jetstream.client.ROLLUP_SUBJECT_VALUE
 import io.natskt.jetstream.client.SEQUENCE_HEADER
 import io.natskt.jetstream.client.TIME_STAMP_HEADER
 import io.natskt.jetstream.internal.KV_BUCKET_STREAM_NAME_PREFIX
@@ -42,8 +45,8 @@ import kotlin.time.Instant
 private const val KV_SUBJECT_PREFIX = "\$KV."
 private const val KV_OPERATION_DELETE = "DEL"
 private const val KV_OPERATION_PURGE = "PURGE"
-private const val WATCH_CONSUMER_INACTIVE_THRESHOLD_NANOS = 5L * 60L * 1_000_000_000L
 private val WATCH_IDLE_HEARTBEAT = 5.seconds
+private val EMPTY_VALUE = ByteArray(0)
 
 @OptIn(InternalNatsApi::class)
 public class KeyValueBucket internal constructor(
@@ -84,18 +87,53 @@ public class KeyValueBucket internal constructor(
 		value: ByteArray,
 	): ULong {
 		val key = Subject.fullyQualified(key)
-
-		val subject =
-			buildString {
-				append(KV_SUBJECT_PREFIX)
-				append(name)
-				append(".")
-				append(key.raw)
-			}
-
-		val ack = js.publish(subject, value, null, null, PublishOptions())
+		val ack = js.publish(subjectForKey(key), value, null, null, PublishOptions())
 		return ack.seq
 	}
+
+	public suspend fun create(
+		key: String,
+		value: ByteArray,
+	): ULong =
+		try {
+			update(key, value, 0u)
+		} catch (error: JetStreamApiException) {
+			val latest =
+				runCatching { get(key) }
+					.getOrNull()
+			if (latest?.operation == KeyValueOperation.Delete || latest?.operation == KeyValueOperation.Purge) {
+				update(key, value, latest.revision)
+			} else {
+				throw error
+			}
+		}
+
+	public suspend fun update(
+		key: String,
+		value: ByteArray,
+		lastRevision: ULong,
+	): ULong {
+		val key = Subject.fullyQualified(key)
+		val ack =
+			js.publish(
+				subjectForKey(key),
+				value,
+				null,
+				null,
+				PublishOptions(expectedLastSubjectSequence = lastRevision),
+			)
+		return ack.seq
+	}
+
+	public suspend fun delete(
+		key: String,
+		lastRevision: ULong? = null,
+	): ULong = deleteOrPurge(key, lastRevision, purge = false)
+
+	public suspend fun purge(
+		key: String,
+		lastRevision: ULong? = null,
+	): ULong = deleteOrPurge(key, lastRevision, purge = true)
 
 	public suspend fun get(
 		key: String,
@@ -103,13 +141,7 @@ public class KeyValueBucket internal constructor(
 	): KeyValueEntry {
 		val key = Subject.fullyQualified(key)
 
-		val lastFor =
-			buildString {
-				append(KV_SUBJECT_PREFIX)
-				append(name)
-				append(".")
-				append(key.raw)
-			}
+		val lastFor = subjectForKey(key)
 
 		val req =
 			if (revision != null) {
@@ -154,7 +186,7 @@ public class KeyValueBucket internal constructor(
 
 		val consumerName = NUID.nextSequence()
 
-		val deliverySubscription = PushConsumerImpl.newSubscription(js.client, null)
+		val deliverySubscription = PushConsumerImpl.newSubscription(js.client, null, eager = false)
 		val consumer =
 			PushConsumerImpl(
 				name = consumerName,
@@ -211,6 +243,42 @@ public class KeyValueBucket internal constructor(
 			}.onCompletion {
 				consumer.close()
 			}
+	}
+
+	private fun subjectForKey(key: Subject): String =
+		buildString {
+			append(KV_SUBJECT_PREFIX)
+			append(name)
+			append(".")
+			append(key.raw)
+		}
+
+	private suspend fun deleteOrPurge(
+		key: String,
+		lastRevision: ULong?,
+		purge: Boolean,
+	): ULong {
+		val key = Subject.fullyQualified(key)
+		val headers =
+			buildMap {
+				put(
+					KV_OPERATION_HEADER,
+					listOf(if (purge) KV_OPERATION_PURGE else KV_OPERATION_DELETE),
+				)
+				if (purge) {
+					put(ROLLUP_HEADER, listOf(ROLLUP_SUBJECT_VALUE))
+				}
+			}
+
+		val ack =
+			js.publish(
+				subjectForKey(key),
+				EMPTY_VALUE,
+				headers,
+				null,
+				PublishOptions(expectedLastSubjectSequence = lastRevision),
+			)
+		return ack.seq
 	}
 
 	override fun close() {
