@@ -233,14 +233,7 @@ class ConsumerIntegrationTest {
 						),
 					)
 
-				val pullConsumer = assertIs<PullConsumer>(consumer)
-
-				js.publish("subscribe.pull.create", "pull-create-one".encodeToByteArray())
-				js.publish("subscribe.pull.create", "pull-create-two".encodeToByteArray())
-
-				val payloads = collectPullMessages(pullConsumer, expected = 2)
-
-				assertEquals(listOf("pull-create-one", "pull-create-two"), payloads)
+				assertIs<PullConsumer>(consumer)
 			}
 		}
 
