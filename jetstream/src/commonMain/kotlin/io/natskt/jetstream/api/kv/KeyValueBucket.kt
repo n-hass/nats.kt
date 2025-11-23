@@ -1,6 +1,5 @@
 package io.natskt.jetstream.api.kv
 
-import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.Message
 import io.natskt.api.Subject
 import io.natskt.api.from
@@ -12,12 +11,15 @@ import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
+import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.KeyValueStatus
 import io.natskt.jetstream.api.MessageGetRequest
 import io.natskt.jetstream.api.PublishOptions
 import io.natskt.jetstream.api.ReplayPolicy
 import io.natskt.jetstream.client.KV_OPERATION_HEADER
+import io.natskt.jetstream.client.ROLLUP_HEADER
+import io.natskt.jetstream.client.ROLLUP_SUBJECT_VALUE
 import io.natskt.jetstream.client.SEQUENCE_HEADER
 import io.natskt.jetstream.client.TIME_STAMP_HEADER
 import io.natskt.jetstream.internal.KV_BUCKET_STREAM_NAME_PREFIX
@@ -26,14 +28,16 @@ import io.natskt.jetstream.internal.PushConsumerImpl
 import io.natskt.jetstream.internal.asKeyValueConfig
 import io.natskt.jetstream.internal.asKeyValueStatus
 import io.natskt.jetstream.internal.createFilteredConsumer
-import io.natskt.jetstream.internal.deleteConsumer
 import io.natskt.jetstream.internal.getMessage
 import io.natskt.jetstream.internal.getStreamInfo
+import io.natskt.jetstream.internal.parseAckMetadata
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.nanoseconds
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.transform
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -41,15 +45,16 @@ import kotlin.time.Instant
 private const val KV_SUBJECT_PREFIX = "\$KV."
 private const val KV_OPERATION_DELETE = "DEL"
 private const val KV_OPERATION_PURGE = "PURGE"
-private const val WATCH_CONSUMER_INACTIVE_THRESHOLD_NANOS = 5L * 60L * 1_000_000_000L
-private const val ACK_V1_TOKEN_COUNT = 9
-private const val ACK_V2_MIN_TOKEN_COUNT = 11
-private const val ACK_DOMAIN_TOKEN_POS = 2
-private const val ACK_STREAM_SEQ_TOKEN_POS = 7
-private const val ACK_TIMESTAMP_TOKEN_POS = 9
-private const val ACK_PENDING_TOKEN_POS = 10
 private val WATCH_IDLE_HEARTBEAT = 5.seconds
+private val EMPTY_VALUE = ByteArray(0)
 
+/**
+ * A representation of a Key-Value bucket.
+ * Use this to perform client operations on a bucket.
+ *
+ * This uses persistent requests, to be sure to call [close]
+ * once you are finished, or wrap in [AutoCloseable.use]
+ */
 @OptIn(InternalNatsApi::class)
 public class KeyValueBucket internal constructor(
 	private val js: JetStreamClient,
@@ -74,6 +79,11 @@ public class KeyValueBucket internal constructor(
 			)
 		}
 
+	/**
+	 * Refreshes the cached bucket status and configuration by querying JetStream for the latest stream info.
+	 *
+	 * @return a [Result] containing the latest [KeyValueStatus] or the error that occurred.
+	 */
 	public suspend fun updateBucketStatus(): Result<KeyValueStatus> {
 		val status =
 			req().getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + name).getOrElse {
@@ -84,37 +94,97 @@ public class KeyValueBucket internal constructor(
 		return Result.success(_status!!)
 	}
 
+	/**
+	 * Writes the provided [value] under [key], creating or replacing the latest revision without any precondition.
+	 *
+	 * @return the JetStream sequence associated with the stored revision.
+	 */
 	public suspend fun put(
 		key: String,
 		value: ByteArray,
 	): ULong {
 		val key = Subject.fullyQualified(key)
-
-		val subject =
-			buildString {
-				append(KV_SUBJECT_PREFIX)
-				append(name)
-				append(".")
-				append(key.raw)
-			}
-
-		val ack = js.publish(subject, value, null, null, PublishOptions())
+		val ack = js.publish(subjectForKey(key), value, null, null, PublishOptions())
 		return ack.seq
 	}
 
+	/**
+	 * Creates a new entry for [key] only if no existing entry is there (or it has been deleted/purged and not replaced since)
+	 *
+	 * This mirrors the server-side `create` semantics by allowing recreation after a delete/purge.
+	 * @throws JetStreamApiException when the key is taken
+	 */
+	public suspend fun create(
+		key: String,
+		value: ByteArray,
+	): ULong =
+		try {
+			update(key, value, 0u)
+		} catch (error: JetStreamApiException) {
+			val latest =
+				runCatching { get(key) }
+					.getOrNull()
+			if (latest?.operation == KeyValueOperation.Delete || latest?.operation == KeyValueOperation.Purge) {
+				update(key, value, latest.revision)
+			} else {
+				throw error
+			}
+		}
+
+	/**
+	 * Updates [key] with [value], asserting that the previous revision equals [lastRevision].
+	 *
+	 * @throws JetStreamApiException if the expected revision does not match or publishing fails.
+	 */
+	public suspend fun update(
+		key: String,
+		value: ByteArray,
+		lastRevision: ULong,
+	): ULong {
+		val key = Subject.fullyQualified(key)
+		val ack =
+			js.publish(
+				subjectForKey(key),
+				value,
+				null,
+				null,
+				PublishOptions(expectedLastSubjectSequence = lastRevision),
+			)
+		return ack.seq
+	}
+
+	/**
+	 * Appends a delete marker for [key], optionally guarding on [lastRevision] for optimistic concurrency.
+	 *
+	 * @return the sequence of the delete revision.
+	 */
+	public suspend fun delete(
+		key: String,
+		lastRevision: ULong? = null,
+	): ULong = deleteOrPurge(key, lastRevision, purge = false)
+
+	/**
+	 * Permanently purges the value and history for [key], optionally verifying [lastRevision] first.
+	 *
+	 * @return the sequence for the purge operation.
+	 */
+	public suspend fun purge(
+		key: String,
+		lastRevision: ULong? = null,
+	): ULong = deleteOrPurge(key, lastRevision, purge = true)
+
+	/**
+	 * Retrieves the latest or specified [revision] for [key] and converts it to a [KeyValueEntry].
+	 *
+	 * @throws JetStreamApiException when JetStream rejects the lookup.
+	 */
 	public suspend fun get(
 		key: String,
 		revision: ULong? = null,
 	): KeyValueEntry {
 		val key = Subject.fullyQualified(key)
 
-		val lastFor =
-			buildString {
-				append(KV_SUBJECT_PREFIX)
-				append(name)
-				append(".")
-				append(key.raw)
-			}
+		val lastFor = subjectForKey(key)
 
 		val req =
 			if (revision != null) {
@@ -128,10 +198,32 @@ public class KeyValueBucket internal constructor(
 		return message.getOrThrow().toKeyValueEntry(name)
 	}
 
+	/**
+	 * Watches revisions for [key], emitting a [Flow] of entries including future updates.
+	 */
 	@OptIn(ExperimentalTime::class, InternalNatsApi::class)
-	public suspend fun watch(key: String): Flow<KeyValueEntry> {
-		require(key.isNotEmpty()) { "key cannot be blank" }
-		val searchKey = Subject.from(key).raw
+	public suspend fun watch(key: String): Flow<KeyValueEntry> =
+		watchFiltered(key)
+			.mapNotNull { it?.toKeyValueEntry(name) }
+
+	/**
+	 * Lists the keys currently stored in the bucket, optionally constrained by a key [filter].
+	 */
+	public suspend fun keys(filter: String? = null): List<String> =
+		watchFiltered(filter ?: ">", headersOnly = true)
+			.takeWhile { it != null }
+			.map {
+				it!!.subject.raw.removePrefix("$KV_SUBJECT_PREFIX$name.")
+			}.toList()
+
+	private suspend fun watchFiltered(
+		filter: String,
+		headersOnly: Boolean = false,
+		policy: DeliverPolicy = DeliverPolicy.LastPerSubject,
+		ordered: Boolean = false,
+	): Flow<Message?> {
+		require(filter.isNotEmpty()) { "subject cannot be blank" }
+		val searchKey = Subject.from(filter).raw
 
 		val streamName = KV_BUCKET_STREAM_NAME_PREFIX + name
 		val subjectPrefix = "$KV_SUBJECT_PREFIX$name."
@@ -143,7 +235,7 @@ public class KeyValueBucket internal constructor(
 
 		val consumerName = NUID.nextSequence()
 
-		val deliverySubscription = PushConsumerImpl.newSubscription(js.client, null)
+		val deliverySubscription = PushConsumerImpl.newSubscription(js.client, null, eager = false)
 		val consumer =
 			PushConsumerImpl(
 				name = consumerName,
@@ -155,7 +247,7 @@ public class KeyValueBucket internal constructor(
 
 		val consumerConfig =
 			ConsumerConfig(
-				deliverPolicy = DeliverPolicy.LastPerSubject,
+				deliverPolicy = policy,
 				ackPolicy = AckPolicy.None,
 				maxDeliver = 1,
 				filterSubject = filterSubject,
@@ -165,6 +257,7 @@ public class KeyValueBucket internal constructor(
 				deliverSubject = deliverySubscription.subject.raw,
 				numReplicas = 1,
 				memoryStorage = true,
+				headersOnly = headersOnly,
 			)
 
 		val consumerInfo =
@@ -178,20 +271,68 @@ public class KeyValueBucket internal constructor(
 
 		consumer.info.value = consumerInfo
 
+		val initPending: ULong = (consumerInfo.numPending).toULong()
+		var received: ULong = 0u
+		var snapshotDone = (initPending == 0uL)
+
 		return consumer.messages
-			.map { it.toKeyValueEntry(name) }
-			.onCompletion {
-				consumer.close()
-				js.client.scope.launch {
-					try {
-						js.deleteConsumer(streamName, consumer.name)
-					} catch (_: ClosedWriteChannelException) {
-						// ignore if this runs on a closed connection
+			.transform { msg ->
+				emit(msg)
+
+				if (!snapshotDone) {
+					val meta = parseAckMetadata(msg.replyTo)
+					val pending = meta?.pending ?: 0u
+					received++
+
+					if (received >= initPending || pending == 0uL) {
+						snapshotDone = true
+						emit(null)
 					}
 				}
+			}.onCompletion {
+				consumer.close()
 			}
 	}
 
+	private fun subjectForKey(key: Subject): String =
+		buildString {
+			append(KV_SUBJECT_PREFIX)
+			append(name)
+			append(".")
+			append(key.raw)
+		}
+
+	private suspend fun deleteOrPurge(
+		key: String,
+		lastRevision: ULong?,
+		purge: Boolean,
+	): ULong {
+		val key = Subject.fullyQualified(key)
+		val headers =
+			buildMap {
+				put(
+					KV_OPERATION_HEADER,
+					listOf(if (purge) KV_OPERATION_PURGE else KV_OPERATION_DELETE),
+				)
+				if (purge) {
+					put(ROLLUP_HEADER, listOf(ROLLUP_SUBJECT_VALUE))
+				}
+			}
+
+		val ack =
+			js.publish(
+				subjectForKey(key),
+				EMPTY_VALUE,
+				headers,
+				null,
+				PublishOptions(expectedLastSubjectSequence = lastRevision),
+			)
+		return ack.seq
+	}
+
+	/**
+	 * Releases the persistent request subscription associated with this bucket instance.
+	 */
 	override fun close() {
 		req.valueOrNull()?.close()
 	}
@@ -238,44 +379,10 @@ private fun Message.toKeyValueEntry(bucketName: String): KeyValueEntry {
 		key = key,
 		value = data ?: ByteArray(0),
 		revision = metadata.streamSequence,
-		created = ackTimestampToInstant(metadata.timestampNanos),
+		created = metadata.timestamp,
 		delta = metadata.pending,
 		operation = operation,
 	)
-}
-
-private data class AckMetadata(
-	val streamSequence: ULong,
-	val pending: ULong,
-	val timestampNanos: Long,
-)
-
-private fun parseAckMetadata(reply: Subject?): AckMetadata? {
-	val raw = reply?.raw ?: return null
-	val tokens = raw.split('.').toMutableList()
-	if (tokens.size < ACK_V1_TOKEN_COUNT) return null
-	if (tokens.size > ACK_V1_TOKEN_COUNT && tokens.size < ACK_V2_MIN_TOKEN_COUNT) return null
-	if (tokens[0] != "\$JS" || tokens[1] != "ACK") return null
-
-	if (tokens.size == ACK_V1_TOKEN_COUNT) {
-		tokens.add(ACK_DOMAIN_TOKEN_POS, "")
-		tokens.add(ACK_DOMAIN_TOKEN_POS + 1, "")
-	} else if (tokens[ACK_DOMAIN_TOKEN_POS] == "_") {
-		tokens[ACK_DOMAIN_TOKEN_POS] = ""
-	}
-
-	val streamSeq = tokens.getOrNull(ACK_STREAM_SEQ_TOKEN_POS)?.toULongOrNull() ?: return null
-	val pending = tokens.getOrNull(ACK_PENDING_TOKEN_POS)?.toULongOrNull() ?: 0u
-	val timestamp = tokens.getOrNull(ACK_TIMESTAMP_TOKEN_POS)?.toLongOrNull() ?: 0L
-	return AckMetadata(streamSeq, pending, timestamp)
-}
-
-@OptIn(ExperimentalTime::class)
-private fun ackTimestampToInstant(nanos: Long): Instant {
-	if (nanos <= 0) return Instant.DISTANT_PAST
-	val millis = nanos / 1_000_000
-	val remainder = nanos % 1_000_000
-	return Instant.fromEpochMilliseconds(millis).plus(remainder.nanoseconds)
 }
 
 private fun Map<String, List<String>>?.extractOperation(): KeyValueOperation? {

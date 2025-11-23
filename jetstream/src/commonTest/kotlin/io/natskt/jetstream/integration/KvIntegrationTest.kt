@@ -2,14 +2,18 @@ package io.natskt.jetstream.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
+import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.kv.KeyValueEntry
+import io.natskt.jetstream.api.kv.KeyValueOperation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -173,6 +177,161 @@ class KvIntegrationTest {
 						.value
 						.decodeToString(),
 				)
+			}
+		}
+
+	@Test
+	fun `it lists bucket keys`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "NEON"
+					}
+
+				bucket.put("b", "1".encodeToByteArray())
+				bucket.put("b.c", "2".encodeToByteArray())
+				bucket.put("b.d.f", "3".encodeToByteArray())
+				bucket.put("c.3p", "1209".encodeToByteArray())
+
+				assertEquals(setOf("b", "b.c", "b.d.f", "c.3p"), bucket.keys().toSet())
+				bucket.put("a", "k".encodeToByteArray())
+				assertEquals(setOf("a", "b", "b.c", "b.d.f", "c.3p"), bucket.keys().toSet())
+			}
+		}
+
+	@Test
+	fun `it creates keys only once unless deleted`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "CREATE"
+					}
+
+				val firstRevision = bucket.create("alpha", "foo".encodeToByteArray())
+				assertEquals("foo", bucket.get("alpha").value.decodeToString())
+
+				assertFailsWith<JetStreamApiException> {
+					bucket.create("alpha", "bar".encodeToByteArray())
+				}
+
+				val deleteRevision = bucket.delete("alpha", lastRevision = firstRevision)
+				assertEquals(KeyValueOperation.Delete, bucket.get("alpha").operation)
+				assertTrue(deleteRevision > firstRevision)
+
+				val recreatedRevision = bucket.create("alpha", "bar".encodeToByteArray())
+				assertTrue(recreatedRevision > deleteRevision)
+				assertEquals("bar", bucket.get("alpha").value.decodeToString())
+			}
+		}
+
+	@Test
+	fun `it updates values when revision matches`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "UPDATE"
+					}
+
+				val initial = bucket.put("alpha", "foo".encodeToByteArray())
+				val updated = bucket.update("alpha", "bar".encodeToByteArray(), initial)
+				assertTrue(updated > initial)
+				assertEquals("bar", bucket.get("alpha").value.decodeToString())
+
+				assertFailsWith<JetStreamApiException> {
+					bucket.update("alpha", "baz".encodeToByteArray(), initial)
+				}
+			}
+		}
+
+	@Test
+	fun `it deletes keys with successful revision check`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "DELETE"
+					}
+
+				val initial = bucket.put("alpha", "foo".encodeToByteArray())
+				val deleteRevision = bucket.delete("alpha", lastRevision = initial)
+
+				val tombstone = bucket.get("alpha")
+				assertEquals(KeyValueOperation.Delete, tombstone.operation)
+				assertEquals(deleteRevision, tombstone.revision)
+
+				assertFailsWith<JetStreamApiException> {
+					bucket.delete("alpha", lastRevision = initial)
+				}
+			}
+		}
+
+	@Test
+	fun `it fails to delete key with failed revision check`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "DELETE"
+					}
+
+				val initial = bucket.put("alpha", "foo".encodeToByteArray())
+				bucket.put("alpha", "bar".encodeToByteArray())
+
+				assertFailsWith<JetStreamApiException> {
+					bucket.delete("alpha", lastRevision = initial)
+				}
+
+				assertEquals("bar", bucket.get("alpha").value.decodeToString())
+			}
+		}
+
+	@Test
+	fun `it deletes keys without revision checks`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "DELETE2"
+					}
+
+				val initial = bucket.put("alpha", "foo".encodeToByteArray())
+				val second = bucket.put("alpha", "arst".encodeToByteArray())
+				val deleteRevision = bucket.delete("alpha")
+
+				val tombstone = bucket.get("alpha")
+				assertEquals(KeyValueOperation.Delete, tombstone.operation)
+				assertEquals(deleteRevision, tombstone.revision)
+
+				assertFailsWith<JetStreamApiException> {
+					bucket.delete("alpha", lastRevision = initial)
+				}
+			}
+		}
+
+	@Test
+	fun `it purges keys and records a marker`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket =
+					js.keyValueManager.create {
+						name = "PURGE"
+					}
+
+				bucket.put("alpha", "foo".encodeToByteArray())
+				bucket.put("alpha", "oooope".encodeToByteArray())
+				val purgeRevision = bucket.purge("alpha")
+
+				val purgeMarker = bucket.get("alpha")
+				assertEquals(KeyValueOperation.Purge, purgeMarker.operation)
+				assertEquals(purgeRevision, purgeMarker.revision)
+				assertContentEquals(byteArrayOf(), purgeMarker.value)
+
+				val recreated = bucket.create("alpha", "bar".encodeToByteArray())
+				assertTrue(recreated > purgeRevision)
+				assertEquals("bar", bucket.get("alpha").value.decodeToString())
 			}
 		}
 }

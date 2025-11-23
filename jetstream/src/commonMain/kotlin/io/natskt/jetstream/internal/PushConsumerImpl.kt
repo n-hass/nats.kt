@@ -139,12 +139,13 @@ internal class PushConsumerImpl(
 		suspend fun newSubscription(
 			client: NatsClient,
 			subject: String?,
+			eager: Boolean = false,
 		): Subscription {
 			val subject = subject ?: client.nextInbox()
 			return client.subscribe(
 				subject = subject,
 				queueGroup = null,
-				eager = true,
+				eager = eager,
 				replayBuffer = 1,
 				unsubscribeOnLastCollector = false,
 			)
