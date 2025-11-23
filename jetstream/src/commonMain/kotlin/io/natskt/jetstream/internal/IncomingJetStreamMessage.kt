@@ -6,7 +6,6 @@ import io.natskt.api.JetStreamMessage
 import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.api.internal.InternalNatsApi
-import io.natskt.internal.JetStreamMessageInternal
 import io.natskt.internal.MessageInternal
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.ExperimentalTime
@@ -20,7 +19,7 @@ internal val ACK_TERM = "+TERM".encodeToByteArray()
 internal data class IncomingJetStreamMessage(
 	private val original: MessageInternal,
 	private val client: NatsClient,
-) : JetStreamMessageInternal,
+) : JetStreamMessage,
 	MessageInternal by original {
 	override suspend fun ack() {
 		if (original.replyTo != null) {
