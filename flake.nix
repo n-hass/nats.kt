@@ -20,6 +20,7 @@
       imports = [
         mini-dev-shell.flakeModule
         git-hooks-nix.flakeModule
+        ./dev/ci.nix
         ./dev/hooks.nix
         ./dev/shell.nix
       ];
