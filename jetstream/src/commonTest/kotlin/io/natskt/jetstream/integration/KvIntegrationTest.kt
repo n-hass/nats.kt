@@ -185,12 +185,14 @@ class KvIntegrationTest {
 						name = "NEON"
 					}
 
-				bucket.put("a", "k".encodeToByteArray())
 				bucket.put("b", "1".encodeToByteArray())
 				bucket.put("b.c", "2".encodeToByteArray())
 				bucket.put("b.d.f", "3".encodeToByteArray())
+				bucket.put("c.3p", "1209".encodeToByteArray())
 
-				assertEquals(setOf("a", "b", "b.c", "b.d.f"), bucket.keys().toSet())
+				assertEquals(setOf("b", "b.c", "b.d.f", "c.3p"), bucket.keys().toSet())
+				bucket.put("a", "k".encodeToByteArray())
+				assertEquals(setOf("a", "b", "b.c", "b.d.f", "c.3p"), bucket.keys().toSet())
 			}
 		}
 }
