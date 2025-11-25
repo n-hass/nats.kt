@@ -131,9 +131,9 @@ class ConsumerIntegrationTest {
 				job.start()
 
 				deferred.await()
-				delay(100)
-				c.publish("subscribe.create", "create-one".encodeToByteArray())
-				c.publish("subscribe.create", "create-two".encodeToByteArray())
+				delay(1000)
+				js.publish("subscribe.create", "create-one".encodeToByteArray())
+				js.publish("subscribe.create", "create-two".encodeToByteArray())
 
 				job.join()
 
