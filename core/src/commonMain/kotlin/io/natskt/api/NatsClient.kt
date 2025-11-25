@@ -94,6 +94,11 @@ public interface NatsClient {
 	 */
 	public suspend fun drain(timeout: Duration): Unit
 
+	/**
+	 * Force flushing the transport
+	 */
+	public suspend fun flush(): Unit
+
 	@InternalNatsApi
 	public fun nextInbox(): String
 

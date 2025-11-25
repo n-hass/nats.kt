@@ -13,10 +13,6 @@ public sealed interface CloseReason {
 
 	public data object ServerInitiatedClose : CloseReason
 
-	public data object MaxControlLineExceeded : CloseReason
-
-	public data object PayloadTooLarge : CloseReason
-
 	public data object HandshakeRejected : CloseReason
 
 	public data object LameDuckMode : CloseReason

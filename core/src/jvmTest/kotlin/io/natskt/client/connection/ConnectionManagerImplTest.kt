@@ -76,6 +76,7 @@ class ConnectionManagerImplTest {
 				tlsRequired = false,
 				nuid = NUID.Default,
 				scope = CoroutineScope(EmptyCoroutineContext),
+				maxParallelRequests = null,
 				ownsScope = false,
 			)
 		return ConnectionManagerImpl(

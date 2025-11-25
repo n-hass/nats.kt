@@ -29,6 +29,7 @@ import io.natskt.nkeys.NKeys
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -147,7 +148,6 @@ internal class ProtocolEngineImpl(
 
 	override suspend fun send(op: ClientOperation) {
 		logger.trace { "sending ${op::class.simpleName}" }
-		ensureWriterStarted()
 		writerCommands?.send(OutboundCommand.Op(op))
 			?: throw IllegalStateException("cannot send with no connection open")
 	}
@@ -280,6 +280,8 @@ internal class ProtocolEngineImpl(
 		send(Operation.Ping)
 	}
 
+	override suspend fun flush() = flushWriter()
+
 	override suspend fun drain(timeout: Duration) {
 		withTimeoutOrNull(timeout) {
 			subscriptions.forEach {
@@ -310,12 +312,7 @@ internal class ProtocolEngineImpl(
 		runCatching { transport?.close() }
 	}
 
-	private fun ensureWriterStarted() {
-		val transport = transport ?: return
-		if (writerJob?.isActive == true && writerCommands != null) return
-		startWriter(transport)
-	}
-
+	@OptIn(DelicateCoroutinesApi::class)
 	private suspend fun flushWriter() {
 		val commands = writerCommands ?: return
 		if (commands.isClosedForSend) return
@@ -405,7 +402,7 @@ internal class ProtocolEngineImpl(
 		writerJob = null
 	}
 
-	private fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) {
+	private inline fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) {
 		this.value = this.value.copy().apply { block() }
 	}
 }

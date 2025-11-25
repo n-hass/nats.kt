@@ -15,7 +15,7 @@ internal suspend fun <T> withJetStreamClient(
 	val client =
 		NatsClient {
 			this.server = server.uri
-			connectTimeoutMs = 10_000
+			connectTimeout = 10.seconds
 			maxReconnects = 3
 		}
 	client.connect().getOrThrow()

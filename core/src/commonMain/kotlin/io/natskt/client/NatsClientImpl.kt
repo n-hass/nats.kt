@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.atomics.AtomicLong
@@ -44,6 +45,7 @@ internal class NatsClientImpl(
 ) : NatsClient {
 	private val _subscriptions = ConcurrentMap<String, InternalSubscriptionHandler>()
 	internal val pendingRequests = ConcurrentMap<String, PendingRequest>()
+	private val requestLimiter = configuration.maxParallelRequests?.let { Semaphore(it.coerceAtLeast(1)) }
 	override val subscriptions: Map<String, Subscription>
 		get() = _subscriptions
 
@@ -203,6 +205,8 @@ internal class NatsClientImpl(
 		val sid = sidAllocator.fetchAndAdd(1).toString()
 		var subscribed = false
 
+		requestLimiter?.acquire()
+
 		return try {
 			withTimeout(timeoutMs) {
 				suspendCancellableCoroutine { cont ->
@@ -217,9 +221,7 @@ internal class NatsClientImpl(
 								object : Continuation<Unit> {
 									override val context = cont.context
 
-									override fun resumeWith(result: Result<Unit>) {
-										// ignore outcome
-									}
+									override fun resumeWith(result: Result<Unit>) { }
 								},
 							)
 						}
@@ -261,6 +263,7 @@ internal class NatsClientImpl(
 					// ignore
 				}
 			}
+			requestLimiter?.release()
 		}
 	}
 
@@ -300,6 +303,8 @@ internal class NatsClientImpl(
 	override fun nextInbox(): String = configuration.createInbox()
 
 	override suspend fun ping() = connectionManager.ping()
+
+	override suspend fun flush() = connectionManager.flush()
 
 	override suspend fun drain(timeout: Duration) = connectionManager.drain(timeout)
 
