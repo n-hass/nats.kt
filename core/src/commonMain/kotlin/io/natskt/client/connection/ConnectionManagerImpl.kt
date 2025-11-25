@@ -13,6 +13,7 @@ import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
+import io.natskt.internal.OperationSerializerImpl
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,6 +52,12 @@ internal class ConnectionManagerImpl(
 
 	private var reconnectJob: Job? = null
 
+	private val parser =
+		OperationSerializerImpl(
+			maxControlLineBytes = config.maxControlLineBytes,
+			maxPayloadBytes = config.maxPayloadBytes,
+		)
+
 	fun start() {
 		reconnectJob =
 			config.scope.launch {
@@ -58,17 +65,17 @@ internal class ConnectionManagerImpl(
 					val address = selectAddress()
 					current.emit(
 						ProtocolEngineImpl(
-							config.transportFactory,
-							address,
-							config.parser,
-							subscriptions,
-							pendingRequests,
-							serverInfo,
-							config.credentials,
-							config.tlsRequired,
-							config.writeBufferLimitBytes,
-							config.writeFlushIntervalMs,
-							config.scope,
+							transportFactory = config.transportFactory,
+							address = address,
+							parser = parser,
+							subscriptions = subscriptions,
+							pendingRequests = pendingRequests,
+							serverInfo = serverInfo,
+							credentials = config.credentials,
+							tlsRequired = config.tlsRequired,
+							writeBufferLimitBytes = config.writeBufferLimitBytes,
+							writeFlushIntervalMs = config.writeFlushIntervalMs,
+							scope = config.scope,
 						),
 					)
 

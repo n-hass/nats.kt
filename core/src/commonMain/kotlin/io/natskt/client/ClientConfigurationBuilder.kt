@@ -2,9 +2,10 @@ package io.natskt.client
 
 import io.ktor.http.URLBuilder
 import io.natskt.api.Credentials
+import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
+import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
-import io.natskt.internal.OperationSerializerImpl
 import io.natskt.internal.connectionCoroutineDispatcher
 import io.natskt.internal.platformDefaultTransport
 import kotlinx.coroutines.CoroutineName
@@ -52,9 +53,14 @@ public class ClientConfigurationBuilder internal constructor() {
 	/**
 	 * Maximum control line size (in bytes) sent to the server.
 	 *
-	 * Most (version >2.9) default to 4096 bytes.
+	 * Most servers (version >2.9) default to 4096 bytes.
 	 */
-	public var maxControlLineBytes: Int = 4096
+	public var maxControlLineBytes: Int = DEFAULT_MAX_CONTROL_LINE_BYTES
+
+	/**
+	 * Maximum allowed payload size of a message (in bytes)
+	 */
+	public var maxPayloadBytes: Int = DEFAULT_MAX_PAYLOAD_BYTES
 
 	/**
 	 * Time allowed for the connection handshake to succeed.
@@ -145,11 +151,11 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		transportFactory = transport ?: platformDefaultTransport,
 		credentials = authentication,
 		inboxPrefix = inboxPrefix,
-		parser = OperationSerializerImpl(),
 		maxReconnects = maxReconnects,
 		connectTimeoutMs = connectTimeout.inWholeMilliseconds,
 		reconnectDebounceMs = reconnectDebounce.inWholeMilliseconds,
 		maxControlLineBytes = maxControlLineBytes,
+		maxPayloadBytes = maxPayloadBytes,
 		writeBufferLimitBytes = writeBufferLimitBytes,
 		writeFlushIntervalMs = writeFlushInterval.inWholeMilliseconds,
 		tlsRequired = tls,

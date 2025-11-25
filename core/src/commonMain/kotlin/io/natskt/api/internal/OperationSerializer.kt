@@ -4,22 +4,6 @@ import io.ktor.utils.io.ByteReadChannel
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.ParsedOutput
 
-internal interface OperationEncodeBuffer {
-	suspend fun writeByte(value: Byte)
-
-	suspend fun writeBytes(
-		value: ByteArray,
-		offset: Int = 0,
-		length: Int = value.size,
-	)
-
-	suspend fun writeAscii(value: String)
-
-	suspend fun writeInt(value: Int)
-
-	suspend fun writeCrLf()
-}
-
 @OptIn(InternalNatsApi::class)
 internal interface OperationSerializer {
 	suspend fun parse(channel: ByteReadChannel): ParsedOutput?
@@ -30,8 +14,5 @@ internal interface OperationSerializer {
 	)
 }
 
-/**
- * The max line bytes
- */
-internal const val DEFAULT_MAX_CONTROL_LINE_BYTES: Int = 4096 // 4 KB
-internal const val DEFAULT_MAX_PAYLOAD_BYTES: Int = 52_428_800 // 50 MB
+internal const val DEFAULT_MAX_CONTROL_LINE_BYTES: Int = 4 * 1024 // 4 KB
+internal const val DEFAULT_MAX_PAYLOAD_BYTES: Int = 50 * 1024 * 1024 // 50 MB

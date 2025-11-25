@@ -9,8 +9,6 @@ import io.ktor.utils.io.read
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
 import io.natskt.api.ProtocolException
-import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
-import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
@@ -46,8 +44,8 @@ private val cr = '\r'.code.toLong()
 private val lf = '\n'.code.toLong()
 
 internal class OperationSerializerImpl(
-	private val maxControlLineBytes: Int = DEFAULT_MAX_CONTROL_LINE_BYTES,
-	private val maxPayloadBytes: Int = DEFAULT_MAX_PAYLOAD_BYTES,
+	private val maxControlLineBytes: Int,
+	private val maxPayloadBytes: Int,
 ) : OperationSerializer {
 	override suspend fun parse(channel: ByteReadChannel): ParsedOutput? {
 		val line = channel.readControlLine(maxControlLineBytes)
@@ -320,7 +318,7 @@ private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 				if (last != -1L) {
 					acc.writeByte(last.toByte())
 					total++
-					if (total > maxLen) throw ProtocolException("line exceeds $maxLen bytes")
+					if (total > maxLen) throw ProtocolException("control line exceeds $maxLen bytes")
 				}
 				last = b
 			}

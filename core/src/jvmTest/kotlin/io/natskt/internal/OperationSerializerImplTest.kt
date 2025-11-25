@@ -5,11 +5,14 @@ package io.natskt.internal
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.writeFully
+import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
+import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OperationEncodeBuffer
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import java.io.EOFException
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -18,7 +21,11 @@ import kotlin.test.assertNull
 import kotlin.test.fail
 
 class OperationSerializerImplTest {
-	private fun newSerializer(): OperationSerializerImpl = OperationSerializerImpl()
+	private fun newSerializer(): OperationSerializerImpl =
+		OperationSerializerImpl(
+			maxControlLineBytes = DEFAULT_MAX_CONTROL_LINE_BYTES,
+			maxPayloadBytes = DEFAULT_MAX_PAYLOAD_BYTES,
+		)
 
 	private suspend fun channelOf(vararg chunks: ByteArray): ByteReadChannel {
 		val ch = ByteChannel(autoFlush = true)
@@ -110,7 +117,7 @@ class OperationSerializerImplTest {
 			val info = op as? ServerOperation.InfoOp ?: fail("Expected InfoOp, got $op")
 			assertEquals("abc", info.serverId)
 			assertTrue(info.headers == true)
-			assertTrue(info.maxPayload!! >= 1024)
+			assertTrue(info.maxPayload >= 1024)
 		}
 
 	@Test
@@ -264,7 +271,7 @@ class OperationSerializerImplTest {
 					// no \r\n
 				)
 			val ex = assertFails { ser.parse(ch) }
-			assertTrue(ex.cause is java.io.EOFException)
+			assertTrue(ex.cause is EOFException)
 		}
 
 	@Test

@@ -1,7 +1,6 @@
 package io.natskt.client
 
 import io.natskt.api.Credentials
-import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
 import kotlinx.coroutines.CoroutineScope
@@ -11,11 +10,11 @@ internal data class ClientConfiguration(
 	val transportFactory: TransportFactory,
 	val credentials: Credentials?,
 	val inboxPrefix: String,
-	internal val parser: OperationSerializer,
 	val maxReconnects: Int?,
 	val connectTimeoutMs: Long,
 	val reconnectDebounceMs: Long,
 	val maxControlLineBytes: Int,
+	val maxPayloadBytes: Int,
 	val writeBufferLimitBytes: Int,
 	val writeFlushIntervalMs: Long,
 	val tlsRequired: Boolean,
@@ -32,5 +31,5 @@ internal data class ClientConfiguration(
 	/**
 	 *
 	 */
-	public fun createInbox(): String = inboxPrefix + nuid.next()
+	fun createInbox(): String = inboxPrefix + nuid.next()
 }

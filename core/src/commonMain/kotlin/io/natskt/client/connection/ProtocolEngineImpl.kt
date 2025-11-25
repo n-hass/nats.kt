@@ -423,12 +423,12 @@ private sealed interface OutboundCommand {
 
 private class TransportWriteBuffer(
 	private val transport: Transport,
-	private val capacity: Int,
+	capacity: Int,
 ) : OperationEncodeBuffer {
 	private val buffer = ByteArray(capacity.coerceAtLeast(1))
 	private var position = 0
 
-	internal fun hasPendingBytesAtCapacity(): Boolean = position >= buffer.size
+	fun hasPendingBytesAtCapacity(): Boolean = position >= buffer.size
 
 	override suspend fun writeByte(value: Byte) {
 		if (position == buffer.size) {
