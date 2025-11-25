@@ -7,6 +7,7 @@ import io.ktor.http.Url
 import io.ktor.util.collections.ConcurrentMap
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
+import io.natskt.api.NatsClientException
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
@@ -134,7 +135,7 @@ internal class ConnectionManagerImpl(
 
 	internal fun selectAddress(now: Long = Clock.System.now().toEpochMilliseconds()): NatsServerAddress {
 		if (allServers.isEmpty()) {
-			throw IllegalStateException("no servers available")
+			throw NatsClientException("no servers available")
 		}
 		pruneLameDuck(now)
 		val viable =

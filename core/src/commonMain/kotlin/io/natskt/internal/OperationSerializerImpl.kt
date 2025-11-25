@@ -4,11 +4,11 @@ package io.natskt.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.charsets.TooLongLineException
 import io.ktor.utils.io.core.toByteArray
 import io.ktor.utils.io.read
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
+import io.natskt.api.ProtocolException
 import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
 import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.api.internal.InternalNatsApi
@@ -320,7 +320,7 @@ private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 				if (last != -1L) {
 					acc.writeByte(last.toByte())
 					total++
-					if (total > maxLen) throw TooLongLineException("line exceeds $maxLen bytes")
+					if (total > maxLen) throw ProtocolException("line exceeds $maxLen bytes")
 				}
 				last = b
 			}

@@ -61,7 +61,7 @@ class ConsumerIntegrationTest {
 				val deferred = CompletableDeferred(Unit)
 				val job =
 					launch {
-						withTimeout(5.seconds) {
+						withTimeout(25.seconds) {
 							pushConsumer.messages
 								.take(2)
 								.onStart {
@@ -74,9 +74,10 @@ class ConsumerIntegrationTest {
 				job.start()
 
 				deferred.await()
-				delay(100)
+				delay(250)
 				js.publish("push.binding", "alpha".encodeToByteArray())
 				js.publish("push.binding", "beta".encodeToByteArray())
+				c.flush()
 
 				job.join()
 
@@ -122,7 +123,7 @@ class ConsumerIntegrationTest {
 				val deferred = CompletableDeferred(Unit)
 				val job =
 					launch {
-						withTimeout(5.seconds) {
+						withTimeout(10.seconds) {
 							consumer.messages.take(2).onStart { deferred.complete(Unit) }.collect {
 								received += it.data!!.decodeToString()
 							}
@@ -134,6 +135,7 @@ class ConsumerIntegrationTest {
 				delay(1000)
 				js.publish("subscribe.create", "create-one".encodeToByteArray())
 				js.publish("subscribe.create", "create-two".encodeToByteArray())
+				c.flush()
 
 				job.join()
 

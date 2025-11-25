@@ -1,5 +1,6 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.api.ProtocolException
 import io.natskt.jetstream.api.DiscardPolicy
 import io.natskt.jetstream.api.KeyValueStatus
 import io.natskt.jetstream.api.StreamCompression
@@ -63,7 +64,7 @@ internal fun KeyValueConfig.asStreamConfig(apiLevel: Int): StreamConfig {
 	val subjectDeleteMarkerTtl = limitMarkerTtl
 	if (limitMarkerTtl != null && limitMarkerTtl != Duration.ZERO) {
 		if (apiLevel < 1) {
-			throw IllegalArgumentException("limit marker ttl not supported by server: API level $apiLevel")
+			throw ProtocolException("limit marker ttl not supported by server: API level $apiLevel")
 		}
 		allowMsgTtl = true
 	}

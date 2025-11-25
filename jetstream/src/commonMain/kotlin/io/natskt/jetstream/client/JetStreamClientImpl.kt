@@ -12,6 +12,7 @@ import io.natskt.jetstream.api.ApiError
 import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamClient
+import io.natskt.jetstream.api.JetStreamException
 import io.natskt.jetstream.api.JetStreamManager
 import io.natskt.jetstream.api.PublishAck
 import io.natskt.jetstream.api.PublishOptions
@@ -100,7 +101,7 @@ internal class JetStreamClientImpl(
 		if (apiError != null) {
 			throw JetStreamApiException(apiError)
 		} else {
-			throw RuntimeException("Failed to publish message", lastError)
+			throw JetStreamException("Failed to publish message", lastError)
 		}
 	}
 

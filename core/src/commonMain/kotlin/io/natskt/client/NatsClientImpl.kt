@@ -5,6 +5,7 @@ package io.natskt.client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.ClosedWriteChannelException
+import io.natskt.api.ConnectionClosedException
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Message
@@ -26,7 +27,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeout
@@ -60,11 +60,6 @@ internal class NatsClientImpl(
 
 	override suspend fun connect(): Result<Unit> {
 		connectionManager.start()
-		scope.launch {
-			connectionManager.connectionState.collect {
-				logger.debug { "Connection status change: $it" }
-			}
-		}
 
 		withTimeoutOrNull(configuration.connectTimeoutMs) {
 			connectionManager.connectionState
@@ -295,8 +290,10 @@ internal class NatsClientImpl(
 			_subscriptions.remove(sid)
 			try {
 				connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
+			} catch (_: ConnectionClosedException) {
+				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
 			} catch (_: ClosedWriteChannelException) {
-				// already closed - ignore it
+				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
 			}
 		}
 

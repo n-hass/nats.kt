@@ -6,6 +6,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.writeFully
 import io.natskt.api.CloseReason
+import io.natskt.api.ConnectionClosedException
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Credentials
@@ -149,7 +150,7 @@ internal class ProtocolEngineImpl(
 	override suspend fun send(op: ClientOperation) {
 		logger.trace { "sending ${op::class.simpleName}" }
 		writerCommands?.send(OutboundCommand.Op(op))
-			?: throw IllegalStateException("cannot send with no connection open")
+			?: throw ConnectionClosedException("cannot send with no connection open")
 	}
 
 	override suspend fun start() {
@@ -292,7 +293,7 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun close() {
-		val t = transport ?: throw IllegalStateException("Cannot close connection as it is not open")
+		val t = transport ?: throw ConnectionClosedException("Cannot close connection as it is not open")
 		if (!closed.isCompleted) {
 			closed.complete(CloseReason.CleanClose)
 		}
@@ -370,9 +371,9 @@ internal class ProtocolEngineImpl(
 							}
 							is OutboundCommand.Flush -> {
 								runCatching { buffer.flush() }
-									.onSuccess { cmd.ack?.complete(Unit) }
+									.onSuccess { cmd.ack.complete(Unit) }
 									.onFailure {
-										cmd.ack?.completeExceptionally(it)
+										cmd.ack.completeExceptionally(it)
 										throw it
 									}
 								lastFlushAt = Clock.System.now().toEpochMilliseconds()
@@ -403,7 +404,8 @@ internal class ProtocolEngineImpl(
 	}
 
 	private inline fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) {
-		this.value = this.value.copy().apply { block() }
+		this.value = this.value.copy().apply(block)
+		logger.debug { "Connection state change: ${this.value}" }
 	}
 }
 
