@@ -105,7 +105,12 @@ internal class SubscriptionImpl(
 	private suspend fun ensureStarted() =
 		lifecycle.withLock {
 			if (closed || isActive.value) return
-			onStart(this, sid, subject.raw, queueGroup)
+			runCatching {
+				onStart(this, sid, subject.raw, queueGroup)
+			}.onFailure {
+				logger.error(it) { "Failed to start subscription $sid on ${subject.raw}" }
+				throw it
+			}
 			isActive.emit(true)
 		}
 

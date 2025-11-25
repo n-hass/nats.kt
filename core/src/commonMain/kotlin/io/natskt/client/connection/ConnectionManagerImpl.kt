@@ -65,6 +65,8 @@ internal class ConnectionManagerImpl(
 							serverInfo,
 							config.credentials,
 							config.tlsRequired,
+							config.writeBufferLimitBytes,
+							config.writeFlushIntervalMs,
 							config.scope,
 						),
 					)

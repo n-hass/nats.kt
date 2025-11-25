@@ -31,6 +31,14 @@ internal data class ClientConfiguration(
 	val connectTimeoutMs: Long,
 	val reconnectDebounceMs: Long,
 	val maxControlLineBytes: Int,
+	/**
+	 * Maximum number of bytes to queue before forcing a transport flush.
+	 */
+	val writeBufferLimitBytes: Int,
+	/**
+	 * Periodic flush cadence for the outbound writer job in milliseconds.
+	 */
+	val writeFlushIntervalMs: Long,
 	val tlsRequired: Boolean,
 	/**
 	 * The NUID generator to use.
@@ -40,6 +48,10 @@ internal data class ClientConfiguration(
 	 * The coroutine scope that the client's connections and parsing runs on
 	 */
 	val scope: CoroutineScope,
+	/**
+	 * Whether the client should cancel the underlying scope on disconnect.
+	 */
+	val ownsScope: Boolean,
 ) {
 	/**
 	 * The length of an inbox created using [createInbox]

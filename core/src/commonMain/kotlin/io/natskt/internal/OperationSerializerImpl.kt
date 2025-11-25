@@ -12,6 +12,7 @@ import io.ktor.utils.io.readFully
 import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
 import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
@@ -38,7 +39,6 @@ private val unsubOpBytes = "UNSUB ".toByteArray()
 
 private val empty = "".toByteArray()
 
-private val lineEndBytes = LINE_END.toByteArray()
 private val spaceByte = ' '.code.toByte()
 private val crByte = '\r'.code.toByte()
 private val lfByte = '\n'.code.toByte()
@@ -216,106 +216,84 @@ internal class OperationSerializerImpl(
 		}
 	}
 
-	override fun encode(op: ClientOperation): ByteArray =
+	override suspend fun encode(
+		op: ClientOperation,
+		buffer: OperationEncodeBuffer,
+	) {
 		when (op) {
-			Operation.Ping -> pingOpBytes
-			Operation.Pong -> pongOpBytes
-			is ClientOperation.ConnectOp -> connectOpBytes + wireJsonFormat.encodeToString(op).encodeToByteArray()
+			Operation.Ping -> buffer.writeBytes(pingOpBytes)
+			Operation.Pong -> buffer.writeBytes(pongOpBytes)
+			is ClientOperation.ConnectOp -> {
+				buffer.writeBytes(connectOpBytes)
+				buffer.writeAscii(wireJsonFormat.encodeToString(op))
+			}
 			is ClientOperation.PubOp -> {
-				val payloadExists = op.payload != null
-
-				var pub =
-					pubOpBytes +
-						buildString {
-							append(op.subject)
-							if (op.replyTo != null) {
-								append(" ")
-								append(op.replyTo)
-							}
-							if (payloadExists) {
-								val payloadBytes = op.payload!!
-								append(" ")
-								append(payloadBytes.size)
-							} else {
-								append(" 0")
-							}
-						}.encodeToByteArray() + lineEndBytes
-
-				if (payloadExists) {
-					pub += op.payload!!
+				buffer.writeBytes(pubOpBytes)
+				buffer.writeAscii(op.subject)
+				val replyTo = op.replyTo
+				if (replyTo != null) {
+					buffer.writeByte(spaceByte)
+					buffer.writeAscii(replyTo)
 				}
-
-				pub
+				buffer.writeByte(spaceByte)
+				val payloadBytes = op.payload
+				if (payloadBytes == null) {
+					buffer.writeByte('0'.code.toByte())
+				} else {
+					buffer.writeInt(payloadBytes.size)
+				}
+				buffer.writeCrLf()
+				if (payloadBytes != null) {
+					buffer.writeBytes(payloadBytes)
+				}
 			}
 			is ClientOperation.HPubOp -> {
 				val payloadBytes = op.payload
-				val headerBytes =
-					buildString {
-						append(HEADER_START)
-						append(LINE_END)
-						op.headers?.forEach { (name, values) ->
-							if (values.isEmpty()) {
-								append(name)
-								append(": ")
-								append(LINE_END)
-							} else {
-								values.forEach { value ->
-									append(name)
-									append(": ")
-									append(value)
-									append(LINE_END)
-								}
-							}
-						}
-						append(LINE_END)
-					}.encodeToByteArray()
-
 				val payloadLength = payloadBytes?.size ?: 0
-				val totalLength = headerBytes.size + payloadLength
+				val headerSize = headersSize(op.headers)
+				val totalLength = headerSize + payloadLength
 
-				var hpub =
-					hpubOpBytes +
-						buildString {
-							append(op.subject)
-							if (op.replyTo != null) {
-								append(" ")
-								append(op.replyTo)
-							}
-							append(" ")
-							append(headerBytes.size)
-							append(" ")
-							append(totalLength)
-						}.encodeToByteArray() + lineEndBytes
-
-				hpub += headerBytes
-
-				if (payloadBytes != null) {
-					hpub += payloadBytes
+				buffer.writeBytes(hpubOpBytes)
+				buffer.writeAscii(op.subject)
+				val replyTo = op.replyTo
+				if (replyTo != null) {
+					buffer.writeByte(spaceByte)
+					buffer.writeAscii(replyTo)
 				}
+				buffer.writeByte(spaceByte)
+				buffer.writeInt(headerSize)
+				buffer.writeByte(spaceByte)
+				buffer.writeInt(totalLength)
+				buffer.writeCrLf()
 
-				hpub
+				buffer.writeHeaders(op.headers)
+				if (payloadBytes != null) {
+					buffer.writeBytes(payloadBytes)
+				}
 			}
-			is ClientOperation.SubOp ->
-				subOpBytes +
-					buildString {
-						append(op.subject)
-						append(" ")
-						if (op.queueGroup != null) {
-							append(op.queueGroup)
-							append(" ")
-						}
-						append(op.sid)
-					}.encodeToByteArray()
-			is ClientOperation.UnSubOp ->
-				unsubOpBytes +
-					buildString {
-						append(op.sid)
-						if (op.maxMsgs != null) {
-							append(" ")
-							append(op.maxMsgs)
-						}
-					}.encodeToByteArray()
-		} + lineEndBytes
+			is ClientOperation.SubOp -> {
+				buffer.writeBytes(subOpBytes)
+				buffer.writeAscii(op.subject)
+				buffer.writeByte(spaceByte)
+				val queueGroup = op.queueGroup
+				if (queueGroup != null) {
+					buffer.writeAscii(queueGroup)
+					buffer.writeByte(spaceByte)
+				}
+				buffer.writeAscii(op.sid)
+			}
+			is ClientOperation.UnSubOp -> {
+				buffer.writeBytes(unsubOpBytes)
+				buffer.writeAscii(op.sid)
+				val maxMsgs = op.maxMsgs
+				if (maxMsgs != null) {
+					buffer.writeByte(spaceByte)
+					buffer.writeInt(maxMsgs)
+				}
+			}
+		}
+		buffer.writeCrLf()
+	}
 }
 
 private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
@@ -444,4 +422,38 @@ private fun parseHeaders(s: String): Map<String, List<String>>? {
 		i = lineEnd + 2 // skip CRLF
 	}
 	return map.ifEmpty { null }
+}
+
+private fun headersSize(headers: Map<String, List<String>>?): Int {
+	var length = HEADER_START.length + LINE_END.length + LINE_END.length
+	headers?.forEach { (name, values) ->
+		if (values.isEmpty()) {
+			length += name.length + 2 + LINE_END.length
+		} else {
+			values.forEach { value ->
+				length += name.length + 2 + value.length + LINE_END.length
+			}
+		}
+	}
+	return length
+}
+
+private suspend fun OperationEncodeBuffer.writeHeaders(headers: Map<String, List<String>>?) {
+	writeAscii(HEADER_START)
+	writeCrLf()
+	headers?.forEach { (name, values) ->
+		if (values.isEmpty()) {
+			writeAscii(name)
+			writeAscii(": ")
+			writeCrLf()
+		} else {
+			values.forEach { value ->
+				writeAscii(name)
+				writeAscii(": ")
+				writeAscii(value)
+				writeCrLf()
+			}
+		}
+	}
+	writeCrLf()
 }

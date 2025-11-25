@@ -11,8 +11,6 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.natskt.client.NatsServerAddress
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.CoroutineContext
 
 public class TcpTransport internal constructor(
@@ -34,8 +32,6 @@ public class TcpTransport internal constructor(
 			)
 	}
 
-	private val writeMutex = Mutex()
-
 	override val isClosed: Boolean by inner.socket::isClosed
 	override val incoming: ByteReadChannel by inner::input
 
@@ -46,13 +42,11 @@ public class TcpTransport internal constructor(
 
 	override suspend fun upgradeTLS(): TcpTransport = TcpTransport(inner.tls(context).connection(), context)
 
-	override suspend fun write(block: suspend (ByteWriteChannel) -> Unit): Unit =
-		writeMutex.withLock {
-			block(inner.output)
-		}
+	override suspend fun write(block: suspend (ByteWriteChannel) -> Unit) {
+		block(inner.output)
+	}
 
-	override suspend fun flush(): Unit =
-		writeMutex.withLock {
-			inner.output.flush()
-		}
+	override suspend fun flush() {
+		inner.output.flush()
+	}
 }

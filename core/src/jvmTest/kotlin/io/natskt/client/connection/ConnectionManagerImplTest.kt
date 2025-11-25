@@ -2,6 +2,7 @@ package io.natskt.client.connection
 
 import io.ktor.http.Url
 import io.ktor.util.collections.ConcurrentMap
+import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
@@ -70,9 +71,12 @@ class ConnectionManagerImplTest {
 				connectTimeoutMs = 1000,
 				reconnectDebounceMs = 1000,
 				maxControlLineBytes = 1024,
+				writeBufferLimitBytes = 64 * 1024,
+				writeFlushIntervalMs = 5,
 				tlsRequired = false,
 				nuid = NUID.Default,
 				scope = CoroutineScope(EmptyCoroutineContext),
+				ownsScope = false,
 			)
 		return ConnectionManagerImpl(
 			config,
@@ -91,6 +95,9 @@ class ConnectionManagerImplTest {
 	private object NoopSerializer : OperationSerializer {
 		override suspend fun parse(channel: io.ktor.utils.io.ByteReadChannel): ParsedOutput? = null
 
-		override fun encode(op: ClientOperation): ByteArray = ByteArray(0)
+		override suspend fun encode(
+			op: ClientOperation,
+			buffer: OperationEncodeBuffer,
+		) { }
 	}
 }

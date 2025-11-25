@@ -22,6 +22,7 @@ import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.throwOnInvalidSubject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -304,5 +305,11 @@ internal class NatsClientImpl(
 
 	override suspend fun disconnect() {
 		connectionManager.stop()
+		if (configuration.ownsScope) {
+			configuration.scope.coroutineContext[Job]?.let {
+				it.cancel()
+				withTimeoutOrNull(5_000) { it.join() }
+			}
+		}
 	}
 }

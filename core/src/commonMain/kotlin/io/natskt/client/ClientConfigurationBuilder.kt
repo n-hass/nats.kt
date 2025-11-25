@@ -20,6 +20,8 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var maxControlLineBytes: Int = 1024
 	public var connectTimeoutMs: Long = 5000
 	public var reconnectDebounceMs: Long = 2000
+	public var writeBufferLimitBytes: Int = 64 * 1024
+	public var writeFlushIntervalMs: Long = 5
 	public var tlsRequired: Boolean? = null
 	public var transport: TransportFactory? = null
 	public var scope: CoroutineScope? = null
@@ -45,6 +47,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 	val inboxPrefix = if (inboxPrefix.endsWith(".")) inboxPrefix else "$inboxPrefix."
 
 	val tls = this.tlsRequired ?: serversList.any { secureProtocols.contains(it.url.protocol.name) }
+	val finalScope = scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("NatsClient"))
 
 	return ClientConfiguration(
 		servers = serversList,
@@ -56,9 +59,12 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		connectTimeoutMs = connectTimeoutMs,
 		reconnectDebounceMs = reconnectDebounceMs,
 		maxControlLineBytes = maxControlLineBytes,
+		writeBufferLimitBytes = writeBufferLimitBytes,
+		writeFlushIntervalMs = writeFlushIntervalMs,
 		tlsRequired = tls,
 		nuid = NUID.Default,
-		scope = scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("NatsClient")),
+		scope = finalScope,
+		ownsScope = scope == null,
 	)
 }
 

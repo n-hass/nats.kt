@@ -4,11 +4,30 @@ import io.ktor.utils.io.ByteReadChannel
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.ParsedOutput
 
+internal interface OperationEncodeBuffer {
+	suspend fun writeByte(value: Byte)
+
+	suspend fun writeBytes(
+		value: ByteArray,
+		offset: Int = 0,
+		length: Int = value.size,
+	)
+
+	suspend fun writeAscii(value: String)
+
+	suspend fun writeInt(value: Int)
+
+	suspend fun writeCrLf()
+}
+
 @OptIn(InternalNatsApi::class)
 internal interface OperationSerializer {
 	suspend fun parse(channel: ByteReadChannel): ParsedOutput?
 
-	fun encode(op: ClientOperation): ByteArray
+	suspend fun encode(
+		op: ClientOperation,
+		buffer: OperationEncodeBuffer,
+	)
 }
 
 /**

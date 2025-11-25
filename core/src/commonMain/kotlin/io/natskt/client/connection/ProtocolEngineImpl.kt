@@ -4,12 +4,13 @@ package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
-import io.ktor.utils.io.write
+import io.ktor.utils.io.writeFully
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Credentials
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.client.NatsServerAddress
@@ -25,12 +26,17 @@ import io.natskt.internal.ServerOperation
 import io.natskt.internal.connectionCoroutineDispatcher
 import io.natskt.nkeys.NKeySeed
 import io.natskt.nkeys.NKeys
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
+import kotlin.jvm.JvmInline
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
@@ -47,14 +53,25 @@ internal class ProtocolEngineImpl(
 	override val serverInfo: MutableStateFlow<ServerOperation.InfoOp?>,
 	private val credentials: Credentials?,
 	private val tlsRequired: Boolean,
+	private val writeBufferLimitBytes: Int,
+	private val writeFlushIntervalMs: Long,
 	private val scope: CoroutineScope,
 ) : ProtocolEngine {
 	override val state = MutableStateFlow(ConnectionState.Uninitialised)
 	override val closed = CompletableDeferred<CloseReason>()
 
 	private var transport: Transport? = null
+	private var writerCommands: Channel<OutboundCommand>? = null
+	private var writerJob: Job? = null
 
 	private var rttMeasureStart: Instant? = null
+
+	init {
+		closed.invokeOnCompletion {
+			writerCommands?.close()
+			writerJob?.cancel()
+		}
+	}
 
 	private data class AuthPayload(
 		val authToken: String? = null,
@@ -129,14 +146,10 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun send(op: ClientOperation) {
-		val msg = parser.encode(op)
-
-		if (transport == null) {
-			throw IllegalStateException("cannot send with no connection open")
-		}
-
 		logger.trace { "sending ${op::class.simpleName}" }
-		transport!!.writeAndFlush(msg)
+		ensureWriterStarted()
+		writerCommands?.send(OutboundCommand.Op(op))
+			?: throw IllegalStateException("cannot send with no connection open")
 	}
 
 	override suspend fun start() {
@@ -151,34 +164,41 @@ internal class ProtocolEngineImpl(
 				return
 			}
 
-		transport!!.incoming
-
-		when (val info = parser.parse(transport!!.incoming)) {
-			is ServerOperation.InfoOp -> {
-				serverInfo.value = info
-				if (info.ldm == true) {
-					enterLameDuckMode()
+		val info =
+			when (val parsed = parser.parse(transport!!.incoming)) {
+				is ServerOperation.InfoOp -> parsed
+				else -> {
+					closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
+					runCatching { transport?.close() }
 					return
 				}
-				if ((info.tlsRequired == true) || tlsRequired) {
-					logger.trace { "upgrading connection to TLS" }
-					transport = transport!!.upgradeTLS()
+			}
+
+		serverInfo.value = info
+		if (info.ldm == true) {
+			enterLameDuckMode()
+			return
+		}
+
+		if ((info.tlsRequired == true) || tlsRequired) {
+			logger.trace { "upgrading connection to TLS" }
+			transport = transport!!.upgradeTLS()
+		}
+		val connect =
+			runCatching { buildConnectOp(info) }
+				.getOrElse {
+					logger.error(it) { "failed to prepare CONNECT for ${address.url}" }
+					state.update { phase = ConnectionPhase.Failed }
+					transport?.close()
+					closed.complete(CloseReason.HandshakeRejected)
+					return
 				}
-				val connect =
-					runCatching { buildConnectOp(info) }
-						.getOrElse {
-							logger.error(it) { "failed to prepare CONNECT for ${address.url}" }
-							state.update { phase = ConnectionPhase.Failed }
-							transport?.close()
-							closed.complete(CloseReason.HandshakeRejected)
-							return
-						}
-				with(connectionCoroutineDispatcher) { send(connect) }
-			}
-			else -> {
-				closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
-				return
-			}
+
+		startWriter(requireNotNull(transport))
+
+		with(connectionCoroutineDispatcher) {
+			send(connect)
+			flushWriter()
 		}
 
 		state.update { phase = ConnectionPhase.Connected }
@@ -227,6 +247,7 @@ internal class ProtocolEngineImpl(
 						}
 						Operation.Ok -> { }
 						Operation.Empty -> {
+							runCatching { stopWriter() }
 							transport?.close()
 							closed.complete(CloseReason.ServerInitiatedClose)
 						}
@@ -246,6 +267,11 @@ internal class ProtocolEngineImpl(
 					}
 				}
 			}
+			runCatching { stopWriter() }
+			runCatching { transport?.close() }
+			if (!closed.isCompleted) {
+				closed.complete(CloseReason.ServerInitiatedClose)
+			}
 		}
 	}
 
@@ -260,18 +286,16 @@ internal class ProtocolEngineImpl(
 				it.value.close()
 			}
 		}
-		when (val transport = this.transport) {
-			null -> {}
-			else -> {
-				transport.flush()
-			}
-		}
+		flushWriter()
 	}
 
 	override suspend fun close() {
 		val t = transport ?: throw IllegalStateException("Cannot close connection as it is not open")
-		closed.complete(CloseReason.CleanClose)
-		t.flush()
+		if (!closed.isCompleted) {
+			closed.complete(CloseReason.CleanClose)
+		}
+		flushWriter()
+		stopWriter()
 		t.close()
 	}
 
@@ -281,8 +305,104 @@ internal class ProtocolEngineImpl(
 		if (!closed.isCompleted) {
 			closed.complete(CloseReason.LameDuckMode)
 		}
-		runCatching { transport?.flush() }
+		runCatching { flushWriter() }
+		runCatching { stopWriter() }
 		runCatching { transport?.close() }
+	}
+
+	private fun ensureWriterStarted() {
+		val transport = transport ?: return
+		if (writerJob?.isActive == true && writerCommands != null) return
+		startWriter(transport)
+	}
+
+	private suspend fun flushWriter() {
+		val commands = writerCommands ?: return
+		if (commands.isClosedForSend) return
+		val ack = CompletableDeferred<Unit>()
+		writerJob?.invokeOnCompletion { cause ->
+			if (!ack.isCompleted) {
+				if (cause != null) {
+					ack.completeExceptionally(cause)
+				} else {
+					ack.complete(Unit)
+				}
+			}
+		}
+		runCatching { commands.send(OutboundCommand.Flush(ack)) }
+			.onFailure { return }
+		ack.await()
+	}
+
+	private fun startWriter(transport: Transport) {
+		if (writerJob?.isActive == true && writerCommands != null) return
+		val commands = Channel<OutboundCommand>(Channel.UNLIMITED)
+		writerCommands = commands
+		val buffer = TransportWriteBuffer(transport, writeBufferLimitBytes)
+		var lastFlushAt = Clock.System.now().toEpochMilliseconds()
+		writerJob =
+			scope.launch {
+				try {
+					while (isActive) {
+						val commandResult =
+							if (writeFlushIntervalMs > 0) {
+								withTimeoutOrNull(writeFlushIntervalMs) { commands.receiveCatching() }
+							} else {
+								commands.receiveCatching()
+							}
+
+						if (commandResult == null) {
+							buffer.flush()
+							continue
+						}
+
+						val cmd = commandResult.getOrNull()
+						if (cmd == null) {
+							buffer.flush()
+							break
+						}
+
+						when (cmd) {
+							is OutboundCommand.Op -> {
+								parser.encode(cmd.op, buffer)
+								val now = Clock.System.now().toEpochMilliseconds()
+								if (writeFlushIntervalMs <= 0 || now - lastFlushAt >= writeFlushIntervalMs || buffer.hasPendingBytesAtCapacity()) {
+									buffer.flush()
+									lastFlushAt = now
+								}
+							}
+							is OutboundCommand.Flush -> {
+								runCatching { buffer.flush() }
+									.onSuccess { cmd.ack?.complete(Unit) }
+									.onFailure {
+										cmd.ack?.completeExceptionally(it)
+										throw it
+									}
+								lastFlushAt = Clock.System.now().toEpochMilliseconds()
+							}
+						}
+					}
+				} catch (t: CancellationException) {
+					commands.close()
+				} catch (t: Throwable) {
+					commands.close(t)
+					if (!closed.isCompleted) {
+						closed.complete(CloseReason.IoError(t))
+					}
+				} finally {
+					runCatching { buffer.flush() }
+						.onFailure { logger.debug(it) { "failed to flush outbound buffer" } }
+					commands.close()
+				}
+			}
+	}
+
+	private suspend fun stopWriter() {
+		writerCommands?.close()
+		writerCommands = null
+		writerJob?.cancel()
+		writerJob?.join()
+		writerJob = null
 	}
 
 	private fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) {
@@ -290,21 +410,89 @@ internal class ProtocolEngineImpl(
 	}
 }
 
-private suspend fun Transport.writeAndFlush(msg: ByteArray) {
-	var written = 0
-	write {
-		while (written < msg.size) {
-			it.write(msg.size - written) { buffer, low, high ->
-				var writtenHere = 0
-				for (i in low..high) {
-					if (written >= msg.size) break
-					buffer[i] = msg[written]
-					written++
-					writtenHere++
-				}
-				writtenHere
+private sealed interface OutboundCommand {
+	@JvmInline
+	value class Op(
+		val op: ClientOperation,
+	) : OutboundCommand
+
+	@JvmInline
+	value class Flush(
+		val ack: CompletableDeferred<Unit>,
+	) : OutboundCommand
+}
+
+private class TransportWriteBuffer(
+	private val transport: Transport,
+	private val capacity: Int,
+) : OperationEncodeBuffer {
+	private val buffer = ByteArray(capacity.coerceAtLeast(1))
+	private var position = 0
+
+	internal fun hasPendingBytesAtCapacity(): Boolean = position >= buffer.size
+
+	override suspend fun writeByte(value: Byte) {
+		if (position == buffer.size) {
+			flush()
+		}
+		buffer[position] = value
+		position++
+	}
+
+	override suspend fun writeBytes(
+		value: ByteArray,
+		offset: Int,
+		length: Int,
+	) {
+		require(offset >= 0 && length >= 0 && offset + length <= value.size) { "invalid slice" }
+		var currentOffset = offset
+		var remaining = length
+		while (remaining > 0) {
+			if (position == buffer.size) {
+				flush()
+			}
+			val toCopy = minOf(remaining, buffer.size - position)
+			value.copyInto(buffer, position, currentOffset, currentOffset + toCopy)
+			position += toCopy
+			currentOffset += toCopy
+			remaining -= toCopy
+			if (position == buffer.size) {
+				flush()
 			}
 		}
 	}
-	flush()
+
+	override suspend fun writeAscii(value: String) {
+		var idx = 0
+		while (idx < value.length) {
+			if (position == buffer.size) {
+				flush()
+			}
+			val chunk = minOf(buffer.size - position, value.length - idx)
+			for (i in 0 until chunk) {
+				buffer[position + i] = value[idx + i].code.toByte()
+			}
+			position += chunk
+			idx += chunk
+			if (position == buffer.size) {
+				flush()
+			}
+		}
+	}
+
+	override suspend fun writeInt(value: Int) {
+		writeAscii(value.toString())
+	}
+
+	override suspend fun writeCrLf() {
+		writeByte('\r'.code.toByte())
+		writeByte('\n'.code.toByte())
+	}
+
+	suspend fun flush() {
+		if (position == 0) return
+		transport.write { channel -> channel.writeFully(buffer, 0, position) }
+		transport.flush()
+		position = 0
+	}
 }

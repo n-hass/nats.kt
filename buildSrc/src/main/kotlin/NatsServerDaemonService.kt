@@ -66,12 +66,13 @@ abstract class NatsServerDaemonService :
 		val command = buildCommand(executableFile)
 		val processBuilder = ProcessBuilder(command)
 			.directory(executableFile.parentFile)
-			.redirectOutput(ProcessBuilder.Redirect.INHERIT)
-			.redirectError(ProcessBuilder.Redirect.INHERIT)
+		val logFile = executableFile.parentFile.resolve("nats-server-daemon.log")
+		processBuilder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
+		processBuilder.redirectError(ProcessBuilder.Redirect.appendTo(logFile))
 		val env = parameters.environment.getOrElse(emptyMap())
 		processBuilder.environment().putAll(env)
 
-		logger.lifecycle("Starting NATS test harness daemon")
+		logger.lifecycle("Starting NATS test harness daemon (logs: ${logFile.absolutePath})")
 		val process = processBuilder.start()
 		if (healthUrl != null) {
 			waitUntilHealthy(process, healthUrl)

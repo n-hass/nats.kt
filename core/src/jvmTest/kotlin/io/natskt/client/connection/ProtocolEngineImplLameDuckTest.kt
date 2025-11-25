@@ -7,6 +7,7 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionPhase
+import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
@@ -62,6 +63,8 @@ class ProtocolEngineImplLameDuckTest {
 			serverInfo = MutableStateFlow(null),
 			credentials = null,
 			tlsRequired = false,
+			writeBufferLimitBytes = 64 * 1024,
+			writeFlushIntervalMs = 5,
 			scope = CoroutineScope(Dispatchers.Unconfined),
 		)
 	}
@@ -102,7 +105,10 @@ class ProtocolEngineImplLameDuckTest {
 
 		override suspend fun parse(channel: ByteReadChannel): ParsedOutput? = queue.removeFirstOrNull()
 
-		override fun encode(op: ClientOperation): ByteArray = ByteArray(0)
+		override suspend fun encode(
+			op: ClientOperation,
+			buffer: OperationEncodeBuffer,
+		) { }
 	}
 
 	private class StubTransportFactory(
