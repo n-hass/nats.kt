@@ -4,14 +4,12 @@ package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
-import io.ktor.utils.io.writeFully
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionClosedException
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Credentials
 import io.natskt.api.internal.InternalNatsApi
-import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.client.NatsServerAddress
@@ -24,7 +22,6 @@ import io.natskt.internal.Operation
 import io.natskt.internal.ParsedOutput
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
-import io.natskt.internal.connectionCoroutineDispatcher
 import io.natskt.nkeys.NKeySeed
 import io.natskt.nkeys.NKeys
 import kotlinx.coroutines.CancellationException
@@ -197,10 +194,8 @@ internal class ProtocolEngineImpl(
 
 		startWriter(requireNotNull(transport))
 
-		with(connectionCoroutineDispatcher) {
-			send(connect)
-			flushWriter()
-		}
+		send(connect)
+		flushWriter()
 
 		state.update { phase = ConnectionPhase.Connected }
 
@@ -380,7 +375,7 @@ internal class ProtocolEngineImpl(
 							}
 						}
 					}
-				} catch (t: CancellationException) {
+				} catch (_: CancellationException) {
 					commands.close()
 				} catch (t: Throwable) {
 					commands.close(t)
@@ -419,79 +414,4 @@ private sealed interface OutboundCommand {
 	value class Flush(
 		val ack: CompletableDeferred<Unit>,
 	) : OutboundCommand
-}
-
-private class TransportWriteBuffer(
-	private val transport: Transport,
-	capacity: Int,
-) : OperationEncodeBuffer {
-	private val buffer = ByteArray(capacity.coerceAtLeast(1))
-	private var position = 0
-
-	fun hasPendingBytesAtCapacity(): Boolean = position >= buffer.size
-
-	override suspend fun writeByte(value: Byte) {
-		if (position == buffer.size) {
-			flush()
-		}
-		buffer[position] = value
-		position++
-	}
-
-	override suspend fun writeBytes(
-		value: ByteArray,
-		offset: Int,
-		length: Int,
-	) {
-		require(offset >= 0 && length >= 0 && offset + length <= value.size) { "invalid slice" }
-		var currentOffset = offset
-		var remaining = length
-		while (remaining > 0) {
-			if (position == buffer.size) {
-				flush()
-			}
-			val toCopy = minOf(remaining, buffer.size - position)
-			value.copyInto(buffer, position, currentOffset, currentOffset + toCopy)
-			position += toCopy
-			currentOffset += toCopy
-			remaining -= toCopy
-			if (position == buffer.size) {
-				flush()
-			}
-		}
-	}
-
-	override suspend fun writeAscii(value: String) {
-		var idx = 0
-		while (idx < value.length) {
-			if (position == buffer.size) {
-				flush()
-			}
-			val chunk = minOf(buffer.size - position, value.length - idx)
-			for (i in 0 until chunk) {
-				buffer[position + i] = value[idx + i].code.toByte()
-			}
-			position += chunk
-			idx += chunk
-			if (position == buffer.size) {
-				flush()
-			}
-		}
-	}
-
-	override suspend fun writeInt(value: Int) {
-		writeAscii(value.toString())
-	}
-
-	override suspend fun writeCrLf() {
-		writeByte('\r'.code.toByte())
-		writeByte('\n'.code.toByte())
-	}
-
-	suspend fun flush() {
-		if (position == 0) return
-		transport.write { channel -> channel.writeFully(buffer, 0, position) }
-		transport.flush()
-		position = 0
-	}
 }

@@ -72,10 +72,32 @@ class ProtocolEngineImplWriterTest {
 			assertEquals(handshakeFlushes + 1, transport.flushCount, "close should flush pending buffer once")
 		}
 
+	@Test
+	fun `writer encodes utf8 data`() =
+		runTest {
+			val transport = RecordingTransport(coroutineContext)
+			val utf8Line = "utf8-\u00b5\u96ea\ud83d\ude00"
+			val engine =
+				engine(
+					serializer = Utf8Serializer(utf8Line),
+					transportFactory = RecordingTransportFactory(transport),
+					scope = this,
+					writeBufferLimitBytes = 4,
+				)
+
+			engine.start()
+			engine.close()
+			runCurrent()
+
+			val written = transport.writes.fold(ByteArray(0)) { acc, bytes -> acc + bytes }
+			assertContentEquals("$utf8Line\r\n".encodeToByteArray(), written)
+		}
+
 	private fun engine(
 		serializer: OperationSerializer,
 		transportFactory: TransportFactory,
 		scope: CoroutineScope,
+		writeBufferLimitBytes: Int = 1024,
 	): ProtocolEngineImpl =
 		ProtocolEngineImpl(
 			transportFactory = transportFactory,
@@ -86,7 +108,7 @@ class ProtocolEngineImplWriterTest {
 			serverInfo = MutableStateFlow(null),
 			credentials = null,
 			tlsRequired = false,
-			writeBufferLimitBytes = 1024,
+			writeBufferLimitBytes = writeBufferLimitBytes,
 			writeFlushIntervalMs = 10_000,
 			scope = scope,
 		)
@@ -138,14 +160,38 @@ class ProtocolEngineImplWriterTest {
 			buffer: OperationEncodeBuffer,
 		) {
 			when (op) {
-				is ClientOperation.ConnectOp -> buffer.writeAscii("CONNECT")
+				is ClientOperation.ConnectOp -> buffer.writeUtf8("CONNECT")
 				is ClientOperation.PubOp -> {
-					buffer.writeAscii("PUB ${op.subject} ${op.payload?.size ?: 0}")
+					buffer.writeUtf8("PUB ${op.subject} ${op.payload?.size ?: 0}")
 					buffer.writeCrLf()
 					op.payload?.let { buffer.writeBytes(it) }
 				}
-				else -> buffer.writeAscii(op.toString())
+				else -> buffer.writeUtf8(op.toString())
 			}
+			buffer.writeCrLf()
+		}
+	}
+
+	private inner class Utf8Serializer(
+		private val line: String,
+	) : OperationSerializer {
+		private var first = true
+
+		override suspend fun parse(channel: ByteReadChannel): ParsedOutput {
+			if (first) {
+				first = false
+				return defaultInfo()
+			}
+			while (true) {
+				if (!channel.awaitContent()) return Operation.Empty
+			}
+		}
+
+		override suspend fun encode(
+			op: ClientOperation,
+			buffer: OperationEncodeBuffer,
+		) {
+			buffer.writeUtf8(line)
 			buffer.writeCrLf()
 		}
 	}

@@ -37,11 +37,11 @@ private val unsubOpBytes = "UNSUB ".toByteArray()
 
 private val empty = "".toByteArray()
 
-private val spaceByte = ' '.code.toByte()
-private val crByte = '\r'.code.toByte()
-private val lfByte = '\n'.code.toByte()
-private val cr = '\r'.code.toLong()
-private val lf = '\n'.code.toLong()
+private const val SPACE_BYTE = ' '.code.toByte()
+private const val CR_BYTE = '\r'.code.toByte()
+private const val LF_BYTE = '\n'.code.toByte()
+private const val CR_CODE = '\r'.code.toLong()
+private const val LF_CODE = '\n'.code.toLong()
 
 internal class OperationSerializerImpl(
 	private val maxControlLineBytes: Int,
@@ -148,7 +148,7 @@ internal class OperationSerializerImpl(
 								// still need to consume trailing CRLF even when payload is empty
 								val c = channel.readByte()
 								val l = channel.readByte()
-								require(c == crByte && l == lfByte) { "malformed HMSG terminator" }
+								require(c == CR_BYTE && l == LF_BYTE) { "malformed HMSG terminator" }
 								null
 							}
 						IncomingCoreMessage(
@@ -183,7 +183,7 @@ internal class OperationSerializerImpl(
 							} else {
 								val c = channel.readByte()
 								val l = channel.readByte()
-								require(c == crByte && l == lfByte) { "malformed HMSG terminator" }
+								require(c == CR_BYTE && l == LF_BYTE) { "malformed HMSG terminator" }
 								null
 							}
 
@@ -223,17 +223,17 @@ internal class OperationSerializerImpl(
 			Operation.Pong -> buffer.writeBytes(pongOpBytes)
 			is ClientOperation.ConnectOp -> {
 				buffer.writeBytes(connectOpBytes)
-				buffer.writeAscii(wireJsonFormat.encodeToString(op))
+				buffer.writeUtf8(wireJsonFormat.encodeToString(op))
 			}
 			is ClientOperation.PubOp -> {
 				buffer.writeBytes(pubOpBytes)
-				buffer.writeAscii(op.subject)
+				buffer.writeUtf8(op.subject)
 				val replyTo = op.replyTo
 				if (replyTo != null) {
-					buffer.writeByte(spaceByte)
-					buffer.writeAscii(replyTo)
+					buffer.writeByte(SPACE_BYTE)
+					buffer.writeUtf8(replyTo)
 				}
-				buffer.writeByte(spaceByte)
+				buffer.writeByte(SPACE_BYTE)
 				val payloadBytes = op.payload
 				if (payloadBytes == null) {
 					buffer.writeByte('0'.code.toByte())
@@ -252,15 +252,15 @@ internal class OperationSerializerImpl(
 				val totalLength = headerSize + payloadLength
 
 				buffer.writeBytes(hpubOpBytes)
-				buffer.writeAscii(op.subject)
+				buffer.writeUtf8(op.subject)
 				val replyTo = op.replyTo
 				if (replyTo != null) {
-					buffer.writeByte(spaceByte)
-					buffer.writeAscii(replyTo)
+					buffer.writeByte(SPACE_BYTE)
+					buffer.writeUtf8(replyTo)
 				}
-				buffer.writeByte(spaceByte)
+				buffer.writeByte(SPACE_BYTE)
 				buffer.writeInt(headerSize)
-				buffer.writeByte(spaceByte)
+				buffer.writeByte(SPACE_BYTE)
 				buffer.writeInt(totalLength)
 				buffer.writeCrLf()
 
@@ -271,21 +271,21 @@ internal class OperationSerializerImpl(
 			}
 			is ClientOperation.SubOp -> {
 				buffer.writeBytes(subOpBytes)
-				buffer.writeAscii(op.subject)
-				buffer.writeByte(spaceByte)
+				buffer.writeUtf8(op.subject)
+				buffer.writeByte(SPACE_BYTE)
 				val queueGroup = op.queueGroup
 				if (queueGroup != null) {
-					buffer.writeAscii(queueGroup)
-					buffer.writeByte(spaceByte)
+					buffer.writeUtf8(queueGroup)
+					buffer.writeByte(SPACE_BYTE)
 				}
-				buffer.writeAscii(op.sid)
+				buffer.writeUtf8(op.sid)
 			}
 			is ClientOperation.UnSubOp -> {
 				buffer.writeBytes(unsubOpBytes)
-				buffer.writeAscii(op.sid)
+				buffer.writeUtf8(op.sid)
 				val maxMsgs = op.maxMsgs
 				if (maxMsgs != null) {
-					buffer.writeByte(spaceByte)
+					buffer.writeByte(SPACE_BYTE)
 					buffer.writeInt(maxMsgs)
 				}
 			}
@@ -308,7 +308,7 @@ private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 				val b = buf[i].toLong()
 				i++
 
-				if (last == cr && b == lf) {
+				if (last == CR_CODE && b == LF_CODE) {
 					// We just consumed CRLF; do not write them to acc
 					found = true
 					last = -1
@@ -327,7 +327,7 @@ private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 
 		if (isClosedForRead && !found) {
 			// Channel closed before CRLF; flush the dangling 'last' if any and return what we have
-			if (last != -1L && last != cr) {
+			if (last != -1L && last != CR_CODE) {
 				acc.writeByte(last.toByte())
 			}
 			break
@@ -352,12 +352,12 @@ private suspend fun ByteReadChannel.readPayload(n: Int): ByteArray {
 		} catch (e: Exception) {
 			throw IllegalStateException("missing payload LF terminator", e)
 		}
-	require(c == crByte && l == lfByte) { "malformed payload terminator" }
+	require(c == CR_BYTE && l == LF_BYTE) { "malformed payload terminator" }
 	return out
 }
 
 private fun ByteArray.firstToken(): ByteArray {
-	val sp = indexOf(spaceByte).let { if (it < 0) size else it }
+	val sp = indexOf(SPACE_BYTE).let { if (it < 0) size else it }
 	return copyOfRange(0, sp)
 }
 
@@ -377,7 +377,7 @@ private fun parseStatusCode(s: String): Int? {
 	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
 	val firstCrlf = s.indexOf(LINE_END)
 	require(firstCrlf >= HEADER_START.length) { "invalid NATS header preamble" }
-	val firstLine = s.substring(0, firstCrlf)
+	val firstLine = s.take(firstCrlf)
 
 	// Check if there's a status code after "NATS/1.0"
 	if (firstLine.length > HEADER_START.length && firstLine[HEADER_START.length] == ' ') {
@@ -411,7 +411,7 @@ private fun parseHeaders(s: String): Map<String, List<String>>? {
 		val line = s.substring(i, lineEnd)
 		val c = line.indexOf(':')
 		require(c > 0) { "malformed header line: '$line'" }
-		val name = line.substring(0, c) // preserve case
+		val name = line.take(c) // preserve case
 		val value = line.substring(c + 1).trimStart() // strip leading space after colon
 		if (map[name] == null) {
 			map[name] = mutableListOf()
@@ -437,18 +437,18 @@ private fun headersSize(headers: Map<String, List<String>>?): Int {
 }
 
 private suspend fun OperationEncodeBuffer.writeHeaders(headers: Map<String, List<String>>?) {
-	writeAscii(HEADER_START)
+	writeUtf8(HEADER_START)
 	writeCrLf()
 	headers?.forEach { (name, values) ->
 		if (values.isEmpty()) {
-			writeAscii(name)
-			writeAscii(": ")
+			writeUtf8(name)
+			writeUtf8(": ")
 			writeCrLf()
 		} else {
 			values.forEach { value ->
-				writeAscii(name)
-				writeAscii(": ")
-				writeAscii(value)
+				writeUtf8(name)
+				writeUtf8(": ")
+				writeUtf8(value)
 				writeCrLf()
 			}
 		}

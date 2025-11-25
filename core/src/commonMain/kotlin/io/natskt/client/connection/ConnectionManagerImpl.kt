@@ -150,7 +150,7 @@ internal class ConnectionManagerImpl(
 				val markedAt = lameDuckServers[address]
 				markedAt != null && now - markedAt < LAME_DUCK_BACKOFF_MILLIS
 			}
-		val pool = if (viable.isNotEmpty()) viable else allServers.toList()
+		val pool = viable.ifEmpty { allServers.toList() }
 		return pool.shuffled().first()
 	}
 

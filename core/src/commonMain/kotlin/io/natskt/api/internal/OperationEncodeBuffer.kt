@@ -9,7 +9,7 @@ internal interface OperationEncodeBuffer {
 		length: Int = value.size,
 	)
 
-	suspend fun writeAscii(value: String)
+	suspend fun writeUtf8(value: String)
 
 	suspend fun writeInt(value: Int)
 

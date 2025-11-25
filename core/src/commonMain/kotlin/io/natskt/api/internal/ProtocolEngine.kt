@@ -20,9 +20,9 @@ internal interface ProtocolEngine {
 	suspend fun send(op: ClientOperation)
 
 	/** Start handshake and reader/writer; returns when fully Connected or throws on failure. */
-	suspend fun start(): Unit
+	suspend fun start()
 
-	suspend fun ping(): Unit
+	suspend fun ping()
 
 	suspend fun flush()
 

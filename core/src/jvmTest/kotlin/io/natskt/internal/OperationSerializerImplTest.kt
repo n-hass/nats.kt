@@ -53,12 +53,12 @@ class OperationSerializerImplTest {
 			}
 		}
 
-		override suspend fun writeAscii(value: String) {
+		override suspend fun writeUtf8(value: String) {
 			value.encodeToByteArray().forEach { data.add(it) }
 		}
 
 		override suspend fun writeInt(value: Int) {
-			writeAscii(value.toString())
+			writeUtf8(value.toString())
 		}
 
 		override suspend fun writeCrLf() {
