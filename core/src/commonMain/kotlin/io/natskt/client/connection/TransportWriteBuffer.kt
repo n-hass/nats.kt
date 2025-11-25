@@ -3,6 +3,8 @@ package io.natskt.client.connection
 import io.ktor.utils.io.writeFully
 import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.client.transport.Transport
+import io.natskt.internal.CR_BYTE
+import io.natskt.internal.LF_BYTE
 
 internal class TransportWriteBuffer(
 	private val transport: Transport,
@@ -96,8 +98,8 @@ internal class TransportWriteBuffer(
 	}
 
 	override suspend fun writeCrLf() {
-		writeByteFlush('\r'.code.toByte())
-		writeByteFlush('\n'.code.toByte())
+		writeByteFlush(CR_BYTE)
+		writeByteFlush(LF_BYTE)
 	}
 
 	suspend fun flush() {

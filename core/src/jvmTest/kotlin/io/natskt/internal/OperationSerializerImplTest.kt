@@ -330,6 +330,51 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
+	fun `encode hpub counts utf8 header bytes`() =
+		runTest {
+			val serializer = newSerializer()
+
+			val payload = "данные🚀".encodeToByteArray()
+			val headers =
+				linkedMapOf(
+					"ключ" to listOf("значение", "ещё"),
+					"emoji🚀" to listOf("火"),
+				)
+
+			val encoded =
+				serializer.encodeToBytes(
+					ClientOperation.HPubOp(
+						subject = "sub",
+						replyTo = null,
+						headers = headers,
+						payload = payload,
+					),
+				)
+
+			val expectedHeaderBlock =
+				buildString {
+					append("NATS/1.0\r\n")
+					append("ключ: значение\r\n")
+					append("ключ: ещё\r\n")
+					append("emoji🚀: 火\r\n")
+					append("\r\n")
+				}.encodeToByteArray()
+			val expectedHeaderSize = expectedHeaderBlock.size
+			val expectedTotalSize = expectedHeaderSize + payload.size
+
+			val expected =
+				buildString {
+					append("HPUB sub ")
+					append(expectedHeaderSize)
+					append(" ")
+					append(expectedTotalSize)
+					append("\r\n")
+				}.encodeToByteArray() + expectedHeaderBlock + payload + "\r\n".encodeToByteArray()
+
+			assertContentEquals(expected, encoded)
+		}
+
+	@Test
 	fun `encode hpub without headers or payload`() =
 		runTest {
 			val serializer = newSerializer()

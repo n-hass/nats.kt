@@ -26,7 +26,8 @@ private val ERR = "-ERR".toByteArray()
 private val INFO = "INFO".toByteArray()
 private val MSG = "MSG".toByteArray()
 private val HMSG = "HMSG".toByteArray()
-
+private const val HEADER_START = "NATS/1.0"
+private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
 private val pingOpBytes = "PING".toByteArray()
 private val pongOpBytes = "PONG".toByteArray()
 private val connectOpBytes = "CONNECT ".toByteArray()
@@ -38,10 +39,13 @@ private val unsubOpBytes = "UNSUB ".toByteArray()
 private val empty = "".toByteArray()
 
 private const val SPACE_BYTE = ' '.code.toByte()
-private const val CR_BYTE = '\r'.code.toByte()
-private const val LF_BYTE = '\n'.code.toByte()
+internal const val CR_BYTE = '\r'.code.toByte()
+internal const val LF_BYTE = '\n'.code.toByte()
 private const val CR_CODE = '\r'.code.toLong()
 private const val LF_CODE = '\n'.code.toLong()
+private val HEADER_START_BYTES = HEADER_START.encodeToByteArray()
+internal val LINE_END_BYTES = LINE_END.encodeToByteArray()
+private val COLON_SPACE_BYTES = ": ".encodeToByteArray()
 
 internal class OperationSerializerImpl(
 	private val maxControlLineBytes: Int,
@@ -344,15 +348,15 @@ private suspend fun ByteReadChannel.readPayload(n: Int): ByteArray {
 		try {
 			readByte()
 		} catch (e: Exception) {
-			throw IllegalStateException("missing payload CR terminator", e)
+			throw ProtocolException("missing payload CR terminator", e)
 		}
 	val l =
 		try {
 			readByte()
 		} catch (e: Exception) {
-			throw IllegalStateException("missing payload LF terminator", e)
+			throw ProtocolException("missing payload LF terminator", e)
 		}
-	require(c == CR_BYTE && l == LF_BYTE) { "malformed payload terminator" }
+	if (c != CR_BYTE || l != LF_BYTE) throw ProtocolException("malformed payload terminator")
 	return out
 }
 
@@ -369,9 +373,6 @@ private suspend fun ByteReadChannel.readExact(n: Int): ByteArray {
 	readFully(out, 0, n)
 	return out
 }
-
-private const val HEADER_START = "NATS/1.0"
-private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
 
 private fun parseStatusCode(s: String): Int? {
 	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
@@ -423,17 +424,37 @@ private fun parseHeaders(s: String): Map<String, List<String>>? {
 }
 
 private fun headersSize(headers: Map<String, List<String>>?): Int {
-	var length = HEADER_START.length + LINE_END.length + LINE_END.length
+	var length = HEADER_START_BYTES.size + LINE_END_BYTES.size + LINE_END_BYTES.size
 	headers?.forEach { (name, values) ->
+		val nameLength = utf8Length(name)
 		if (values.isEmpty()) {
-			length += name.length + 2 + LINE_END.length
+			length += nameLength + COLON_SPACE_BYTES.size + LINE_END_BYTES.size
 		} else {
 			values.forEach { value ->
-				length += name.length + 2 + value.length + LINE_END.length
+				length += nameLength + COLON_SPACE_BYTES.size + utf8Length(value) + LINE_END_BYTES.size
 			}
 		}
 	}
 	return length
+}
+
+private fun utf8Length(s: String): Int {
+	var len = 0
+	var i = 0
+	while (i < s.length) {
+		val ch = s[i]
+		when {
+			ch.code < 0x80 -> len += 1
+			ch.code < 0x800 -> len += 2
+			ch in '\uD800'..'\uDBFF' && i + 1 < s.length && s[i + 1] in '\uDC00'..'\uDFFF' -> {
+				len += 4
+				i++ // skip low surrogate
+			}
+			else -> len += 3
+		}
+		i++
+	}
+	return len
 }
 
 private suspend fun OperationEncodeBuffer.writeHeaders(headers: Map<String, List<String>>?) {
@@ -442,12 +463,12 @@ private suspend fun OperationEncodeBuffer.writeHeaders(headers: Map<String, List
 	headers?.forEach { (name, values) ->
 		if (values.isEmpty()) {
 			writeUtf8(name)
-			writeUtf8(": ")
+			writeBytes(COLON_SPACE_BYTES)
 			writeCrLf()
 		} else {
 			values.forEach { value ->
 				writeUtf8(name)
-				writeUtf8(": ")
+				writeBytes(COLON_SPACE_BYTES)
 				writeUtf8(value)
 				writeCrLf()
 			}
