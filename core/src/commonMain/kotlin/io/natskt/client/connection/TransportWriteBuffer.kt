@@ -10,7 +10,7 @@ internal class TransportWriteBuffer(
 	private val transport: Transport,
 	capacity: Int,
 ) : OperationEncodeBuffer {
-	private val buffer = ByteArray(capacity.coerceAtLeast(1))
+	private val buffer = ByteArray(capacity.coerceAtLeast(32))
 	private var position = 0
 
 	fun hasPendingBytesAtCapacity(): Boolean = position >= buffer.size

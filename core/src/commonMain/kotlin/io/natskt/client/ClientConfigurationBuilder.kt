@@ -75,7 +75,24 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var reconnectDebounce: Duration = 2.seconds
 
 	/**
-	 * Limit the size of the internal buffer (in bytes) used for sending messages to the server
+	 * The number of outgoing operations that can be buffered while waiting for data to be flushed to the transport socket.
+	 *
+	 * This caps the memory usage of the client by forcing any publish or request call to suspend until the network has
+	 * caught up.
+	 *
+	 * This can also be set to [kotlinx.coroutines.channels.Channel.UNLIMITED] if you want to disable backpressure.
+	 */
+	public var operationBufferCapacity: Int = 32
+
+	/**
+	 * Limit the size of the internal buffer (in bytes) used for holding encoded data before it is
+	 * flushed to the socket.
+	 *
+	 * Changing this value only affects the frequency in which the client attempts to write to the transport socket,
+	 * and so controls latency. A lower value will mean more frequent flushes.
+	 *
+	 * See [operationBufferCapacity] if you want to control the number of operations (eg outgoing messages) that can be buffered
+	 * while awaiting a flush to the network.
 	 */
 	public var writeBufferLimitBytes: Int = 64 * 1024
 
@@ -83,6 +100,8 @@ public class ClientConfigurationBuilder internal constructor() {
 	 * Automatically flush the write buffer at this interval, even if it is not full.
 	 *
 	 * This sets the write latency ceiling.
+	 *
+	 * Can be set to [Duration.ZERO] to immediately flush every message in full when it is published.
 	 */
 	public var writeFlushInterval: Duration = 5.milliseconds
 
@@ -156,6 +175,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		reconnectDebounceMs = reconnectDebounce.inWholeMilliseconds,
 		maxControlLineBytes = maxControlLineBytes,
 		maxPayloadBytes = maxPayloadBytes,
+		operationBufferCapacity = operationBufferCapacity,
 		writeBufferLimitBytes = writeBufferLimitBytes,
 		writeFlushIntervalMs = writeFlushInterval.inWholeMilliseconds,
 		tlsRequired = tls,

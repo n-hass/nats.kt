@@ -108,6 +108,7 @@ class ProtocolEngineImplWriterTest {
 			serverInfo = MutableStateFlow(null),
 			credentials = null,
 			tlsRequired = false,
+			operationBufferCapacity = 32,
 			writeBufferLimitBytes = writeBufferLimitBytes,
 			writeFlushIntervalMs = 10_000,
 			scope = scope,

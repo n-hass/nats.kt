@@ -29,6 +29,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
@@ -52,6 +53,7 @@ internal class ProtocolEngineImpl(
 	override val serverInfo: MutableStateFlow<ServerOperation.InfoOp?>,
 	private val credentials: Credentials?,
 	private val tlsRequired: Boolean,
+	private val operationBufferCapacity: Int,
 	private val writeBufferLimitBytes: Int,
 	private val writeFlushIntervalMs: Long,
 	private val scope: CoroutineScope,
@@ -171,8 +173,8 @@ internal class ProtocolEngineImpl(
 					return
 				}
 			}
-
 		serverInfo.value = info
+
 		if (info.ldm == true) {
 			enterLameDuckMode()
 			return
@@ -329,7 +331,11 @@ internal class ProtocolEngineImpl(
 
 	private fun startWriter(transport: Transport) {
 		if (writerJob?.isActive == true && writerCommands != null) return
-		val commands = Channel<OutboundCommand>(Channel.UNLIMITED)
+		val commands =
+			Channel<OutboundCommand>(
+				capacity = operationBufferCapacity,
+				onBufferOverflow = BufferOverflow.SUSPEND,
+			)
 		writerCommands = commands
 		val buffer = TransportWriteBuffer(transport, writeBufferLimitBytes)
 		var lastFlushAt = Clock.System.now().toEpochMilliseconds()

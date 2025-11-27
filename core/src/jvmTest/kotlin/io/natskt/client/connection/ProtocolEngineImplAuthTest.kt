@@ -69,6 +69,7 @@ class ProtocolEngineImplAuthTest {
 			serverInfo = MutableStateFlow(null),
 			credentials = credentials,
 			tlsRequired = false,
+			operationBufferCapacity = 32,
 			writeBufferLimitBytes = 64 * 1024,
 			writeFlushIntervalMs = 5,
 			scope =

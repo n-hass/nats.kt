@@ -67,6 +67,7 @@ class ConnectionManagerImplTest {
 				connectTimeoutMs = 1000,
 				reconnectDebounceMs = 1000,
 				maxControlLineBytes = 1024,
+				operationBufferCapacity = 32,
 				writeBufferLimitBytes = 64 * 1024,
 				writeFlushIntervalMs = 5,
 				tlsRequired = false,

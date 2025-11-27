@@ -63,6 +63,7 @@ class ProtocolEngineImplLameDuckTest {
 			serverInfo = MutableStateFlow(null),
 			credentials = null,
 			tlsRequired = false,
+			operationBufferCapacity = 32,
 			writeBufferLimitBytes = 64 * 1024,
 			writeFlushIntervalMs = 5,
 			scope = CoroutineScope(Dispatchers.Unconfined),

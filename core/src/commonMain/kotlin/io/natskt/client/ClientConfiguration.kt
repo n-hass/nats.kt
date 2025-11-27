@@ -15,6 +15,7 @@ internal data class ClientConfiguration(
 	val reconnectDebounceMs: Long,
 	val maxControlLineBytes: Int,
 	val maxPayloadBytes: Int,
+	val operationBufferCapacity: Int,
 	val writeBufferLimitBytes: Int,
 	val writeFlushIntervalMs: Long,
 	val tlsRequired: Boolean,
