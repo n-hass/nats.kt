@@ -12,6 +12,7 @@ import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.consumer.JetStreamHeartbeatException
 import io.natskt.jetstream.api.consumer.PushConsumer
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -86,6 +87,8 @@ internal class PushConsumerImpl(
 			try {
 				subscription.unsubscribe()
 			} catch (_: ClosedWriteChannelException) {
+				// ignore if this runs on a closed connection
+			} catch (_: ClosedSendChannelException) {
 				// ignore if this runs on a closed connection
 			}
 		}

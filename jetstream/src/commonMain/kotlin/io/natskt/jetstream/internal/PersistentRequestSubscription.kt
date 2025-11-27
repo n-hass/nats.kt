@@ -7,6 +7,7 @@ import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.NUID
 import io.natskt.jetstream.api.JetStreamClient
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filter
@@ -57,6 +58,8 @@ internal open class PersistentRequestSubscription(
 			try {
 				inboxSubscription.unsubscribe()
 			} catch (_: ClosedWriteChannelException) {
+				// ignore if this runs on a closed connection
+			} catch (_: ClosedSendChannelException) {
 				// ignore if this runs on a closed connection
 			}
 		}

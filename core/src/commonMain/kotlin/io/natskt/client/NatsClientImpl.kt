@@ -24,6 +24,7 @@ import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.throwOnInvalidSubject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -293,6 +294,8 @@ internal class NatsClientImpl(
 			} catch (_: ConnectionClosedException) {
 				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
 			} catch (_: ClosedWriteChannelException) {
+				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
+			} catch (_: ClosedSendChannelException) {
 				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
 			}
 		}
