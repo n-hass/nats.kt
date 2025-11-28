@@ -9,7 +9,6 @@ import io.natskt.jetstream.api.internal.DurationNanosSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 @Serializable
@@ -36,7 +35,6 @@ public data class KeyValueConfig(
 	val metadata: Map<String, String>? = null,
 )
 
-@OptIn(ExperimentalTime::class)
 public data class KeyValueEntry(
 	public val bucket: String,
 	public val key: String,

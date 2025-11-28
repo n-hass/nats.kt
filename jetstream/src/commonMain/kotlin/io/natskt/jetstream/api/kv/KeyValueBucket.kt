@@ -39,7 +39,6 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transform
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 private const val KV_SUBJECT_PREFIX = "\$KV."
@@ -201,7 +200,7 @@ public class KeyValueBucket internal constructor(
 	/**
 	 * Watches revisions for [key], emitting a [Flow] of entries including future updates.
 	 */
-	@OptIn(ExperimentalTime::class, InternalNatsApi::class)
+	@OptIn(InternalNatsApi::class)
 	public suspend fun watch(key: String): Flow<KeyValueEntry> =
 		watchFiltered(key)
 			.mapNotNull { it?.toKeyValueEntry(name) }
@@ -338,7 +337,6 @@ public class KeyValueBucket internal constructor(
 	}
 }
 
-@OptIn(ExperimentalTime::class)
 private fun Message.toKeyValueEntry(bucketName: String): KeyValueEntry {
 	val subject = subject.raw
 	val metadata = parseAckMetadata(replyTo)
