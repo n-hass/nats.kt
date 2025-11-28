@@ -4,6 +4,7 @@ import io.ktor.http.Url
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.ByteReadChannel
 import io.natskt.api.Credentials
+import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
@@ -68,6 +69,9 @@ class ProtocolEngineImplAuthTest {
 			serverInfo = MutableStateFlow(null),
 			credentials = credentials,
 			tlsRequired = false,
+			operationBufferCapacity = 32,
+			writeBufferLimitBytes = 64 * 1024,
+			writeFlushIntervalMs = 5,
 			scope =
 				object : CoroutineScope {
 					override val coroutineContext: CoroutineContext = EmptyCoroutineContext
@@ -120,6 +124,9 @@ class ProtocolEngineImplAuthTest {
 	private object NoopSerializer : OperationSerializer {
 		override suspend fun parse(channel: ByteReadChannel): ParsedOutput? = null
 
-		override fun encode(op: ClientOperation): ByteArray = ByteArray(0)
+		override suspend fun encode(
+			op: ClientOperation,
+			buffer: OperationEncodeBuffer,
+		) { }
 	}
 }

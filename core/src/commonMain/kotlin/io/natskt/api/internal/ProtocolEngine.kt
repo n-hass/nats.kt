@@ -20,9 +20,11 @@ internal interface ProtocolEngine {
 	suspend fun send(op: ClientOperation)
 
 	/** Start handshake and reader/writer; returns when fully Connected or throws on failure. */
-	suspend fun start(): Unit
+	suspend fun start()
 
-	suspend fun ping(): Unit
+	suspend fun ping()
+
+	suspend fun flush()
 
 	/** Begin protocol drain (UNSUBs/Flush) but do NOT close transport; returns when drained or timeout. */
 	suspend fun drain(timeout: Duration)
@@ -44,6 +46,8 @@ internal interface ProtocolEngine {
 				override suspend fun start() { }
 
 				override suspend fun ping() { }
+
+				override suspend fun flush() { }
 
 				override suspend fun drain(timeout: Duration) { }
 

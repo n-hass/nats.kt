@@ -110,6 +110,8 @@ class NatsClientImplTest {
 
 		override suspend fun ping() {}
 
+		override suspend fun flush() {}
+
 		override suspend fun drain(timeout: kotlin.time.Duration) {}
 
 		override suspend fun close() {

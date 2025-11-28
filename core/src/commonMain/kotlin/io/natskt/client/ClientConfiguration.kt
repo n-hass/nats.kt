@@ -1,45 +1,28 @@
 package io.natskt.client
 
 import io.natskt.api.Credentials
-import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
 import kotlinx.coroutines.CoroutineScope
 
 internal data class ClientConfiguration(
-	/**
-	 * Servers to possibly connect to.
-	 */
 	val servers: List<NatsServerAddress>,
-	/**
-	 * either a []
-	 */
 	val transportFactory: TransportFactory,
 	val credentials: Credentials?,
-	/**
-	 *
-	 */
 	val inboxPrefix: String,
-	/**
-	 *
-	 */
-	internal val parser: OperationSerializer,
-	/**
-	 * The max number of reconnects for a single server.
-	 */
 	val maxReconnects: Int?,
 	val connectTimeoutMs: Long,
 	val reconnectDebounceMs: Long,
 	val maxControlLineBytes: Int,
+	val maxPayloadBytes: Int,
+	val operationBufferCapacity: Int,
+	val writeBufferLimitBytes: Int,
+	val writeFlushIntervalMs: Long,
 	val tlsRequired: Boolean,
-	/**
-	 * The NUID generator to use.
-	 */
+	val maxParallelRequests: Int?,
 	val nuid: NUID,
-	/**
-	 * The coroutine scope that the client's connections and parsing runs on
-	 */
 	val scope: CoroutineScope,
+	val ownsScope: Boolean,
 ) {
 	/**
 	 * The length of an inbox created using [createInbox]
@@ -49,5 +32,5 @@ internal data class ClientConfiguration(
 	/**
 	 *
 	 */
-	public fun createInbox(): String = inboxPrefix + nuid.next()
+	fun createInbox(): String = inboxPrefix + nuid.next()
 }

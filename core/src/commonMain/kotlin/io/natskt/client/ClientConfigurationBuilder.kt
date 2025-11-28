@@ -2,26 +2,138 @@ package io.natskt.client
 
 import io.ktor.http.URLBuilder
 import io.natskt.api.Credentials
+import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
+import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
-import io.natskt.internal.OperationSerializerImpl
 import io.natskt.internal.connectionCoroutineDispatcher
 import io.natskt.internal.platformDefaultTransport
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 public class ClientConfigurationBuilder internal constructor() {
+	/**
+	 * server URI in the format `nats://my-nats.com:4222`, or `wss://my-nats.com:8888`
+	 */
 	public var server: String? = null
+
+	/**
+	 * A list of servers that this client will connect to.
+	 */
 	public var servers: Collection<String>? = null
+
+	/**
+	 * Configure an authentication provider with an instance of [Credentials]
+	 *
+	 * Valid types:
+	 * - JWT + Nkey [Credentials.Jwt]
+	 * - Username + Password [Credentials.Password]
+	 * - Creds File [Credentials.File]
+	 * - Nkey [Credentials.Nkey]
+	 */
 	public var authentication: Credentials? = null
+
+	/**
+	 * The prefix to use for all request reply subjects.
+	 * A generated value is placed after this for each request.
+	 *
+	 * Defaults to `_INBOX.`
+	 */
 	public var inboxPrefix: String = "_INBOX."
+
+	/**
+	 * Maximum reconnect attempts when disconnection occurs from a connected state.
+	 */
 	public var maxReconnects: Int? = null
-	public var maxControlLineBytes: Int = 1024
-	public var connectTimeoutMs: Long = 5000
-	public var reconnectDebounceMs: Long = 2000
+
+	/**
+	 * Maximum control line size (in bytes) sent to the server.
+	 *
+	 * Most servers (version >2.9) default to 4096 bytes.
+	 */
+	public var maxControlLineBytes: Int = DEFAULT_MAX_CONTROL_LINE_BYTES
+
+	/**
+	 * Maximum allowed payload size of a message (in bytes)
+	 */
+	public var maxPayloadBytes: Int = DEFAULT_MAX_PAYLOAD_BYTES
+
+	/**
+	 * Time allowed for the connection handshake to succeed.
+	 *
+	 * If handshake exceeds this time, [io.natskt.api.NatsClient.connect] will fail
+	 */
+	public var connectTimeout: Duration = 5.seconds
+
+	/**
+	 * Waiting time between attempting reconnects
+	 */
+	public var reconnectDebounce: Duration = 2.seconds
+
+	/**
+	 * The number of outgoing operations that can be buffered while waiting for data to be flushed to the transport socket.
+	 *
+	 * This caps the memory usage of the client by forcing any publish or request call to suspend until the network has
+	 * caught up.
+	 *
+	 * This can also be set to [kotlinx.coroutines.channels.Channel.UNLIMITED] if you want to disable backpressure.
+	 */
+	public var operationBufferCapacity: Int = 32
+
+	/**
+	 * Limit the size of the internal buffer (in bytes) used for holding encoded data before it is
+	 * flushed to the socket.
+	 *
+	 * Changing this value only affects the frequency in which the client attempts to write to the transport socket,
+	 * and so controls latency. A lower value will mean more frequent flushes.
+	 *
+	 * See [operationBufferCapacity] if you want to control the number of operations (eg outgoing messages) that can be buffered
+	 * while awaiting a flush to the network.
+	 */
+	public var writeBufferLimitBytes: Int = 64 * 1024
+
+	/**
+	 * Automatically flush the write buffer at this interval, even if it is not full.
+	 *
+	 * This sets the write latency ceiling.
+	 *
+	 * Can be set to [Duration.ZERO] to immediately flush every message in full when it is published.
+	 */
+	public var writeFlushInterval: Duration = 5.milliseconds
+
+	/**
+	 * Set a limit on the maximum number of parallel requests.
+	 *
+	 * A value of `null` is no limit.
+	 *
+	 * If set, will always be coerced to at least `1`.
+	 *
+	 * Does not affect JetStream consumers that use a persistent request subscription.
+	 */
+	public var maxParallelRequests: Int? = null
+
+	/**
+	 * Tries to connect with TLS first, and forces the server to use TLS.
+	 */
 	public var tlsRequired: Boolean? = null
+
+	/**
+	 * The transport type to use. Will default to TCP on supported platforms, or a WebSocket transport
+	 * with the platforms preferred [Ktor client engine](https://ktor.io/docs/client-engines.html#dependencies)
+	 */
 	public var transport: TransportFactory? = null
+
+	/**
+	 * Provide a coroutine scope to launch all client-related jobs in.
+	 *
+	 * If not provided, a scope will be created with:
+	 * - IO Dispatcher [kotlinx.coroutines.Dispatchers] on supported platforms, or [kotlinx.coroutines.Dispatchers.Default] for JS platforms
+	 * - Running as a [SupervisorJob]
+	 */
 	public var scope: CoroutineScope? = null
 }
 
@@ -45,20 +157,32 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 	val inboxPrefix = if (inboxPrefix.endsWith(".")) inboxPrefix else "$inboxPrefix."
 
 	val tls = this.tlsRequired ?: serversList.any { secureProtocols.contains(it.url.protocol.name) }
+	val finalScope = scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("NatsClient"))
+	val parallelRequestLimit =
+		maxParallelRequests?.also {
+			require(it > 0) {
+				"maxParallelRequests must be > 0"
+			}
+		}
 
 	return ClientConfiguration(
 		servers = serversList,
 		transportFactory = transport ?: platformDefaultTransport,
 		credentials = authentication,
 		inboxPrefix = inboxPrefix,
-		parser = OperationSerializerImpl(),
 		maxReconnects = maxReconnects,
-		connectTimeoutMs = connectTimeoutMs,
-		reconnectDebounceMs = reconnectDebounceMs,
+		connectTimeoutMs = connectTimeout.inWholeMilliseconds,
+		reconnectDebounceMs = reconnectDebounce.inWholeMilliseconds,
 		maxControlLineBytes = maxControlLineBytes,
+		maxPayloadBytes = maxPayloadBytes,
+		operationBufferCapacity = operationBufferCapacity,
+		writeBufferLimitBytes = writeBufferLimitBytes,
+		writeFlushIntervalMs = writeFlushInterval.inWholeMilliseconds,
 		tlsRequired = tls,
+		maxParallelRequests = parallelRequestLimit,
 		nuid = NUID.Default,
-		scope = scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("NatsClient")),
+		scope = finalScope,
+		ownsScope = scope == null,
 	)
 }
 

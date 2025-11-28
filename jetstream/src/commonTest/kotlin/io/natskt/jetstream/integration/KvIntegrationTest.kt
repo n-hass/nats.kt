@@ -19,16 +19,21 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class KvIntegrationTest {
+	var counter = 1
+
+	private fun bucketName(base: String): String = "${base}_${counter++}"
+
 	@Test
 	fun `it creates a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("MyCoolBucket")
 				val bucket =
 					js.keyValueManager.create {
-						name = "MyCoolBucket"
+						name = bucketName
 					}
 
-				assertEquals("MyCoolBucket", bucket.config!!.bucket)
+				assertEquals(bucketName, bucket.config!!.bucket)
 				assertEquals(1u, bucket.config!!.history)
 				assertEquals(Duration.ZERO, bucket.config!!.ttl)
 				assertEquals(-1, bucket.config!!.maxValueSize)
@@ -40,12 +45,13 @@ class KvIntegrationTest {
 	fun `it gets an existing bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("MyCoolBucketAgain")
 				val createResult =
 					js.keyValueManager.create {
-						name = "MyCoolBucketAgain"
+						name = bucketName
 					}
 
-				val getResult = js.keyValueManager.get("MyCoolBucketAgain")
+				val getResult = js.keyValueManager.get(bucketName)
 
 				assertEquals(createResult.config, getResult.config)
 			}
@@ -55,13 +61,15 @@ class KvIntegrationTest {
 	fun `it puts on a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("MyCoolBucket")
 				js.keyValueManager.create {
-					name = "MyCoolBucket"
+					name = bucketName
 				}
 
-				val bucket = js.keyValue("MyCoolBucket")
+				val bucket = js.keyValue(bucketName)
 
 				bucket.put("a.b", "test".encodeToByteArray())
+				bucket.close()
 			}
 		}
 
@@ -69,11 +77,12 @@ class KvIntegrationTest {
 	fun `it gets on a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("MyCoolBucket")
 				js.keyValueManager.create {
-					name = "MyCoolBucket"
+					name = bucketName
 				}
 
-				val bucket = js.keyValue("MyCoolBucket")
+				val bucket = js.keyValue(bucketName)
 
 				bucket.put("a.b", "test1".encodeToByteArray())
 
@@ -87,12 +96,13 @@ class KvIntegrationTest {
 	fun `it gets a past value from a bucket`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("Foo")
 				js.keyValueManager.create {
-					name = "Foo"
+					name = bucketName
 					history = 3
 				}
 
-				val bucket = js.keyValue("Foo")
+				val bucket = js.keyValue(bucketName)
 
 				bucket.put("a.b", "test1".encodeToByteArray())
 				bucket.put("a.b", "test2".encodeToByteArray())
@@ -108,9 +118,10 @@ class KvIntegrationTest {
 	fun `it watches for new values`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("Foo")
 				val bucket =
 					js.keyValueManager.create {
-						name = "Foo"
+						name = bucketName
 					}
 
 				val first = CompletableDeferred<String>()
@@ -150,9 +161,10 @@ class KvIntegrationTest {
 	fun `watch returns the latest value on start`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("Foo")
 				val bucket =
 					js.keyValueManager.create {
-						name = "Foo"
+						name = bucketName
 					}
 
 				bucket.put("watching", "test1".encodeToByteArray())
@@ -184,9 +196,10 @@ class KvIntegrationTest {
 	fun `it lists bucket keys`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("NEON")
 				val bucket =
 					js.keyValueManager.create {
-						name = "NEON"
+						name = bucketName
 					}
 
 				bucket.put("b", "1".encodeToByteArray())
@@ -204,9 +217,10 @@ class KvIntegrationTest {
 	fun `it creates keys only once unless deleted`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("CREATE")
 				val bucket =
 					js.keyValueManager.create {
-						name = "CREATE"
+						name = bucketName
 					}
 
 				val firstRevision = bucket.create("alpha", "foo".encodeToByteArray())
@@ -230,9 +244,10 @@ class KvIntegrationTest {
 	fun `it updates values when revision matches`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("UPDATE")
 				val bucket =
 					js.keyValueManager.create {
-						name = "UPDATE"
+						name = bucketName
 					}
 
 				val initial = bucket.put("alpha", "foo".encodeToByteArray())
@@ -250,9 +265,10 @@ class KvIntegrationTest {
 	fun `it deletes keys with successful revision check`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("DELETE")
 				val bucket =
 					js.keyValueManager.create {
-						name = "DELETE"
+						name = bucketName
 					}
 
 				val initial = bucket.put("alpha", "foo".encodeToByteArray())
@@ -272,9 +288,10 @@ class KvIntegrationTest {
 	fun `it fails to delete key with failed revision check`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("DELETE")
 				val bucket =
 					js.keyValueManager.create {
-						name = "DELETE"
+						name = bucketName
 					}
 
 				val initial = bucket.put("alpha", "foo".encodeToByteArray())
@@ -292,9 +309,10 @@ class KvIntegrationTest {
 	fun `it deletes keys without revision checks`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("DELETE2")
 				val bucket =
 					js.keyValueManager.create {
-						name = "DELETE2"
+						name = bucketName
 					}
 
 				val initial = bucket.put("alpha", "foo".encodeToByteArray())
@@ -315,9 +333,10 @@ class KvIntegrationTest {
 	fun `it purges keys and records a marker`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("PURGE")
 				val bucket =
 					js.keyValueManager.create {
-						name = "PURGE"
+						name = bucketName
 					}
 
 				bucket.put("alpha", "foo".encodeToByteArray())

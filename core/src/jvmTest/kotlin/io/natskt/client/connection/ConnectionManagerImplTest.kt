@@ -2,15 +2,13 @@ package io.natskt.client.connection
 
 import io.ktor.http.Url
 import io.ktor.util.collections.ConcurrentMap
-import io.natskt.api.internal.OperationSerializer
+import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
-import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.NUID
-import io.natskt.internal.ParsedOutput
 import io.natskt.internal.PendingRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
@@ -65,14 +63,19 @@ class ConnectionManagerImplTest {
 				transportFactory = NoopTransportFactory,
 				credentials = null,
 				inboxPrefix = "_INBOX.",
-				parser = NoopSerializer,
 				maxReconnects = null,
 				connectTimeoutMs = 1000,
 				reconnectDebounceMs = 1000,
 				maxControlLineBytes = 1024,
+				operationBufferCapacity = 32,
+				writeBufferLimitBytes = 64 * 1024,
+				writeFlushIntervalMs = 5,
 				tlsRequired = false,
 				nuid = NUID.Default,
 				scope = CoroutineScope(EmptyCoroutineContext),
+				maxParallelRequests = null,
+				ownsScope = false,
+				maxPayloadBytes = DEFAULT_MAX_PAYLOAD_BYTES,
 			)
 		return ConnectionManagerImpl(
 			config,
@@ -86,11 +89,5 @@ class ConnectionManagerImplTest {
 			address: NatsServerAddress,
 			context: CoroutineContext,
 		): Transport = throw UnsupportedOperationException("not used")
-	}
-
-	private object NoopSerializer : OperationSerializer {
-		override suspend fun parse(channel: io.ktor.utils.io.ByteReadChannel): ParsedOutput? = null
-
-		override fun encode(op: ClientOperation): ByteArray = ByteArray(0)
 	}
 }

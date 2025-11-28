@@ -5,10 +5,14 @@ package io.natskt.internal
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.writeFully
+import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
+import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.api.internal.OperationEncodeBuffer
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import java.io.EOFException
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -17,7 +21,11 @@ import kotlin.test.assertNull
 import kotlin.test.fail
 
 class OperationSerializerImplTest {
-	private fun newSerializer(): OperationSerializerImpl = OperationSerializerImpl()
+	private fun newSerializer(): OperationSerializerImpl =
+		OperationSerializerImpl(
+			maxControlLineBytes = DEFAULT_MAX_CONTROL_LINE_BYTES,
+			maxPayloadBytes = DEFAULT_MAX_PAYLOAD_BYTES,
+		)
 
 	private suspend fun channelOf(vararg chunks: ByteArray): ByteReadChannel {
 		val ch = ByteChannel(autoFlush = true)
@@ -27,6 +35,45 @@ class OperationSerializerImplTest {
 	}
 
 	private fun b(s: String) = s.encodeToByteArray()
+
+	private class RecordingBuffer : OperationEncodeBuffer {
+		private val data = mutableListOf<Byte>()
+
+		override suspend fun writeByte(value: Byte) {
+			data.add(value)
+		}
+
+		override suspend fun writeBytes(
+			value: ByteArray,
+			offset: Int,
+			length: Int,
+		) {
+			for (i in offset until offset + length) {
+				data.add(value[i])
+			}
+		}
+
+		override suspend fun writeUtf8(value: String) {
+			value.encodeToByteArray().forEach { data.add(it) }
+		}
+
+		override suspend fun writeInt(value: Int) {
+			writeUtf8(value.toString())
+		}
+
+		override suspend fun writeCrLf() {
+			data.add('\r'.code.toByte())
+			data.add('\n'.code.toByte())
+		}
+
+		fun toByteArray(): ByteArray = data.toByteArray()
+	}
+
+	private suspend fun OperationSerializerImpl.encodeToBytes(op: ClientOperation): ByteArray {
+		val buffer = RecordingBuffer()
+		encode(op, buffer)
+		return buffer.toByteArray()
+	}
 
 	@Test
 	fun `parse - ping pong ok err`() =
@@ -70,7 +117,7 @@ class OperationSerializerImplTest {
 			val info = op as? ServerOperation.InfoOp ?: fail("Expected InfoOp, got $op")
 			assertEquals("abc", info.serverId)
 			assertTrue(info.headers == true)
-			assertTrue(info.maxPayload!! >= 1024)
+			assertTrue(info.maxPayload >= 1024)
 		}
 
 	@Test
@@ -224,7 +271,7 @@ class OperationSerializerImplTest {
 					// no \r\n
 				)
 			val ex = assertFails { ser.parse(ch) }
-			assertTrue(ex.cause is java.io.EOFException)
+			assertTrue(ex.cause is EOFException)
 		}
 
 	@Test
@@ -245,70 +292,117 @@ class OperationSerializerImplTest {
 		}
 
 	@Test
-	fun `encode hpub with headers and payload`() {
-		val serializer = newSerializer()
+	fun `encode hpub with headers and payload`() =
+		runTest {
+			val serializer = newSerializer()
 
-		val payload = "DATA".encodeToByteArray()
-		val headers =
-			linkedMapOf(
-				"X" to listOf("1", "2"),
-				"Y" to emptyList(),
-			)
+			val payload = "DATA".encodeToByteArray()
+			val headers =
+				linkedMapOf(
+					"X" to listOf("1", "2"),
+					"Y" to emptyList(),
+				)
 
-		val encoded =
-			serializer.encode(
-				ClientOperation.HPubOp(
-					subject = "sub",
-					replyTo = "reply",
-					headers = headers,
-					payload = payload,
-				),
-			)
+			val encoded =
+				serializer.encodeToBytes(
+					ClientOperation.HPubOp(
+						subject = "sub",
+						replyTo = "reply",
+						headers = headers,
+						payload = payload,
+					),
+				)
 
-		val expectedHeaderBlock = "NATS/1.0\r\nX: 1\r\nX: 2\r\nY: \r\n\r\n".encodeToByteArray()
-		val expectedHeaderSize = expectedHeaderBlock.size
-		val expectedTotalSize = expectedHeaderSize + payload.size
+			val expectedHeaderBlock = "NATS/1.0\r\nX: 1\r\nX: 2\r\nY: \r\n\r\n".encodeToByteArray()
+			val expectedHeaderSize = expectedHeaderBlock.size
+			val expectedTotalSize = expectedHeaderSize + payload.size
 
-		val expected =
-			buildString {
-				append("HPUB sub reply ")
-				append(expectedHeaderSize)
-				append(" ")
-				append(expectedTotalSize)
-				append("\r\n")
-			}.encodeToByteArray() + expectedHeaderBlock + payload + "\r\n".encodeToByteArray()
+			val expected =
+				buildString {
+					append("HPUB sub reply ")
+					append(expectedHeaderSize)
+					append(" ")
+					append(expectedTotalSize)
+					append("\r\n")
+				}.encodeToByteArray() + expectedHeaderBlock + payload + "\r\n".encodeToByteArray()
 
-		assertContentEquals(expected, encoded)
-	}
+			assertContentEquals(expected, encoded)
+		}
 
 	@Test
-	fun `encode hpub without headers or payload`() {
-		val serializer = newSerializer()
+	fun `encode hpub counts utf8 header bytes`() =
+		runTest {
+			val serializer = newSerializer()
 
-		val encoded =
-			serializer.encode(
-				ClientOperation.HPubOp(
-					subject = "sub",
-					replyTo = null,
-					headers = emptyMap(),
-					payload = null,
-				),
-			)
+			val payload = "данные🚀".encodeToByteArray()
+			val headers =
+				linkedMapOf(
+					"ключ" to listOf("значение", "ещё"),
+					"emoji🚀" to listOf("火"),
+				)
 
-		val expectedHeaderBlock = "NATS/1.0\r\n\r\n".encodeToByteArray()
-		val expectedHeaderSize = expectedHeaderBlock.size
+			val encoded =
+				serializer.encodeToBytes(
+					ClientOperation.HPubOp(
+						subject = "sub",
+						replyTo = null,
+						headers = headers,
+						payload = payload,
+					),
+				)
 
-		val expected =
-			buildString {
-				append("HPUB sub ")
-				append(expectedHeaderSize)
-				append(" ")
-				append(expectedHeaderSize)
-				append("\r\n")
-			}.encodeToByteArray() + expectedHeaderBlock + "\r\n".encodeToByteArray()
+			val expectedHeaderBlock =
+				buildString {
+					append("NATS/1.0\r\n")
+					append("ключ: значение\r\n")
+					append("ключ: ещё\r\n")
+					append("emoji🚀: 火\r\n")
+					append("\r\n")
+				}.encodeToByteArray()
+			val expectedHeaderSize = expectedHeaderBlock.size
+			val expectedTotalSize = expectedHeaderSize + payload.size
 
-		assertContentEquals(expected, encoded)
-	}
+			val expected =
+				buildString {
+					append("HPUB sub ")
+					append(expectedHeaderSize)
+					append(" ")
+					append(expectedTotalSize)
+					append("\r\n")
+				}.encodeToByteArray() + expectedHeaderBlock + payload + "\r\n".encodeToByteArray()
+
+			assertContentEquals(expected, encoded)
+		}
+
+	@Test
+	fun `encode hpub without headers or payload`() =
+		runTest {
+			val serializer = newSerializer()
+
+			val encoded =
+				serializer.encodeToBytes(
+					ClientOperation.HPubOp(
+						subject = "sub",
+						replyTo = null,
+						headers = emptyMap(),
+						payload = null,
+					),
+				)
+
+			val expectedHeaderBlock = "NATS/1.0\r\n\r\n".encodeToByteArray()
+			val expectedHeaderSize = expectedHeaderBlock.size
+
+			val expected =
+				buildString {
+					append("HPUB sub ")
+					append(expectedHeaderSize)
+					append(" ")
+					append(expectedHeaderSize)
+					append("\r\n")
+				}.encodeToByteArray() + expectedHeaderBlock + "\r\n".encodeToByteArray()
+
+			assertContentEquals(expected, encoded)
+		}
 
 	@Test
 	fun `parses jetstream HMSG with a status code in the header preamble with headers after`() =

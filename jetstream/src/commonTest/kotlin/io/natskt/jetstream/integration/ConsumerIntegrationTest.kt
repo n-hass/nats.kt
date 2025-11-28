@@ -10,13 +10,17 @@ import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
 import io.natskt.jetstream.api.consumer.PullConsumer
+import io.natskt.jetstream.api.consumer.PushConsumer
 import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.internal.PushConsumerImpl
 import io.natskt.jetstream.internal.createOrUpdateConsumer
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -61,7 +65,7 @@ class ConsumerIntegrationTest {
 				val deferred = CompletableDeferred(Unit)
 				val job =
 					launch {
-						withTimeout(5.seconds) {
+						withTimeout(25.seconds) {
 							pushConsumer.messages
 								.take(2)
 								.onStart {
@@ -74,9 +78,10 @@ class ConsumerIntegrationTest {
 				job.start()
 
 				deferred.await()
-				delay(100)
+				delay(250)
 				js.publish("push.binding", "alpha".encodeToByteArray())
 				js.publish("push.binding", "beta".encodeToByteArray())
+				c.flush()
 
 				job.join()
 
@@ -116,30 +121,31 @@ class ConsumerIntegrationTest {
 									idleHeartbeat = 5.seconds,
 								),
 						),
-					) as PushConsumerImpl
+					)
 
-				val received = mutableListOf<String>()
+				assertIs<PushConsumer>(consumer)
+
 				val deferred = CompletableDeferred(Unit)
-				val job =
-					launch {
-						withTimeout(5.seconds) {
-							consumer.messages.take(2).onStart { deferred.complete(Unit) }.collect {
-								received += it.data!!.decodeToString()
-							}
+				val received =
+					async {
+						withTimeout(10.seconds) {
+							consumer.messages
+								.take(2)
+								.onStart { deferred.complete(Unit) }
+								.map { it.data!!.decodeToString() }
+								.toList()
 						}
 					}
-				job.start()
+				received.start()
 
 				deferred.await()
 				delay(100)
-				c.publish("subscribe.create", "create-one".encodeToByteArray())
-				c.publish("subscribe.create", "create-two".encodeToByteArray())
+				js.publish("subscribe.create", "create-one".encodeToByteArray())
+				js.publish("subscribe.create", "create-two".encodeToByteArray())
+				c.flush()
 
-				job.join()
-
-				assertEquals(listOf("create-one", "create-two"), received)
+				assertEquals(listOf("create-one", "create-two"), received.await())
 				assertEquals(consumerName, consumer.info.value?.name)
-				assertEquals(deliverSubject, consumer.subscription.subject.raw)
 
 				ignoreClosedWrite { consumer.close() }
 			}

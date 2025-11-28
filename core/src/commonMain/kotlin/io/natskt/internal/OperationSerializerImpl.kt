@@ -4,14 +4,13 @@ package io.natskt.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.charsets.TooLongLineException
 import io.ktor.utils.io.core.toByteArray
 import io.ktor.utils.io.read
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
-import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
-import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
+import io.natskt.api.ProtocolException
 import io.natskt.api.internal.InternalNatsApi
+import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
@@ -27,7 +26,8 @@ private val ERR = "-ERR".toByteArray()
 private val INFO = "INFO".toByteArray()
 private val MSG = "MSG".toByteArray()
 private val HMSG = "HMSG".toByteArray()
-
+private const val HEADER_START = "NATS/1.0"
+private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
 private val pingOpBytes = "PING".toByteArray()
 private val pongOpBytes = "PONG".toByteArray()
 private val connectOpBytes = "CONNECT ".toByteArray()
@@ -38,16 +38,18 @@ private val unsubOpBytes = "UNSUB ".toByteArray()
 
 private val empty = "".toByteArray()
 
-private val lineEndBytes = LINE_END.toByteArray()
-private val spaceByte = ' '.code.toByte()
-private val crByte = '\r'.code.toByte()
-private val lfByte = '\n'.code.toByte()
-private val cr = '\r'.code.toLong()
-private val lf = '\n'.code.toLong()
+private const val SPACE_BYTE = ' '.code.toByte()
+internal const val CR_BYTE = '\r'.code.toByte()
+internal const val LF_BYTE = '\n'.code.toByte()
+private const val CR_CODE = '\r'.code.toLong()
+private const val LF_CODE = '\n'.code.toLong()
+private val HEADER_START_BYTES = HEADER_START.encodeToByteArray()
+internal val LINE_END_BYTES = LINE_END.encodeToByteArray()
+private val COLON_SPACE_BYTES = ": ".encodeToByteArray()
 
 internal class OperationSerializerImpl(
-	private val maxControlLineBytes: Int = DEFAULT_MAX_CONTROL_LINE_BYTES,
-	private val maxPayloadBytes: Int = DEFAULT_MAX_PAYLOAD_BYTES,
+	private val maxControlLineBytes: Int,
+	private val maxPayloadBytes: Int,
 ) : OperationSerializer {
 	override suspend fun parse(channel: ByteReadChannel): ParsedOutput? {
 		val line = channel.readControlLine(maxControlLineBytes)
@@ -150,7 +152,7 @@ internal class OperationSerializerImpl(
 								// still need to consume trailing CRLF even when payload is empty
 								val c = channel.readByte()
 								val l = channel.readByte()
-								require(c == crByte && l == lfByte) { "malformed HMSG terminator" }
+								require(c == CR_BYTE && l == LF_BYTE) { "malformed HMSG terminator" }
 								null
 							}
 						IncomingCoreMessage(
@@ -185,7 +187,7 @@ internal class OperationSerializerImpl(
 							} else {
 								val c = channel.readByte()
 								val l = channel.readByte()
-								require(c == crByte && l == lfByte) { "malformed HMSG terminator" }
+								require(c == CR_BYTE && l == LF_BYTE) { "malformed HMSG terminator" }
 								null
 							}
 
@@ -216,106 +218,84 @@ internal class OperationSerializerImpl(
 		}
 	}
 
-	override fun encode(op: ClientOperation): ByteArray =
+	override suspend fun encode(
+		op: ClientOperation,
+		buffer: OperationEncodeBuffer,
+	) {
 		when (op) {
-			Operation.Ping -> pingOpBytes
-			Operation.Pong -> pongOpBytes
-			is ClientOperation.ConnectOp -> connectOpBytes + wireJsonFormat.encodeToString(op).encodeToByteArray()
+			Operation.Ping -> buffer.writeBytes(pingOpBytes)
+			Operation.Pong -> buffer.writeBytes(pongOpBytes)
+			is ClientOperation.ConnectOp -> {
+				buffer.writeBytes(connectOpBytes)
+				buffer.writeUtf8(wireJsonFormat.encodeToString(op))
+			}
 			is ClientOperation.PubOp -> {
-				val payloadExists = op.payload != null
-
-				var pub =
-					pubOpBytes +
-						buildString {
-							append(op.subject)
-							if (op.replyTo != null) {
-								append(" ")
-								append(op.replyTo)
-							}
-							if (payloadExists) {
-								val payloadBytes = op.payload!!
-								append(" ")
-								append(payloadBytes.size)
-							} else {
-								append(" 0")
-							}
-						}.encodeToByteArray() + lineEndBytes
-
-				if (payloadExists) {
-					pub += op.payload!!
+				buffer.writeBytes(pubOpBytes)
+				buffer.writeUtf8(op.subject)
+				val replyTo = op.replyTo
+				if (replyTo != null) {
+					buffer.writeByte(SPACE_BYTE)
+					buffer.writeUtf8(replyTo)
 				}
-
-				pub
+				buffer.writeByte(SPACE_BYTE)
+				val payloadBytes = op.payload
+				if (payloadBytes == null) {
+					buffer.writeByte('0'.code.toByte())
+				} else {
+					buffer.writeInt(payloadBytes.size)
+				}
+				buffer.writeCrLf()
+				if (payloadBytes != null) {
+					buffer.writeBytes(payloadBytes)
+				}
 			}
 			is ClientOperation.HPubOp -> {
 				val payloadBytes = op.payload
-				val headerBytes =
-					buildString {
-						append(HEADER_START)
-						append(LINE_END)
-						op.headers?.forEach { (name, values) ->
-							if (values.isEmpty()) {
-								append(name)
-								append(": ")
-								append(LINE_END)
-							} else {
-								values.forEach { value ->
-									append(name)
-									append(": ")
-									append(value)
-									append(LINE_END)
-								}
-							}
-						}
-						append(LINE_END)
-					}.encodeToByteArray()
-
 				val payloadLength = payloadBytes?.size ?: 0
-				val totalLength = headerBytes.size + payloadLength
+				val headerSize = headersSize(op.headers)
+				val totalLength = headerSize + payloadLength
 
-				var hpub =
-					hpubOpBytes +
-						buildString {
-							append(op.subject)
-							if (op.replyTo != null) {
-								append(" ")
-								append(op.replyTo)
-							}
-							append(" ")
-							append(headerBytes.size)
-							append(" ")
-							append(totalLength)
-						}.encodeToByteArray() + lineEndBytes
-
-				hpub += headerBytes
-
-				if (payloadBytes != null) {
-					hpub += payloadBytes
+				buffer.writeBytes(hpubOpBytes)
+				buffer.writeUtf8(op.subject)
+				val replyTo = op.replyTo
+				if (replyTo != null) {
+					buffer.writeByte(SPACE_BYTE)
+					buffer.writeUtf8(replyTo)
 				}
+				buffer.writeByte(SPACE_BYTE)
+				buffer.writeInt(headerSize)
+				buffer.writeByte(SPACE_BYTE)
+				buffer.writeInt(totalLength)
+				buffer.writeCrLf()
 
-				hpub
+				buffer.writeHeaders(op.headers)
+				if (payloadBytes != null) {
+					buffer.writeBytes(payloadBytes)
+				}
 			}
-			is ClientOperation.SubOp ->
-				subOpBytes +
-					buildString {
-						append(op.subject)
-						append(" ")
-						if (op.queueGroup != null) {
-							append(op.queueGroup)
-							append(" ")
-						}
-						append(op.sid)
-					}.encodeToByteArray()
-			is ClientOperation.UnSubOp ->
-				unsubOpBytes +
-					buildString {
-						append(op.sid)
-						if (op.maxMsgs != null) {
-							append(" ")
-							append(op.maxMsgs)
-						}
-					}.encodeToByteArray()
-		} + lineEndBytes
+			is ClientOperation.SubOp -> {
+				buffer.writeBytes(subOpBytes)
+				buffer.writeUtf8(op.subject)
+				buffer.writeByte(SPACE_BYTE)
+				val queueGroup = op.queueGroup
+				if (queueGroup != null) {
+					buffer.writeUtf8(queueGroup)
+					buffer.writeByte(SPACE_BYTE)
+				}
+				buffer.writeUtf8(op.sid)
+			}
+			is ClientOperation.UnSubOp -> {
+				buffer.writeBytes(unsubOpBytes)
+				buffer.writeUtf8(op.sid)
+				val maxMsgs = op.maxMsgs
+				if (maxMsgs != null) {
+					buffer.writeByte(SPACE_BYTE)
+					buffer.writeInt(maxMsgs)
+				}
+			}
+		}
+		buffer.writeCrLf()
+	}
 }
 
 private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
@@ -332,7 +312,7 @@ private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 				val b = buf[i].toLong()
 				i++
 
-				if (last == cr && b == lf) {
+				if (last == CR_CODE && b == LF_CODE) {
 					// We just consumed CRLF; do not write them to acc
 					found = true
 					last = -1
@@ -342,7 +322,7 @@ private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 				if (last != -1L) {
 					acc.writeByte(last.toByte())
 					total++
-					if (total > maxLen) throw TooLongLineException("line exceeds $maxLen bytes")
+					if (total > maxLen) throw ProtocolException("control line exceeds $maxLen bytes")
 				}
 				last = b
 			}
@@ -351,7 +331,7 @@ private suspend fun ByteReadChannel.readControlLine(maxLen: Int): ByteArray {
 
 		if (isClosedForRead && !found) {
 			// Channel closed before CRLF; flush the dangling 'last' if any and return what we have
-			if (last != -1L && last != cr) {
+			if (last != -1L && last != CR_CODE) {
 				acc.writeByte(last.toByte())
 			}
 			break
@@ -368,20 +348,20 @@ private suspend fun ByteReadChannel.readPayload(n: Int): ByteArray {
 		try {
 			readByte()
 		} catch (e: Exception) {
-			throw IllegalStateException("missing payload CR terminator", e)
+			throw ProtocolException("missing payload CR terminator", e)
 		}
 	val l =
 		try {
 			readByte()
 		} catch (e: Exception) {
-			throw IllegalStateException("missing payload LF terminator", e)
+			throw ProtocolException("missing payload LF terminator", e)
 		}
-	require(c == crByte && l == lfByte) { "malformed payload terminator" }
+	if (c != CR_BYTE || l != LF_BYTE) throw ProtocolException("malformed payload terminator")
 	return out
 }
 
 private fun ByteArray.firstToken(): ByteArray {
-	val sp = indexOf(spaceByte).let { if (it < 0) size else it }
+	val sp = indexOf(SPACE_BYTE).let { if (it < 0) size else it }
 	return copyOfRange(0, sp)
 }
 
@@ -394,14 +374,11 @@ private suspend fun ByteReadChannel.readExact(n: Int): ByteArray {
 	return out
 }
 
-private const val HEADER_START = "NATS/1.0"
-private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
-
 private fun parseStatusCode(s: String): Int? {
 	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
 	val firstCrlf = s.indexOf(LINE_END)
 	require(firstCrlf >= HEADER_START.length) { "invalid NATS header preamble" }
-	val firstLine = s.substring(0, firstCrlf)
+	val firstLine = s.take(firstCrlf)
 
 	// Check if there's a status code after "NATS/1.0"
 	if (firstLine.length > HEADER_START.length && firstLine[HEADER_START.length] == ' ') {
@@ -435,7 +412,7 @@ private fun parseHeaders(s: String): Map<String, List<String>>? {
 		val line = s.substring(i, lineEnd)
 		val c = line.indexOf(':')
 		require(c > 0) { "malformed header line: '$line'" }
-		val name = line.substring(0, c) // preserve case
+		val name = line.take(c) // preserve case
 		val value = line.substring(c + 1).trimStart() // strip leading space after colon
 		if (map[name] == null) {
 			map[name] = mutableListOf()
@@ -444,4 +421,58 @@ private fun parseHeaders(s: String): Map<String, List<String>>? {
 		i = lineEnd + 2 // skip CRLF
 	}
 	return map.ifEmpty { null }
+}
+
+private fun headersSize(headers: Map<String, List<String>>?): Int {
+	var length = HEADER_START_BYTES.size + LINE_END_BYTES.size + LINE_END_BYTES.size
+	headers?.forEach { (name, values) ->
+		val nameLength = utf8Length(name)
+		if (values.isEmpty()) {
+			length += nameLength + COLON_SPACE_BYTES.size + LINE_END_BYTES.size
+		} else {
+			values.forEach { value ->
+				length += nameLength + COLON_SPACE_BYTES.size + utf8Length(value) + LINE_END_BYTES.size
+			}
+		}
+	}
+	return length
+}
+
+private fun utf8Length(s: String): Int {
+	var len = 0
+	var i = 0
+	while (i < s.length) {
+		val ch = s[i]
+		when {
+			ch.code < 0x80 -> len += 1
+			ch.code < 0x800 -> len += 2
+			ch in '\uD800'..'\uDBFF' && i + 1 < s.length && s[i + 1] in '\uDC00'..'\uDFFF' -> {
+				len += 4
+				i++ // skip low surrogate
+			}
+			else -> len += 3
+		}
+		i++
+	}
+	return len
+}
+
+private suspend fun OperationEncodeBuffer.writeHeaders(headers: Map<String, List<String>>?) {
+	writeUtf8(HEADER_START)
+	writeCrLf()
+	headers?.forEach { (name, values) ->
+		if (values.isEmpty()) {
+			writeUtf8(name)
+			writeBytes(COLON_SPACE_BYTES)
+			writeCrLf()
+		} else {
+			values.forEach { value ->
+				writeUtf8(name)
+				writeBytes(COLON_SPACE_BYTES)
+				writeUtf8(value)
+				writeCrLf()
+			}
+		}
+	}
+	writeCrLf()
 }

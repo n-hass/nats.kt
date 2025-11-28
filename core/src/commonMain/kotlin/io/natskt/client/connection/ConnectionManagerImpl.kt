@@ -7,11 +7,13 @@ import io.ktor.http.Url
 import io.ktor.util.collections.ConcurrentMap
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionState
+import io.natskt.api.NatsClientException
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.client.ClientConfiguration
 import io.natskt.client.NatsServerAddress
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
+import io.natskt.internal.OperationSerializerImpl
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.ServerOperation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,6 +52,12 @@ internal class ConnectionManagerImpl(
 
 	private var reconnectJob: Job? = null
 
+	private val parser =
+		OperationSerializerImpl(
+			maxControlLineBytes = config.maxControlLineBytes,
+			maxPayloadBytes = config.maxPayloadBytes,
+		)
+
 	fun start() {
 		reconnectJob =
 			config.scope.launch {
@@ -57,15 +65,18 @@ internal class ConnectionManagerImpl(
 					val address = selectAddress()
 					current.emit(
 						ProtocolEngineImpl(
-							config.transportFactory,
-							address,
-							config.parser,
-							subscriptions,
-							pendingRequests,
-							serverInfo,
-							config.credentials,
-							config.tlsRequired,
-							config.scope,
+							transportFactory = config.transportFactory,
+							address = address,
+							parser = parser,
+							subscriptions = subscriptions,
+							pendingRequests = pendingRequests,
+							serverInfo = serverInfo,
+							credentials = config.credentials,
+							tlsRequired = config.tlsRequired,
+							operationBufferCapacity = config.operationBufferCapacity,
+							writeBufferLimitBytes = config.writeBufferLimitBytes,
+							writeFlushIntervalMs = config.writeFlushIntervalMs,
+							scope = config.scope,
 						),
 					)
 
@@ -132,7 +143,7 @@ internal class ConnectionManagerImpl(
 
 	internal fun selectAddress(now: Long = Clock.System.now().toEpochMilliseconds()): NatsServerAddress {
 		if (allServers.isEmpty()) {
-			throw IllegalStateException("no servers available")
+			throw NatsClientException("no servers available")
 		}
 		pruneLameDuck(now)
 		val viable =
@@ -140,7 +151,7 @@ internal class ConnectionManagerImpl(
 				val markedAt = lameDuckServers[address]
 				markedAt != null && now - markedAt < LAME_DUCK_BACKOFF_MILLIS
 			}
-		val pool = if (viable.isNotEmpty()) viable else allServers.toList()
+		val pool = viable.ifEmpty { allServers.toList() }
 		return pool.shuffled().first()
 	}
 
@@ -153,6 +164,8 @@ internal class ConnectionManagerImpl(
 	suspend fun ping() = current.value.ping()
 
 	suspend fun drain(timeout: Duration) = current.value.drain(timeout)
+
+	suspend fun flush() = current.value.flush()
 }
 
 private fun <K, V> MutableMap<K, V>.removeIf(predicate: (Map.Entry<K, V>) -> Boolean) =

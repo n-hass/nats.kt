@@ -1,9 +1,9 @@
 package io.natskt.jetstream.integration
 
 import harness.RemoteNatsServer
-import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.NatsClient
 import io.natskt.jetstream.JetStreamClient
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlin.time.Duration.Companion.seconds
 import io.natskt.api.NatsClient as ApiNatsClient
 import io.natskt.jetstream.api.JetStreamClient as ApiJetStreamClient
@@ -15,7 +15,7 @@ internal suspend fun <T> withJetStreamClient(
 	val client =
 		NatsClient {
 			this.server = server.uri
-			connectTimeoutMs = 10_000
+			connectTimeout = 10.seconds
 			maxReconnects = 3
 		}
 	client.connect().getOrThrow()
@@ -31,7 +31,7 @@ internal suspend fun <T> withJetStreamClient(
 internal suspend fun ignoreClosedWrite(block: suspend () -> Unit) {
 	try {
 		block()
-	} catch (_: ClosedWriteChannelException) {
+	} catch (_: ClosedSendChannelException) {
 		// connection already gone; nothing to clean up
 	}
 }

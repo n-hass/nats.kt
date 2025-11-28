@@ -5,6 +5,7 @@ package io.natskt.client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.ClosedWriteChannelException
+import io.natskt.api.ConnectionClosedException
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Message
@@ -22,11 +23,13 @@ import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.throwOnInvalidSubject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.atomics.AtomicLong
@@ -43,6 +46,7 @@ internal class NatsClientImpl(
 ) : NatsClient {
 	private val _subscriptions = ConcurrentMap<String, InternalSubscriptionHandler>()
 	internal val pendingRequests = ConcurrentMap<String, PendingRequest>()
+	private val requestLimiter = configuration.maxParallelRequests?.let { Semaphore(it.coerceAtLeast(1)) }
 	override val subscriptions: Map<String, Subscription>
 		get() = _subscriptions
 
@@ -57,11 +61,6 @@ internal class NatsClientImpl(
 
 	override suspend fun connect(): Result<Unit> {
 		connectionManager.start()
-		scope.launch {
-			connectionManager.connectionState.collect {
-				logger.debug { "Connection status change: $it" }
-			}
-		}
 
 		withTimeoutOrNull(configuration.connectTimeoutMs) {
 			connectionManager.connectionState
@@ -202,6 +201,8 @@ internal class NatsClientImpl(
 		val sid = sidAllocator.fetchAndAdd(1).toString()
 		var subscribed = false
 
+		requestLimiter?.acquire()
+
 		return try {
 			withTimeout(timeoutMs) {
 				suspendCancellableCoroutine { cont ->
@@ -216,9 +217,7 @@ internal class NatsClientImpl(
 								object : Continuation<Unit> {
 									override val context = cont.context
 
-									override fun resumeWith(result: Result<Unit>) {
-										// ignore outcome
-									}
+									override fun resumeWith(result: Result<Unit>) { }
 								},
 							)
 						}
@@ -260,6 +259,7 @@ internal class NatsClientImpl(
 					// ignore
 				}
 			}
+			requestLimiter?.release()
 		}
 	}
 
@@ -291,8 +291,12 @@ internal class NatsClientImpl(
 			_subscriptions.remove(sid)
 			try {
 				connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
+			} catch (_: ConnectionClosedException) {
+				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
 			} catch (_: ClosedWriteChannelException) {
-				// already closed - ignore it
+				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
+			} catch (_: ClosedSendChannelException) {
+				logger.warn { "Connection was already closed when calling unsubscribe for SID: $sid" }
 			}
 		}
 
@@ -300,9 +304,14 @@ internal class NatsClientImpl(
 
 	override suspend fun ping() = connectionManager.ping()
 
+	override suspend fun flush() = connectionManager.flush()
+
 	override suspend fun drain(timeout: Duration) = connectionManager.drain(timeout)
 
 	override suspend fun disconnect() {
 		connectionManager.stop()
+		if (configuration.ownsScope) {
+			configuration.scope.cancel()
+		}
 	}
 }

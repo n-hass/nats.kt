@@ -1,13 +1,11 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import com.diffplug.spotless.LineEnding
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import org.gradle.api.Task
-import org.gradle.api.tasks.testing.Test
+import java.util.*
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
-import java.util.Locale
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
@@ -31,6 +29,7 @@ private val kotlinNativeTestClass =
 private val natsServerDaemonService =
 	gradle.sharedServices.registerIfAbsent("natsServerDaemonService", NatsServerDaemonService::class) {
 		parameters.executable.set(natsHarnessExecutable)
+		parameters.workingDirectory.set(project(projects.testHarness.natsServerDaemon.path).layout.projectDirectory.asFile.toString())
 		parameters.args.set(emptyList())
 		parameters.readyCheckUrl.set("http://127.0.0.1:4500/health")
 		parameters.startupTimeoutSeconds.set(60)
@@ -40,7 +39,9 @@ private val natsServerDaemonService =
 				"NATS_HARNESS_PORT" to "4500",
 			),
 		)
-		maxParallelUsages.set(3)
+		maxParallelUsages.set(
+			properties["natskt.test.parallel"]?.toString()?.toInt() ?: 2
+		)
 	}
 
 private val ensureNatsHarness =

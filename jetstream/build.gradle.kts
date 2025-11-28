@@ -2,9 +2,6 @@
 
 import java.time.Duration
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
 
 plugins {
 	alias(libs.plugins.kotlin.multiplatform)
@@ -16,7 +13,14 @@ kotlin {
 
     jvm()
     js {
-        browser()
+        browser {
+			testTask {
+				useKarma {
+					useChromeHeadless()
+				}
+				timeout = Duration.ofSeconds(30)
+			}
+		}
         nodejs {
 			testTask {
 				useMocha {

@@ -63,8 +63,7 @@ public data class WebSocketTransport internal constructor(
 			.reader {
 				val buf = ByteArray(8192)
 				while (isActive) {
-					val n = channel.readAvailable(buf, 0, buf.size)
-					when (n) {
+					when (val n = channel.readAvailable(buf, 0, buf.size)) {
 						-1 -> {
 							logger.debug { "WebSocket channel closed" }
 							break
@@ -87,7 +86,7 @@ public data class WebSocketTransport internal constructor(
 					val frame =
 						try {
 							session.incoming.receive()
-						} catch (ex: ClosedReceiveChannelException) {
+						} catch (_: ClosedReceiveChannelException) {
 							channel.flushAndClose()
 							break
 						} catch (ex: CancellationException) {

@@ -19,6 +19,7 @@ public object RemoteNatsHarness {
 	): T {
 		val client = RemoteNatsHarnessClient(httpClient, baseUrl)
 		val serverInfo = client.createServer(enableJetStream)
+		println("test using server id: ${serverInfo.id}")
 		val server = RemoteNatsServer(client, serverInfo)
 		return try {
 			block(server)

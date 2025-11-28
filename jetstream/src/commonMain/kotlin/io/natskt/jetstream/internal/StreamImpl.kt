@@ -1,10 +1,12 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.api.ProtocolException
 import io.natskt.api.SubjectToken
 import io.natskt.api.from
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.JetStreamClient
+import io.natskt.jetstream.api.JetStreamException
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
@@ -61,7 +63,7 @@ internal class StreamImpl(
 		name.throwOnInvalidToken()
 		val info = js.getConsumerInfo(streamName = this.name, name = name).getOrThrow()
 		if (!info.isPush() || info.config.deliverSubject == null) {
-			throw IllegalStateException("consumer $name is not a push consumer")
+			throw JetStreamException("consumer $name is not a push consumer")
 		}
 
 		return PushConsumerImpl(
@@ -79,7 +81,7 @@ internal class StreamImpl(
 		val new = js.createOrUpdateConsumer(name, config)
 		return new
 			.map {
-				it.config.deliverSubject ?: throw IllegalStateException("ConsumerInfo response from server has no deliver subject set")
+				it.config.deliverSubject ?: throw ProtocolException("ConsumerInfo response from server has no deliver subject set")
 				PushConsumerImpl(
 					name = it.name,
 					streamName = it.stream,
