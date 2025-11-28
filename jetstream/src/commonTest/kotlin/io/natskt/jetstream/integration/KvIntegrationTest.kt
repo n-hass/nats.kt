@@ -69,6 +69,7 @@ class KvIntegrationTest {
 				val bucket = js.keyValue(bucketName)
 
 				bucket.put("a.b", "test".encodeToByteArray())
+				bucket.close()
 			}
 		}
 

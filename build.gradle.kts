@@ -1,13 +1,11 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import com.diffplug.spotless.LineEnding
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import org.gradle.api.Task
-import org.gradle.api.tasks.testing.Test
+import java.util.*
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
-import java.util.Locale
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
@@ -41,7 +39,9 @@ private val natsServerDaemonService =
 				"NATS_HARNESS_PORT" to "4500",
 			),
 		)
-		maxParallelUsages.set(2)
+		maxParallelUsages.set(
+			properties["natskt.test.parallel"]?.toString()?.toInt() ?: 2
+		)
 	}
 
 private val ensureNatsHarness =
