@@ -1,15 +1,13 @@
-package io.natskt.jetstream
+package io.natskt.jetstream.internal
 
 import io.natskt.api.Subject
 import io.natskt.api.fullyQualified
 import io.natskt.api.internal.InternalNatsApi
-import io.natskt.jetstream.internal.parseAckMetadata
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.nanoseconds
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /*
@@ -17,7 +15,7 @@ v0 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.
 v1 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
 v2 <prefix>.ACK.<domain>.<account hash>.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
  */
-@OptIn(ExperimentalTime::class, InternalNatsApi::class)
+@OptIn(InternalNatsApi::class)
 class AckMetadataParseTest {
 	@Test
 	fun v0AckWithoutPendingCannotBeParsed() {

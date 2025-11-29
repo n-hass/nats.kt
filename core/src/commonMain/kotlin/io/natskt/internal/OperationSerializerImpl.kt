@@ -4,7 +4,6 @@ package io.natskt.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.core.toByteArray
 import io.ktor.utils.io.read
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
@@ -16,36 +15,6 @@ import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
 
 private val logger = KotlinLogging.logger { }
-
-private const val LINE_END = "\r\n"
-
-private val PING = "PING".toByteArray()
-private val PONG = "PONG".toByteArray()
-private val OK = "+OK".toByteArray()
-private val ERR = "-ERR".toByteArray()
-private val INFO = "INFO".toByteArray()
-private val MSG = "MSG".toByteArray()
-private val HMSG = "HMSG".toByteArray()
-private const val HEADER_START = "NATS/1.0"
-private const val DOUBLE_LINE_END = "$LINE_END$LINE_END"
-private val pingOpBytes = "PING".toByteArray()
-private val pongOpBytes = "PONG".toByteArray()
-private val connectOpBytes = "CONNECT ".toByteArray()
-private val pubOpBytes = "PUB ".toByteArray()
-private val hpubOpBytes = "HPUB ".toByteArray()
-private val subOpBytes = "SUB ".toByteArray()
-private val unsubOpBytes = "UNSUB ".toByteArray()
-
-private val empty = "".toByteArray()
-
-private const val SPACE_BYTE = ' '.code.toByte()
-internal const val CR_BYTE = '\r'.code.toByte()
-internal const val LF_BYTE = '\n'.code.toByte()
-private const val CR_CODE = '\r'.code.toLong()
-private const val LF_CODE = '\n'.code.toLong()
-private val HEADER_START_BYTES = HEADER_START.encodeToByteArray()
-internal val LINE_END_BYTES = LINE_END.encodeToByteArray()
-private val COLON_SPACE_BYTES = ": ".encodeToByteArray()
 
 internal class OperationSerializerImpl(
 	private val maxControlLineBytes: Int,
@@ -387,40 +356,6 @@ private fun parseStatusCode(s: String): Int? {
 		return statusCode
 	}
 	return null
-}
-
-private fun parseHeaders(s: String): Map<String, List<String>>? {
-	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
-	// Find the first CRLF to handle optional status codes after NATS/1.0
-	val firstCrlf = s.indexOf(LINE_END)
-	require(firstCrlf >= HEADER_START.length) { "invalid NATS header preamble" }
-	val start = firstCrlf + LINE_END.length
-
-	// Check if there are any headers after the status line
-	// If the remaining content after the first line is just CRLF, there are no headers
-	if (start >= s.length || s.substring(start) == LINE_END) {
-		return null
-	}
-
-	val end = s.lastIndexOf(DOUBLE_LINE_END).takeIf { it >= start } ?: error("headers missing terminating CRLF CRLF")
-	val map = LinkedHashMap<String, MutableList<String>>()
-	var i = start
-	while (i < end) {
-		val j = s.indexOf('\r', i)
-		val lineEnd = if (j in i until end && j + 1 <= end && s.getOrNull(j + 1) == '\n') j else end
-		if (lineEnd <= i) break // empty line (should not happen before end)
-		val line = s.substring(i, lineEnd)
-		val c = line.indexOf(':')
-		require(c > 0) { "malformed header line: '$line'" }
-		val name = line.take(c) // preserve case
-		val value = line.substring(c + 1).trimStart() // strip leading space after colon
-		if (map[name] == null) {
-			map[name] = mutableListOf()
-		}
-		map[name]?.add(value)
-		i = lineEnd + 2 // skip CRLF
-	}
-	return map.ifEmpty { null }
 }
 
 private fun headersSize(headers: Map<String, List<String>>?): Int {
