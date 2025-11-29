@@ -1,12 +1,9 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.ProtocolException
-import io.natskt.api.SubjectToken
-import io.natskt.api.from
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.JetStreamClient
-import io.natskt.jetstream.api.JetStreamException
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
@@ -22,7 +19,7 @@ internal class StreamImpl(
 	initialInfo: StreamInfo?,
 ) : Stream {
 	init {
-		SubjectToken.from(name)
+		name.throwOnInvalidToken()
 	}
 
 	@OptIn(InternalNatsApi::class)
@@ -36,42 +33,13 @@ internal class StreamImpl(
 		return new
 	}
 
-	override suspend fun pullConsumer(name: String): PullConsumer =
-		PullConsumerImpl(
-			name = name,
-			streamName = this.name,
-			js = js,
-			initialInfo = null,
-		)
-
 	override suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer {
-		val config = ConsumerConfigurationBuilder().apply(configure).build()
-		config.durableName?.throwOnInvalidToken()
-		val new = js.createOrUpdateConsumer(name, config)
-		return new
-			.map {
-				PullConsumerImpl(
-					name = it.name,
-					streamName = it.stream,
-					js = js,
-					initialInfo = it,
-				)
-			}.getOrThrow()
-	}
-
-	override suspend fun pushConsumer(name: String): PushConsumer {
-		name.throwOnInvalidToken()
-		val info = js.getConsumerInfo(streamName = this.name, name = name).getOrThrow()
-		if (!info.isPush() || info.config.deliverSubject == null) {
-			throw JetStreamException("consumer $name is not a push consumer")
-		}
-
-		return PushConsumerImpl(
-			name = name,
-			streamName = this.name,
+		val new = js.manager.createOrUpdateConsumer(name, configure)
+		return PullConsumerImpl(
+			name = new.name,
+			streamName = new.stream,
 			js = js,
-			subscription = PushConsumerImpl.newSubscription(js.client, info.config.deliverSubject),
-			initialInfo = info,
+			initialInfo = new,
 		)
 	}
 

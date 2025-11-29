@@ -19,16 +19,6 @@ public interface Stream {
 	public suspend fun updateStreamInfo(): Result<StreamInfo>
 
 	/**
-	 * Bind a consumer with the given name
-	 */
-	public suspend fun pullConsumer(name: String): PullConsumer
-
-	/**
-	 * Bind a consumer with the given name
-	 */
-	public suspend fun pushConsumer(name: String): PushConsumer
-
-	/**
 	 * Create a new [PullConsumer] with the given configuration
 	 */
 	public suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer
