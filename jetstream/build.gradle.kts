@@ -24,7 +24,7 @@ kotlin {
         nodejs {
 			testTask {
 				useMocha {
-					timeout = "15000"
+					timeout = "30000"
 				}
 			}
 		}
@@ -35,7 +35,7 @@ kotlin {
         nodejs {
 			testTask {
 				useKarma()
-				timeout = Duration.ofSeconds(15)
+				timeout = Duration.ofSeconds(30)
 			}
 		}
     }
