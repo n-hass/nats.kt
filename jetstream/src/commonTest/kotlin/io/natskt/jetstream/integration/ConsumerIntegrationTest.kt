@@ -59,7 +59,14 @@ class ConsumerIntegrationTest {
 							),
 						).getOrThrow()
 
-				val pushConsumer = js.stream("push_stream_binding").pushConsumer(consumerName)
+				val pushConsumer =
+					js.subscribe(
+						SubscribeOptions.Attach(
+							streamName = "push_stream_binding",
+							consumerName = consumerName,
+						),
+					)
+				assertIs<PushConsumer>(pushConsumer)
 
 				val received = mutableListOf<String>()
 				val deferred = CompletableDeferred(Unit)
@@ -474,7 +481,14 @@ class ConsumerIntegrationTest {
 						),
 					).getOrThrow()
 
-				val pushConsumer = js.stream("push_ack_stream").pushConsumer(consumerName)
+				val pushConsumer =
+					js.subscribe(
+						SubscribeOptions.Attach(
+							streamName = "push_ack_stream",
+							consumerName = consumerName,
+						),
+					)
+				assertIs<PushConsumer>(pushConsumer)
 
 				val deliveries = mutableListOf<String>()
 				val deferred = CompletableDeferred(Unit)

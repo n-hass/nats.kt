@@ -75,6 +75,10 @@ public class NatsServerHarness(
 	private fun createConfigFile(): Path {
 		val config =
 			"""
+			jetstream {
+				strict: true
+			}
+
 			websocket {
 				no_tls: true
 				same_origin: false

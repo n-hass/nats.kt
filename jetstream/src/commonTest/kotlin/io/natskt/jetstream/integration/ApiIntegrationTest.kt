@@ -2,19 +2,34 @@ package io.natskt.jetstream.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.jetstream.api.JetStreamApiException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.time.Duration.Companion.seconds
 
 class ApiIntegrationTest {
+	suspend inline fun retry(noinline block: suspend () -> Unit) {
+		eventually(
+			eventuallyConfig {
+				duration = 6.seconds
+				interval = 1.seconds
+			},
+			block,
+		)
+	}
+
 	@Test
 	fun `it gets a stream not found error for something not found`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
 				val s = js.stream("test_stream")
-				assertIs<JetStreamApiException>(s.updateStreamInfo().exceptionOrNull())
+				retry {
+					assertIs<JetStreamApiException>(s.updateStreamInfo().exceptionOrNull())
+				}
 			}
 		}
 

@@ -1,9 +1,7 @@
 package io.natskt.api
 
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-@OptIn(ExperimentalTime::class)
 public interface JetStreamMessage : Message {
 	/**
 	 * Acknowledge a message

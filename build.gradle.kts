@@ -86,6 +86,9 @@ subprojects {
 			compilerOptions {
 				languageVersion = KotlinVersion.fromVersion(libs.versions.kotlin.languageVersion.get())
 				apiVersion = KotlinVersion.fromVersion(libs.versions.kotlin.apiVersion.get())
+				optIn.add(
+					"kotlin.time.ExperimentalTime"
+				)
 			}
 
 			targets.withType<KotlinJvmTarget>().configureEach {

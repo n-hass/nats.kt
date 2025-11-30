@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalTime::class)
-
 package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -27,7 +25,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger { }
 

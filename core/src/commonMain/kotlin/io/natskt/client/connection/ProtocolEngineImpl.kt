@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalTime::class, InternalNatsApi::class)
+@file:OptIn(InternalNatsApi::class)
 
 package io.natskt.client.connection
 
@@ -39,7 +39,6 @@ import kotlin.coroutines.resume
 import kotlin.jvm.JvmInline
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger { }

@@ -7,6 +7,7 @@ import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
 import io.natskt.jetstream.api.consumer.JetStreamHeartbeatException
+import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.internal.PushConsumerImpl
 import io.natskt.jetstream.internal.createOrUpdateConsumer
 import kotlinx.coroutines.TimeoutCancellationException
@@ -49,7 +50,14 @@ class PushConsumerCancellationTest {
 						),
 					).getOrThrow()
 
-				val pushConsumer = js.stream("push_stream_binding").pushConsumer(consumerName) as PushConsumerImpl
+				val pushConsumer =
+					js.subscribe(
+						SubscribeOptions.Attach(
+							streamName = "push_stream_binding",
+							consumerName = consumerName,
+						),
+					)
+				assertIs<PushConsumerImpl>(pushConsumer)
 
 				// force this lower to trigger it to fail
 				pushConsumer.heartbeatInterval = 1.seconds
@@ -105,7 +113,14 @@ class PushConsumerCancellationTest {
 						),
 					).getOrThrow()
 
-				val pushConsumer = js.stream("push_stream_binding").pushConsumer(consumerName) as PushConsumerImpl
+				val pushConsumer =
+					js.subscribe(
+						SubscribeOptions.Attach(
+							streamName = "push_stream_binding",
+							consumerName = consumerName,
+						),
+					)
+				assertIs<PushConsumerImpl>(pushConsumer)
 
 				// force this lower to trigger it to fail
 				pushConsumer.heartbeatInterval = 500.milliseconds
