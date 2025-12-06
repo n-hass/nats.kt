@@ -116,19 +116,25 @@ public class KeyValueBucket internal constructor(
 	public suspend fun create(
 		key: String,
 		value: ByteArray,
-	): ULong =
-		try {
-			update(key, value, 0u)
-		} catch (error: JetStreamApiException) {
-			val latest =
-				runCatching { get(key) }
-					.getOrNull()
-			if (latest?.operation == KeyValueOperation.Delete || latest?.operation == KeyValueOperation.Purge) {
-				update(key, value, latest.revision)
-			} else {
-				throw error
+	): ULong {
+		val existing =
+			runCatching { get(key) }
+				.getOrElse { error ->
+					if (error is JetStreamApiException && error.error?.code == 404) {
+						null
+					} else {
+						throw error
+					}
+				}
+
+		val expectedRevision =
+			when (existing?.operation) {
+				KeyValueOperation.Delete, KeyValueOperation.Purge -> existing.revision
+				else -> 0u
 			}
-		}
+
+		return update(key, value, expectedRevision)
+	}
 
 	/**
 	 * Updates [key] with [value], asserting that the previous revision equals [lastRevision].

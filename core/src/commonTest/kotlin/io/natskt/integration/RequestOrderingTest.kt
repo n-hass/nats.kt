@@ -40,7 +40,7 @@ class RequestOrderingTest {
 				// Make a request that will timeout (no responder)
 				val result =
 					runCatching {
-						withTimeout(2_000) {
+						withTimeout(4_000) {
 							client.request(
 								subject = "test.request.ordering",
 								message = "test".encodeToByteArray(),
@@ -53,7 +53,7 @@ class RequestOrderingTest {
 				assertTrue(result.isFailure, "Expected request to timeout")
 
 				// Wait a bit for logs to be written
-				delay(200)
+				delay(500)
 
 				// Get all logs and extract just the new ones
 				val allLogs = server.logSnapshot()

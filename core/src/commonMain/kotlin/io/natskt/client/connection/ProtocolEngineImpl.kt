@@ -290,12 +290,18 @@ internal class ProtocolEngineImpl(
 
 	override suspend fun close() {
 		val t = transport ?: throw ConnectionClosedException("Cannot close connection as it is not open")
-		if (!closed.isCompleted) {
-			closed.complete(CloseReason.CleanClose)
+		state.update {
+			phase = ConnectionPhase.Closing
 		}
 		flushWriter()
 		stopWriter()
 		t.close()
+		state.update {
+			phase = ConnectionPhase.Closed
+		}
+		if (!closed.isCompleted) {
+			closed.complete(CloseReason.CleanClose)
+		}
 	}
 
 	private suspend fun enterLameDuckMode() {

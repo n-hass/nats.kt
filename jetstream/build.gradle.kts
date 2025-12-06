@@ -31,7 +31,14 @@ kotlin {
     }
 
     wasmJs {
-        browser()
+        browser {
+			testTask {
+				useKarma {
+					useChromeHeadless()
+				}
+				timeout = Duration.ofSeconds(30)
+			}
+		}
         nodejs {
 			testTask {
 				useKarma()

@@ -77,17 +77,17 @@ internal class StreamImpl(
 
 	override suspend fun getMessage(sequence: ULong): StoredMessage {
 		supportsDirect ?: updateStreamInfo()
-		return js.manager.getMessage(name, sequence, supportsDirect!!)
+		return js.manager.getMessage(name, sequence, supportsDirect == true)
 	}
 
 	override suspend fun getMessage(request: MessageGetRequest): StoredMessage {
 		supportsDirect ?: updateStreamInfo()
-		return js.manager.getMessage(name, request, supportsDirect!!)
+		return js.manager.getMessage(name, request, supportsDirect == true)
 	}
 
 	override suspend fun getLastMessage(subject: String): StoredMessage {
 		supportsDirect ?: updateStreamInfo()
-		return js.manager.getLastMessage(name, subject, supportsDirect!!)
+		return js.manager.getLastMessage(name, subject, supportsDirect == true)
 	}
 
 	override suspend fun getNextMessage(
@@ -95,7 +95,7 @@ internal class StreamImpl(
 		subject: String,
 	): StoredMessage {
 		supportsDirect ?: updateStreamInfo()
-		return js.manager.getNextMessage(name, sequence, subject, supportsDirect!!)
+		return js.manager.getNextMessage(name, sequence, subject, supportsDirect == true)
 	}
 
 	override suspend fun deleteMessage(
