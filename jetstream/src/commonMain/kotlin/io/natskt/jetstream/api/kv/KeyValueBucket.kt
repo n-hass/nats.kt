@@ -39,7 +39,6 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transform
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 private const val KV_SUBJECT_PREFIX = "\$KV."
@@ -117,19 +116,25 @@ public class KeyValueBucket internal constructor(
 	public suspend fun create(
 		key: String,
 		value: ByteArray,
-	): ULong =
-		try {
-			update(key, value, 0u)
-		} catch (error: JetStreamApiException) {
-			val latest =
-				runCatching { get(key) }
-					.getOrNull()
-			if (latest?.operation == KeyValueOperation.Delete || latest?.operation == KeyValueOperation.Purge) {
-				update(key, value, latest.revision)
-			} else {
-				throw error
+	): ULong {
+		val existing =
+			runCatching { get(key) }
+				.getOrElse { error ->
+					if (error is JetStreamApiException && error.error?.code == 404) {
+						null
+					} else {
+						throw error
+					}
+				}
+
+		val expectedRevision =
+			when (existing?.operation) {
+				KeyValueOperation.Delete, KeyValueOperation.Purge -> existing.revision
+				else -> 0u
 			}
-		}
+
+		return update(key, value, expectedRevision)
+	}
 
 	/**
 	 * Updates [key] with [value], asserting that the previous revision equals [lastRevision].
@@ -201,7 +206,7 @@ public class KeyValueBucket internal constructor(
 	/**
 	 * Watches revisions for [key], emitting a [Flow] of entries including future updates.
 	 */
-	@OptIn(ExperimentalTime::class, InternalNatsApi::class)
+	@OptIn(InternalNatsApi::class)
 	public suspend fun watch(key: String): Flow<KeyValueEntry> =
 		watchFiltered(key)
 			.mapNotNull { it?.toKeyValueEntry(name) }
@@ -338,7 +343,6 @@ public class KeyValueBucket internal constructor(
 	}
 }
 
-@OptIn(ExperimentalTime::class)
 private fun Message.toKeyValueEntry(bucketName: String): KeyValueEntry {
 	val subject = subject.raw
 	val metadata = parseAckMetadata(replyTo)

@@ -1,9 +1,13 @@
 package io.natskt.jetstream.api
 
+import io.natskt.api.MessageHeaders
+import io.natskt.jetstream.api.internal.Base64Deserializer
 import io.natskt.jetstream.api.internal.DurationNanosSerializer
+import io.natskt.jetstream.api.internal.HeadersBase64Serializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 @Serializable
 public data class ApiError(
@@ -335,7 +339,7 @@ public data class StreamListResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val streams: List<StreamInfo> = emptyList(),
-)
+) : JetStreamApiResponse
 
 @Serializable
 public data class StreamNamesResponse(
@@ -345,7 +349,7 @@ public data class StreamNamesResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val streams: List<String> = emptyList(),
-)
+) : JetStreamApiResponse
 
 @Serializable
 public enum class DeliverPolicy {
@@ -512,7 +516,7 @@ public data class ConsumerListResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val consumers: List<ConsumerInfo> = emptyList(),
-)
+) : JetStreamApiResponse
 
 @Serializable
 public data class ConsumerNamesResponse(
@@ -522,7 +526,7 @@ public data class ConsumerNamesResponse(
 	val offset: Int = 0,
 	val limit: Int = 0,
 	val consumers: List<String> = emptyList(),
-)
+) : JetStreamApiResponse
 
 @Serializable
 public data class ConsumerPullRequest(
@@ -572,4 +576,105 @@ public data class StreamMessage(
 public data class ConsumerDeleteResponse(
 	public val type: String,
 	public val success: Boolean,
+) : JetStreamApiResponse
+
+@Serializable
+public data class StreamDeleteResponse(
+	public val type: String,
+	public val success: Boolean,
+) : JetStreamApiResponse
+
+@Serializable
+public data class PurgeResponse(
+	public val success: Boolean,
+	public val purged: ULong = 0u,
+) : JetStreamApiResponse
+
+@Serializable
+public data class PurgeOptions(
+	@SerialName("filter")
+	public val subject: String? = null,
+	@SerialName("seq")
+	public val sequence: ULong? = null,
+	@SerialName("keep")
+	public val keep: ULong? = null,
+)
+
+@Serializable
+public data class StreamInfoOptions(
+	@SerialName("subjects_filter")
+	public val subjectsFilter: String? = null,
+	@SerialName("deleted_details")
+	public val deletedDetails: Boolean? = null,
+)
+
+@Serializable
+public data class StoredMessage(
+	public val subject: String,
+	@SerialName("seq")
+	public val sequence: ULong,
+	@Serializable(with = Base64Deserializer::class)
+	public val data: ByteArray?,
+	@Serializable(with = HeadersBase64Serializer::class)
+	@SerialName("hdrs")
+	public val headers: MessageHeaders?,
+	public val time: String,
+) {
+	override fun equals(other: Any?): Boolean {
+		if (this === other) return true
+		if (other == null || this::class != other::class) return false
+
+		other as StoredMessage
+
+		if (subject != other.subject) return false
+		if (sequence != other.sequence) return false
+		if (!data.contentEquals(other.data)) return false
+		if (headers != other.headers) return false
+		if (time != other.time) return false
+
+		return true
+	}
+
+	override fun hashCode(): Int {
+		var result = subject.hashCode()
+		result = 31 * result + sequence.hashCode()
+		result = 31 * result + (data?.contentHashCode() ?: 0)
+		result = 31 * result + (headers?.hashCode() ?: 0)
+		result = 31 * result + time.hashCode()
+		return result
+	}
+}
+
+@Serializable
+internal data class MessageInfoResponse(
+	val message: StoredMessage,
+) : JetStreamApiResponse
+
+@Serializable
+public data class MessageDeleteRequest(
+	@SerialName("seq")
+	public val sequence: ULong,
+	@SerialName("no_erase")
+	public val noErase: Boolean? = null,
+)
+
+@Serializable
+public data class MessageDeleteResponse(
+	public val success: Boolean,
+) : JetStreamApiResponse
+
+@Serializable
+public data class ConsumerPauseRequest(
+	@SerialName("pause_until")
+	public val pauseUntil: Instant?,
+)
+
+@Serializable
+public data class ConsumerPauseResponse(
+	public val paused: Boolean,
+	@SerialName("pause_until")
+	public val pauseUntil: String? = null,
+	@SerialName("pause_remaining")
+	@Serializable(with = DurationNanosSerializer::class)
+	public val pauseRemaining: Duration? = null,
 ) : JetStreamApiResponse

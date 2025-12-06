@@ -199,11 +199,19 @@ internal class NatsClientImpl(
 		subject.throwOnInvalidSubject()
 		val inboxSubject = configuration.createInbox()
 		val sid = sidAllocator.fetchAndAdd(1).toString()
-		var subscribed = false
+		var subscribed = true
 
 		requestLimiter?.acquire()
 
 		return try {
+			connectionManager.send(
+				ClientOperation.SubOp(
+					sid = sid,
+					subject = inboxSubject,
+					queueGroup = null,
+				),
+			)
+
 			withTimeout(timeoutMs) {
 				suspendCancellableCoroutine { cont ->
 					val pending = PendingRequest(cont)
@@ -213,6 +221,7 @@ internal class NatsClientImpl(
 						if (pendingRequests.remove(sid) != null) {
 							suspend {
 								connectionManager.send(ClientOperation.UnSubOp(sid, null))
+								subscribed = false
 							}.startCoroutine(
 								object : Continuation<Unit> {
 									override val context = cont.context
@@ -224,22 +233,14 @@ internal class NatsClientImpl(
 					}
 
 					suspend {
-						connectionManager.send(
-							ClientOperation.SubOp(
-								sid = sid,
-								subject = inboxSubject,
-								queueGroup = null,
-							),
-						)
 						publishUnchecked(subject, message, headers, replyTo = inboxSubject)
 					}.startCoroutine(
 						object : Continuation<Unit> {
 							override val context = cont.context
 
 							override fun resumeWith(result: Result<Unit>) {
-								if (result.isSuccess) {
-									subscribed = true
-								} else {
+								if (result.isFailure) {
+									subscribed = false
 									val error = result.exceptionOrNull()
 									if (error != null && pendingRequests.remove(sid) != null && cont.isActive) {
 										cont.resumeWithException(error)

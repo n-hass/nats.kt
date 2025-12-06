@@ -1,12 +1,12 @@
 package io.natskt.jetstream.internal
 
 import io.natskt.api.ProtocolException
-import io.natskt.api.SubjectToken
-import io.natskt.api.from
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.throwOnInvalidToken
+import io.natskt.jetstream.api.ConsumerInfo
 import io.natskt.jetstream.api.JetStreamClient
-import io.natskt.jetstream.api.JetStreamException
+import io.natskt.jetstream.api.MessageGetRequest
+import io.natskt.jetstream.api.StoredMessage
 import io.natskt.jetstream.api.StreamInfo
 import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
@@ -22,11 +22,13 @@ internal class StreamImpl(
 	initialInfo: StreamInfo?,
 ) : Stream {
 	init {
-		SubjectToken.from(name)
+		name.throwOnInvalidToken()
 	}
 
 	@OptIn(InternalNatsApi::class)
 	override val info = MutableStateFlow(initialInfo)
+	val supportsDirect: Boolean?
+		get() = info.value?.config?.allowDirect
 
 	override suspend fun updateStreamInfo(): Result<StreamInfo> {
 		val new = js.getStreamInfo(name)
@@ -36,42 +38,13 @@ internal class StreamImpl(
 		return new
 	}
 
-	override suspend fun pullConsumer(name: String): PullConsumer =
-		PullConsumerImpl(
-			name = name,
-			streamName = this.name,
-			js = js,
-			initialInfo = null,
-		)
-
 	override suspend fun createPullConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): PullConsumer {
-		val config = ConsumerConfigurationBuilder().apply(configure).build()
-		config.durableName?.throwOnInvalidToken()
-		val new = js.createOrUpdateConsumer(name, config)
-		return new
-			.map {
-				PullConsumerImpl(
-					name = it.name,
-					streamName = it.stream,
-					js = js,
-					initialInfo = it,
-				)
-			}.getOrThrow()
-	}
-
-	override suspend fun pushConsumer(name: String): PushConsumer {
-		name.throwOnInvalidToken()
-		val info = js.getConsumerInfo(streamName = this.name, name = name).getOrThrow()
-		if (!info.isPush() || info.config.deliverSubject == null) {
-			throw JetStreamException("consumer $name is not a push consumer")
-		}
-
-		return PushConsumerImpl(
-			name = name,
-			streamName = this.name,
+		val new = js.manager.createOrUpdateConsumer(name, configure)
+		return PullConsumerImpl(
+			name = new.name,
+			streamName = new.stream,
 			js = js,
-			subscription = PushConsumerImpl.newSubscription(js.client, info.config.deliverSubject),
-			initialInfo = info,
+			initialInfo = new,
 		)
 	}
 
@@ -91,4 +64,42 @@ internal class StreamImpl(
 				)
 			}.getOrThrow()
 	}
+
+	override suspend fun updateConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): ConsumerInfo = js.manager.updateConsumer(this.name, configure)
+
+	override suspend fun getConsumerInfo(name: String): ConsumerInfo = js.manager.getConsumerInfo(this.name, name)
+
+	override suspend fun deleteConsumer(name: String): Boolean = js.manager.deleteConsumer(this.name, name)
+
+	override suspend fun getConsumerNames(): List<String> = js.manager.getConsumerNames(name)
+
+	override suspend fun getConsumers(): List<ConsumerInfo> = js.manager.getConsumers(name)
+
+	override suspend fun getMessage(sequence: ULong): StoredMessage {
+		supportsDirect ?: updateStreamInfo()
+		return js.manager.getMessage(name, sequence, supportsDirect == true)
+	}
+
+	override suspend fun getMessage(request: MessageGetRequest): StoredMessage {
+		supportsDirect ?: updateStreamInfo()
+		return js.manager.getMessage(name, request, supportsDirect == true)
+	}
+
+	override suspend fun getLastMessage(subject: String): StoredMessage {
+		supportsDirect ?: updateStreamInfo()
+		return js.manager.getLastMessage(name, subject, supportsDirect == true)
+	}
+
+	override suspend fun getNextMessage(
+		sequence: ULong,
+		subject: String,
+	): StoredMessage {
+		supportsDirect ?: updateStreamInfo()
+		return js.manager.getNextMessage(name, sequence, subject, supportsDirect == true)
+	}
+
+	override suspend fun deleteMessage(
+		sequence: ULong,
+		erase: Boolean,
+	): Boolean = js.manager.deleteMessage(name, sequence, erase)
 }

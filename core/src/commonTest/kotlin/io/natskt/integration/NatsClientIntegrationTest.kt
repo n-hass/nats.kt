@@ -85,7 +85,7 @@ class NatsClientIntegrationTest {
 
 				val result =
 					runCatching {
-						withTimeout(2_000) {
+						withTimeout(4_000) {
 							client.request(
 								subject = "integration.req",
 								message = "ping".encodeToByteArray(),

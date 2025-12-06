@@ -9,6 +9,6 @@ public interface CanRequest {
 		subject: String,
 		message: String?,
 		headers: Map<String, List<String>>? = null,
-		timeoutMs: Long = 5000,
+		timeoutMs: Long = 5_000,
 	): Message
 }

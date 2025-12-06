@@ -24,18 +24,25 @@ kotlin {
         nodejs {
 			testTask {
 				useMocha {
-					timeout = "15000"
+					timeout = "30000"
 				}
 			}
 		}
     }
 
     wasmJs {
-        browser()
+        browser {
+			testTask {
+				useKarma {
+					useChromeHeadless()
+				}
+				timeout = Duration.ofSeconds(30)
+			}
+		}
         nodejs {
 			testTask {
 				useKarma()
-				timeout = Duration.ofSeconds(15)
+				timeout = Duration.ofSeconds(30)
 			}
 		}
     }

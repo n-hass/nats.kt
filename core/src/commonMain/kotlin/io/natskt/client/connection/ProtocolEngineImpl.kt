@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalTime::class, InternalNatsApi::class)
+@file:OptIn(InternalNatsApi::class)
 
 package io.natskt.client.connection
 
@@ -39,7 +39,6 @@ import kotlin.coroutines.resume
 import kotlin.jvm.JvmInline
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger { }
@@ -291,12 +290,18 @@ internal class ProtocolEngineImpl(
 
 	override suspend fun close() {
 		val t = transport ?: throw ConnectionClosedException("Cannot close connection as it is not open")
-		if (!closed.isCompleted) {
-			closed.complete(CloseReason.CleanClose)
+		state.update {
+			phase = ConnectionPhase.Closing
 		}
 		flushWriter()
 		stopWriter()
 		t.close()
+		state.update {
+			phase = ConnectionPhase.Closed
+		}
+		if (!closed.isCompleted) {
+			closed.complete(CloseReason.CleanClose)
+		}
 	}
 
 	private suspend fun enterLameDuckMode() {

@@ -24,10 +24,10 @@ import kotlin.time.Duration.Companion.seconds
 class TransportIntegrationTest {
 	private suspend fun CoroutineScope.testDelivery(c: NatsClient) {
 		val received = mutableListOf<String>()
-		val delayed = CompletableDeferred(Unit)
-		val job =
-			launch {
-				withTimeout(5.seconds) {
+		withTimeout(5.seconds) {
+			val delayed = CompletableDeferred<Unit>()
+			val job =
+				launch {
 					c
 						.subscribe("test.sub")
 						.messages
@@ -38,15 +38,15 @@ class TransportIntegrationTest {
 							received += it.data!!.decodeToString()
 						}
 				}
-			}
-		job.start()
 
-		delayed.await()
-		delay(100)
-		c.publish("test.sub", "alpha".encodeToByteArray())
-		c.publish("test.sub", "beta".encodeToByteArray())
+			delayed.await()
+			c.flush()
+			delay(50)
+			c.publish("test.sub", "alpha".encodeToByteArray())
+			c.publish("test.sub", "beta".encodeToByteArray())
 
-		job.join()
+			job.join()
+		}
 
 		assertEquals(listOf("alpha", "beta"), received)
 

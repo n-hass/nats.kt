@@ -1,5 +1,6 @@
 package io.natskt.jetstream.api.consumer
 
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
@@ -59,8 +60,10 @@ public class ConsumerConfigurationBuilder internal constructor() {
 	}
 }
 
-internal fun ConsumerConfigurationBuilder.build(): ConsumerConfig =
-	ConsumerConfig(
+internal fun ConsumerConfigurationBuilder.build(): ConsumerConfig {
+	durableName?.throwOnInvalidToken()
+
+	return ConsumerConfig(
 		durableName = this.durableName,
 		description = this.description,
 		deliverSubject = this.deliverSubject,
@@ -96,3 +99,4 @@ internal fun ConsumerConfigurationBuilder.build(): ConsumerConfig =
 		maxRequestMaxBytes = this.maxRequestMaxBytes,
 		deliverMetrics = this.deliverMetrics,
 	)
+}
