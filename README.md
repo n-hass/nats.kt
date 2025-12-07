@@ -44,9 +44,9 @@ Gradle:
 
 ```kotlin
 commonMain.dependencies {
-	implementation("io.github.n-hass:natskt-core:0.5.0")
+	implementation("io.github.n-hass:natskt-core:0.6.0")
 	// and if you want jetstream:
-	implementation("io.github.n-hass:natskt-jetstream:0.5.0")
+	implementation("io.github.n-hass:natskt-jetstream:0.6.0")
 }
 ```
 
@@ -81,7 +81,7 @@ subscription.messages.collect { message ->
 
 NATS.kt is under **active development**.
 
-| Feature                               | Status | Notes                        |
+| Feature                               | Status | Notes                    |
 |---------------------------------------|--|------------------------------|
 | **Core Protocol**                     |  |                              |
 | Multiplatform TCP/WebSocket transport |✅ |                              |
@@ -91,17 +91,14 @@ NATS.kt is under **active development**.
 | **Jetstream**                         |  |                              |
 | Basic API client                      |✅ |                              |
 | Pull consumer                         |🟠 |                              |
-| Push consumer                         |🟠 |                              |
-| Key-Value Store                       |🟠 |                              |
+| Push consumer                         |✅ |                              |
+| Key-Value Store                       |✅ |                              |
 | Object Store                          |❌ |                              |
 | **JetStream Management**              |  |                              |
 | Streams                               | ✅ |                              |
 | Consumers                             | ✅ |                              |
 
 **Legend**: ✅ Complete | 🟠 Partially Complete | 🚧 In Progress |  ❌ Planned
-
-My priority right now is to reach a good level of stability and correctness with all JetStream consumer features,
-then to go back and address any performance optimisations that can be made.
 
 ## 🧪 Examples
 
