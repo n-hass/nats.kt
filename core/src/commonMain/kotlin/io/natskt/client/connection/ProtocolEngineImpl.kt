@@ -83,7 +83,7 @@ internal class ProtocolEngineImpl(
 	)
 
 	private fun buildConnectOp(info: ServerOperation.InfoOp): ClientOperation.ConnectOp {
-		val auth = resolveAuth(info)
+		val auth = resolveAuth(info, credentials)
 		return ClientOperation.ConnectOp(
 			verbose = false,
 			pedantic = false,
@@ -102,7 +102,7 @@ internal class ProtocolEngineImpl(
 		)
 	}
 
-	private fun resolveAuth(info: ServerOperation.InfoOp): AuthPayload {
+	private fun resolveAuth(info: ServerOperation.InfoOp, credentials: Credentials?): AuthPayload {
 		val urlUser = address.url.user?.takeIf { it.isNotBlank() }
 		val urlPassword = address.url.password?.takeIf { it.isNotBlank() }
 
@@ -113,11 +113,28 @@ internal class ProtocolEngineImpl(
 				val pass = creds.password.takeUnless { it.isBlank() } ?: urlPassword
 				AuthPayload(user = user, pass = pass)
 			}
+
 			is Credentials.Jwt -> buildNKeyAuth(info, creds.nkey, creds.token)
 			is Credentials.Nkey -> buildNKeyAuth(info, creds.key, null)
 			is Credentials.File -> {
 				val parsed = NKeys.parseCreds(creds.content)
 				buildNKeyAuth(info, parsed.seed, parsed.jwt)
+			}
+
+			is Credentials.Custom -> {
+				val passwordAuthPayload = creds.password?.let { resolveAuth(info, it) }
+				val jwtAuthPayload = creds.jwt?.let { resolveAuth(info, it) }
+					?: creds.file?.let { resolveAuth(info, it) }
+
+				val nkeyAuthPayload = if (jwtAuthPayload != null) creds.nkey?.let { resolveAuth(info, it) } else null
+
+				AuthPayload(
+					user = passwordAuthPayload?.user,
+					pass = passwordAuthPayload?.pass,
+					jwt = jwtAuthPayload?.jwt ?: nkeyAuthPayload?.jwt,
+					signature = jwtAuthPayload?.signature ?: nkeyAuthPayload?.signature,
+					nkey = nkeyAuthPayload?.nkey ?: creds.nkey?.key
+				)
 			}
 		}
 	}
@@ -233,21 +250,25 @@ internal class ProtocolEngineImpl(
 								rttMeasureStart = null
 							}
 						}
+
 						Operation.Ping -> {
 							send(Operation.Pong)
 							state.update {
 								lastPingAt = Clock.System.now().toEpochMilliseconds()
 							}
 						}
+
 						is Operation.Err -> {
 							logger.error { "received a protocol error response: ${(out as Operation.Err).message}" }
 						}
-						Operation.Ok -> { }
+
+						Operation.Ok -> {}
 						Operation.Empty -> {
 							runCatching { stopWriter() }
 							transport?.close()
 							closed.complete(CloseReason.ServerInitiatedClose)
 						}
+
 						else -> {
 							logger.error { "idk: $out" }
 						}
@@ -375,6 +396,7 @@ internal class ProtocolEngineImpl(
 									lastFlushAt = now
 								}
 							}
+
 							is OutboundCommand.Flush -> {
 								runCatching { buffer.flush() }
 									.onSuccess { cmd.ack.complete(Unit) }
