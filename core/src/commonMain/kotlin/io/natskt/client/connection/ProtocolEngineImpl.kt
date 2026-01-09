@@ -73,7 +73,7 @@ internal class ProtocolEngineImpl(
 		}
 	}
 
-	private data class AuthPayload(
+	internal data class AuthPayload(
 		val authToken: String? = null,
 		val user: String? = null,
 		val pass: String? = null,
@@ -82,7 +82,7 @@ internal class ProtocolEngineImpl(
 		val nkey: String? = null,
 	)
 
-	private fun buildConnectOp(info: ServerOperation.InfoOp): ClientOperation.ConnectOp {
+	internal fun buildConnectOp(info: ServerOperation.InfoOp): ClientOperation.ConnectOp {
 		val auth = resolveAuth(info, credentials)
 		return ClientOperation.ConnectOp(
 			verbose = false,
@@ -102,7 +102,7 @@ internal class ProtocolEngineImpl(
 		)
 	}
 
-	private fun resolveAuth(
+	internal fun resolveAuth(
 		info: ServerOperation.InfoOp,
 		credentials: Credentials?,
 	): AuthPayload {
@@ -125,19 +125,30 @@ internal class ProtocolEngineImpl(
 			}
 
 			is Credentials.Custom -> {
+				// Resolve each credential type independently
 				val passwordAuthPayload = creds.password?.let { resolveAuth(info, it) }
-				val jwtAuthPayload =
-					creds.jwt?.let { resolveAuth(info, it) }
-						?: creds.file?.let { resolveAuth(info, it) }
 
-				val nkeyAuthPayload = if (jwtAuthPayload != null) creds.nkey?.let { resolveAuth(info, it) } else null
+				// Precedence is: jwt > file > standalone nkey
+				val jwtAuthPayload = creds.jwt?.let { resolveAuth(info, it) }
+				val fileAuthPayload =
+					if (jwtAuthPayload == null) {
+						creds.file?.let { resolveAuth(info, it) }
+					} else {
+						null
+					}
+				val nkeyAuthPayload =
+					if (jwtAuthPayload == null && fileAuthPayload == null) {
+						creds.nkey?.let { resolveAuth(info, it) }
+					} else {
+						null
+					}
 
 				AuthPayload(
 					user = passwordAuthPayload?.user,
 					pass = passwordAuthPayload?.pass,
-					jwt = jwtAuthPayload?.jwt ?: nkeyAuthPayload?.jwt,
-					signature = jwtAuthPayload?.signature ?: nkeyAuthPayload?.signature,
-					nkey = nkeyAuthPayload?.nkey ?: creds.nkey?.key,
+					jwt = jwtAuthPayload?.jwt ?: fileAuthPayload?.jwt ?: nkeyAuthPayload?.jwt,
+					signature = jwtAuthPayload?.signature ?: fileAuthPayload?.signature ?: nkeyAuthPayload?.signature,
+					nkey = jwtAuthPayload?.nkey ?: fileAuthPayload?.nkey ?: nkeyAuthPayload?.nkey,
 				)
 			}
 		}
@@ -159,10 +170,8 @@ internal class ProtocolEngineImpl(
 		seed: NKeySeed,
 		jwt: String?,
 	): AuthPayload {
-		if (info.nonce == null) {
-			return AuthPayload()
-		}
-		val signature = seed.signNonce(info.nonce!!)
+		val nonce = info.nonce ?: return AuthPayload()
+		val signature = seed.signNonce(nonce)
 		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.publicKey)
 	}
 
