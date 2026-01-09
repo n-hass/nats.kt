@@ -102,7 +102,10 @@ internal class ProtocolEngineImpl(
 		)
 	}
 
-	private fun resolveAuth(info: ServerOperation.InfoOp, credentials: Credentials?): AuthPayload {
+	private fun resolveAuth(
+		info: ServerOperation.InfoOp,
+		credentials: Credentials?,
+	): AuthPayload {
 		val urlUser = address.url.user?.takeIf { it.isNotBlank() }
 		val urlPassword = address.url.password?.takeIf { it.isNotBlank() }
 
@@ -123,8 +126,9 @@ internal class ProtocolEngineImpl(
 
 			is Credentials.Custom -> {
 				val passwordAuthPayload = creds.password?.let { resolveAuth(info, it) }
-				val jwtAuthPayload = creds.jwt?.let { resolveAuth(info, it) }
-					?: creds.file?.let { resolveAuth(info, it) }
+				val jwtAuthPayload =
+					creds.jwt?.let { resolveAuth(info, it) }
+						?: creds.file?.let { resolveAuth(info, it) }
 
 				val nkeyAuthPayload = if (jwtAuthPayload != null) creds.nkey?.let { resolveAuth(info, it) } else null
 
@@ -133,7 +137,7 @@ internal class ProtocolEngineImpl(
 					pass = passwordAuthPayload?.pass,
 					jwt = jwtAuthPayload?.jwt ?: nkeyAuthPayload?.jwt,
 					signature = jwtAuthPayload?.signature ?: nkeyAuthPayload?.signature,
-					nkey = nkeyAuthPayload?.nkey ?: creds.nkey?.key
+					nkey = nkeyAuthPayload?.nkey ?: creds.nkey?.key,
 				)
 			}
 		}
