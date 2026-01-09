@@ -4,6 +4,8 @@ package io.natskt.client.connection
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
+import io.natskt.api.AuthPayload
+import io.natskt.api.AuthProviderScope
 import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionClosedException
 import io.natskt.api.ConnectionPhase
@@ -73,15 +75,6 @@ internal class ProtocolEngineImpl(
 		}
 	}
 
-	internal data class AuthPayload(
-		val authToken: String? = null,
-		val user: String? = null,
-		val pass: String? = null,
-		val jwt: String? = null,
-		val signature: String? = null,
-		val nkey: String? = null,
-	)
-
 	internal fun buildConnectOp(info: ServerOperation.InfoOp): ClientOperation.ConnectOp {
 		val auth = resolveAuth(info, credentials)
 		return ClientOperation.ConnectOp(
@@ -98,7 +91,7 @@ internal class ProtocolEngineImpl(
 			jwt = auth.jwt,
 			noResponders = null,
 			headers = true,
-			nkey = auth.nkey,
+			nkey = auth.nkeyPublic,
 		)
 	}
 
@@ -125,31 +118,7 @@ internal class ProtocolEngineImpl(
 			}
 
 			is Credentials.Custom -> {
-				// Resolve each credential type independently
-				val passwordAuthPayload = creds.password?.let { resolveAuth(info, it) }
-
-				// Precedence is: jwt > file > standalone nkey
-				val jwtAuthPayload = creds.jwt?.let { resolveAuth(info, it) }
-				val fileAuthPayload =
-					if (jwtAuthPayload == null) {
-						creds.file?.let { resolveAuth(info, it) }
-					} else {
-						null
-					}
-				val nkeyAuthPayload =
-					if (jwtAuthPayload == null && fileAuthPayload == null) {
-						creds.nkey?.let { resolveAuth(info, it) }
-					} else {
-						null
-					}
-
-				AuthPayload(
-					user = passwordAuthPayload?.user,
-					pass = passwordAuthPayload?.pass,
-					jwt = jwtAuthPayload?.jwt ?: fileAuthPayload?.jwt ?: nkeyAuthPayload?.jwt,
-					signature = jwtAuthPayload?.signature ?: fileAuthPayload?.signature ?: nkeyAuthPayload?.signature,
-					nkey = jwtAuthPayload?.nkey ?: fileAuthPayload?.nkey ?: nkeyAuthPayload?.nkey,
-				)
+				creds.provider.withScope(AuthProviderScope, info)
 			}
 		}
 	}
@@ -172,7 +141,7 @@ internal class ProtocolEngineImpl(
 	): AuthPayload {
 		val nonce = info.nonce ?: return AuthPayload()
 		val signature = seed.signNonce(nonce)
-		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.publicKey)
+		return AuthPayload(jwt = jwt, signature = signature, nkeyPublic = seed.publicKey)
 	}
 
 	override suspend fun send(op: ClientOperation) {
