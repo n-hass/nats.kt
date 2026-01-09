@@ -18,4 +18,11 @@ public sealed interface Credentials {
 	public data class Nkey(
 		val key: String,
 	) : Credentials
+
+	public data class Custom(
+		val jwt: Jwt? = null,
+		val password: Password? = null,
+		val file: File? = null,
+		val nkey: Nkey? = null,
+	) : Credentials
 }
