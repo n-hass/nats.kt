@@ -24,6 +24,7 @@ dependencyResolutionManagement {
     }
 }
 
+include("custom-credentials")
 include("jetstream")
 include("native")
 include("request")

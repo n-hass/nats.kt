@@ -11,7 +11,7 @@ We welcome contributions! NATS.kt is in active development and there are many op
 
 1. Fork the repository
 2. Use our Nix development environment (`nix develop` or direnv)
-3. Make your changes following our code style
+3. Make your changes following our code style - use `gradle spotlessApply`
 4. Add tests for new functionality
 5. Ensure all tests pass (`gradle test`)
 6. Submit a pull request
@@ -48,7 +48,7 @@ nix develop
 
 Our Nix environment provides:
 - **OpenJDK 21**
-- **Gradle 8**
+- **Gradle 8.14**
 - **NATS Server**
 - **NATS CLI**
 - **Pre-commit hooks**
@@ -70,11 +70,9 @@ gradle spotlessApply
 
 The integration suites spin up ephemeral `nats-server` instances through a sidecar Ktor server so that the same end-to-end tests can run on every supported platform.
 
-1. In a separate terminal, start the harness (listens on `http://127.0.0.1:4500` and expires servers after 60s; override with `NATS_HARNESS_HOST/PORT/TTL` if needed): `gradle :test-harness:nats-server-daemon:run`
-2. Run any `gradle …Test` task and each test will `PUT /servers` and `DELETE /servers/{id}` on the harness to provision its own broker
+This happens automatically on all test runs.
 
-The shared client lives in `test-harness/` and is entirely KMP-safe, so when we promote more suites into `commonTest` or JS/Native targets they can reuse the same HTTP workflow without falling back to JVM-only process management.
-
+The shared client lives in `test-harness/` and is KMP-safe, so when we promote more suites into `commonTest` or JS/Native targets they can reuse the same HTTP workflow without falling back to JVM-only process management.
 
 ## Publishing
 

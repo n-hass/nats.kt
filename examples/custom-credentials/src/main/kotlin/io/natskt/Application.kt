@@ -1,5 +1,8 @@
 package io.natskt
 
+import io.natskt.api.AuthPayload
+import io.natskt.api.AuthProvider
+import io.natskt.api.Credentials
 import io.natskt.client.transport.TcpTransport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -10,17 +13,18 @@ fun main(): Unit = runBlocking {
         server = "nats://localhost:4222"
         transport = TcpTransport
 		maxReconnects = 3
-    }.also {
-		it.connect()
-	}
+		authentication = Credentials.Custom(
+			AuthProvider { info ->
+				AuthPayload(
+					jwt = "ey8786",
+					nkey = "customkey",
+					password = "123"
+				)
+			}
+		)
+    }
 
-//	val c = NatsClient {
-//		server = "ws://localhost:8888"
-//		transport = WebSocketTransport.Factory(CIO)
-//		maxReconnects = 4
-//	}.also {
-//		it.connect()
-//	}
+	c.connect()
 
 	val subscription = c.subscribe("test.hi", eager = false)
 

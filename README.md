@@ -104,6 +104,9 @@ NATS.kt is under **active development**.
 
 Check out our [examples directory](examples/) for comprehensive usage examples:
 - [Basic Subscribe](examples/subscribe/) - Simple message subscription
+- [Requests](examples/request/) - Making requests with core NATS
+- [JetStream](examples/jetstream/) - Using the JetStream management API and binding to a consumer
+- [Custom Credentials](examples/custom-credentials/) - Providing custom authentication credentials for use with auth-callout
 
 More coming soon!
 

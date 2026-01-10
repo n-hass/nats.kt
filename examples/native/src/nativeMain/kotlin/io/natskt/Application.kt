@@ -8,14 +8,6 @@ import kotlinx.coroutines.runBlocking
 
 fun main(): Unit = runBlocking {
 
-	delay(5000)
-	println("starting in")
-	println("3")
-	delay(1000)
-	println("2")
-	delay(1000)
-	println("1")
-	delay(1000)
     val c = NatsClient {
         server = "nats://localhost:4222"
         transport = TcpTransport

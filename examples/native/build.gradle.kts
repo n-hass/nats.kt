@@ -31,11 +31,3 @@ kotlin {
 	}
 }
 
-// (Optional) nice defaults for stricter code and consistent builds
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
-	compilerOptions {
-		allWarningsAsErrors.set(false)
-		progressiveMode.set(true)
-		// freeCompilerArgs.add("-Xexpect-actual-classes")
-	}
-}
