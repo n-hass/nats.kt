@@ -2,6 +2,7 @@ package io.natskt.client.connection
 
 import io.github.andreypfau.curve25519.ed25519.Ed25519
 import io.natskt.api.AuthPayload
+import io.natskt.api.AuthProvider
 import io.natskt.api.Credentials
 import io.natskt.internal.ServerOperation
 import io.natskt.nkeys.NKeySeed
@@ -46,11 +47,11 @@ class ResolveAuthTest {
 	fun `given null credentials uses url credentials`() {
 		val eng = engine(url = "nats://user:pass@localhost:4222")
 		val auth = eng.resolveAuth(defaultInfo(), credentials = null)
-		assertEquals("user", auth.user)
-		assertEquals("pass", auth.pass)
+		assertEquals("user", auth.username)
+		assertEquals("pass", auth.password)
 		assertNull(auth.jwt)
 		assertNull(auth.signature)
-		assertNull(auth.nkeyPublic)
+		assertNull(auth.nkey)
 		assertNull(auth.authToken)
 	}
 
@@ -59,11 +60,11 @@ class ResolveAuthTest {
 		val eng = engine()
 		val creds = Credentials.Password("testuser", "testpass")
 		val auth = eng.resolveAuth(defaultInfo(), creds)
-		assertEquals("testuser", auth.user)
-		assertEquals("testpass", auth.pass)
+		assertEquals("testuser", auth.username)
+		assertEquals("testpass", auth.password)
 		assertNull(auth.jwt)
 		assertNull(auth.signature)
-		assertNull(auth.nkeyPublic)
+		assertNull(auth.nkey)
 	}
 
 	@Test
@@ -71,8 +72,8 @@ class ResolveAuthTest {
 		val eng = engine(url = "nats://user:pass@localhost:4222")
 		val creds = Credentials.Password("", "")
 		val auth = eng.resolveAuth(defaultInfo(), creds)
-		assertEquals("user", auth.user)
-		assertEquals("pass", auth.pass)
+		assertEquals("user", auth.username)
+		assertEquals("pass", auth.password)
 	}
 
 	@Test
@@ -88,12 +89,12 @@ class ResolveAuthTest {
 		val auth = eng.resolveAuth(defaultInfo(), creds)
 
 		assertEquals(jwt, auth.jwt)
-		assertNull(auth.user)
-		assertNull(auth.pass)
+		assertNull(auth.username)
+		assertNull(auth.password)
 		// signature and nkey should be populated from nkey seed
 		assertEquals(
 			NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray()),
-			auth.nkeyPublic,
+			auth.nkey,
 		)
 		assertNotNull(auth.signature)
 	}
@@ -110,11 +111,11 @@ class ResolveAuthTest {
 		val auth = eng.resolveAuth(defaultInfo(), creds)
 
 		assertNull(auth.jwt)
-		assertNull(auth.user)
-		assertNull(auth.pass)
+		assertNull(auth.username)
+		assertNull(auth.password)
 		assertEquals(
 			NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray()),
-			auth.nkeyPublic,
+			auth.nkey,
 		)
 		assertNotNull(auth.signature)
 	}
@@ -145,7 +146,7 @@ class ResolveAuthTest {
 		assertEquals(jwt, auth.jwt)
 		assertEquals(
 			NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray()),
-			auth.nkeyPublic,
+			auth.nkey,
 		)
 		assertNotNull(auth.signature)
 	}
@@ -161,11 +162,11 @@ class ResolveAuthTest {
 		val creds =
 			Credentials.Custom(
 				provider =
-					Credentials.AuthProvider { info ->
+					AuthProvider { info ->
 						AuthPayload(
-							user = "customuser",
-							pass = "custompass",
-							nkeyPublic = NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray()),
+							username = "customuser",
+							password = "custompass",
+							nkey = NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray()),
 							signature = signNonce(nkeySeed, info),
 						)
 					},
@@ -173,12 +174,12 @@ class ResolveAuthTest {
 		val defaultInfo = defaultInfo()
 		val auth = eng.resolveAuth(defaultInfo, creds)
 
-		assertEquals("customuser", auth.user)
-		assertEquals("custompass", auth.pass)
+		assertEquals("customuser", auth.username)
+		assertEquals("custompass", auth.password)
 		assertNull(auth.jwt)
 		assertEquals(
 			NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray()),
-			auth.nkeyPublic,
+			auth.nkey,
 		)
 		assertEquals(nkey.signToBase64(defaultInfo.nonce!!.encodeToByteArray()), auth.signature)
 	}
@@ -195,10 +196,10 @@ class ResolveAuthTest {
 		val creds =
 			Credentials.Custom(
 				provider =
-					Credentials.AuthProvider { info ->
+					AuthProvider { info ->
 						AuthPayload(
 							jwt = jwtToken,
-							nkeyPublic = "my custom key",
+							nkey = "my custom key",
 							signature =	null,
 						)
 					},
@@ -208,7 +209,7 @@ class ResolveAuthTest {
 		assertEquals(jwtToken, auth.jwt)
 		assertEquals(
 			"my custom key",
-			auth.nkeyPublic,
+			auth.nkey,
 		)
 		assertNull(auth.signature)
 	}
@@ -225,12 +226,12 @@ class ResolveAuthTest {
 		val creds =
 			Credentials.Custom(
 				provider =
-					Credentials.AuthProvider { info ->
+					AuthProvider { info ->
 						AuthPayload(
-							user = "customuser",
-							pass = "custompass",
+							username = "customuser",
+							password = "custompass",
 							jwt = jwtToken,
-							nkeyPublic = NKeys.parseSeed(standaloneNkeySeed).publicKey,
+							nkey = NKeys.parseSeed(standaloneNkeySeed).publicKey,
 							signature = signNonce(standaloneNkeySeed, info),
 						)
 					},
@@ -238,12 +239,12 @@ class ResolveAuthTest {
 		val auth = eng.resolveAuth(defaultInfo(), creds)
 
 		// Should use password for user/pass
-		assertEquals("customuser", auth.user)
-		assertEquals("custompass", auth.pass)
+		assertEquals("customuser", auth.username)
+		assertEquals("custompass", auth.password)
 		assertEquals(jwtToken, auth.jwt)
 		assertEquals(
 			NKeys.parseSeed(standaloneNkeySeed).publicKey,
-			auth.nkeyPublic,
+			auth.nkey,
 		)
 		assertNotNull(auth.signature)
 	}

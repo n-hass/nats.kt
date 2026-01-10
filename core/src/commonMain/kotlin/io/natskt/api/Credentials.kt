@@ -1,7 +1,5 @@
 package io.natskt.api
 
-import io.natskt.internal.ServerOperation
-
 public sealed interface Credentials {
 	/**
 	 * Use a JWT for identification as a user and nkey to sign the server nonce.
@@ -50,19 +48,10 @@ public sealed interface Credentials {
 		val key: String,
 	) : Credentials
 
-	public fun interface AuthProvider {
-		public operator fun AuthProviderScope.invoke(info: ServerOperation.InfoOp): AuthPayload
-
-		public fun withScope(
-			scope: AuthProviderScope,
-			info: ServerOperation.InfoOp,
-		): AuthPayload = with(this) { scope.invoke(info) }
-	}
-
 	/**
 	 * Use an [AuthProvider], which returns an [AuthPayload]. This allows full control over the authentication parameters sent to the server.
 	 *
-	 * Your [AuthProvider] will be called with a [AuthProviderScope] and [ServerOperation.InfoOp].
+	 * Your [AuthProvider] will be called with a [AuthProviderScope] and [ServerInfo].
 	 *
 	 * ### Signature
 	 * If you require a signature to be set (such as for the server's standard NKey challenge/response), you must set this yourself.

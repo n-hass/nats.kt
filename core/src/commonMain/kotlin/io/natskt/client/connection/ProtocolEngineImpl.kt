@@ -14,6 +14,7 @@ import io.natskt.api.Credentials
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.api.internal.ProtocolEngine
+import io.natskt.api.toPublicApi
 import io.natskt.client.NatsServerAddress
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
@@ -82,8 +83,8 @@ internal class ProtocolEngineImpl(
 			pedantic = false,
 			tlsRequired = tlsRequired,
 			authToken = auth.authToken,
-			user = auth.user,
-			pass = auth.pass,
+			user = auth.username,
+			pass = auth.password,
 			name = null,
 			protocol = 1,
 			echo = false,
@@ -91,7 +92,7 @@ internal class ProtocolEngineImpl(
 			jwt = auth.jwt,
 			noResponders = null,
 			headers = true,
-			nkey = auth.nkeyPublic,
+			nkey = auth.nkey,
 		)
 	}
 
@@ -102,12 +103,12 @@ internal class ProtocolEngineImpl(
 		val urlUser = address.url.user?.takeIf { it.isNotBlank() }
 		val urlPassword = address.url.password?.takeIf { it.isNotBlank() }
 
-		val creds = credentials ?: return AuthPayload(user = urlUser, pass = urlPassword)
+		val creds = credentials ?: return AuthPayload(username = urlUser, password = urlPassword)
 		return when (creds) {
 			is Credentials.Password -> {
 				val user = creds.username.takeUnless { it.isBlank() } ?: urlUser
 				val pass = creds.password.takeUnless { it.isBlank() } ?: urlPassword
-				AuthPayload(user = user, pass = pass)
+				AuthPayload(username = user, password = pass)
 			}
 
 			is Credentials.Jwt -> buildNKeyAuth(info, creds.nkey, creds.token)
@@ -118,7 +119,7 @@ internal class ProtocolEngineImpl(
 			}
 
 			is Credentials.Custom -> {
-				creds.provider.withScope(AuthProviderScope, info)
+				creds.provider.withScope(AuthProviderScope, info.toPublicApi())
 			}
 		}
 	}
@@ -141,7 +142,7 @@ internal class ProtocolEngineImpl(
 	): AuthPayload {
 		val nonce = info.nonce ?: return AuthPayload()
 		val signature = seed.signNonce(nonce)
-		return AuthPayload(jwt = jwt, signature = signature, nkeyPublic = seed.publicKey)
+		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.publicKey)
 	}
 
 	override suspend fun send(op: ClientOperation) {
