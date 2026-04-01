@@ -9,34 +9,32 @@
 
 **NATS.kt** is a high-performance NATS client built specifically for Kotlin Multiplatform. Powered by Ktor's networking stack, it brings NATS messaging to every platform Kotlin supports - including servers, mobile apps, browsers and native applications.
 
-## ✨ Why NATS.kt?
-
 - **Universal Platform Support**: Deploy your NATS-powered applications anywhere Kotlin runs
-- **Transport Flexibility**: TCP and WebSocket transports supported 
-- **Coroutines**: Coroutine-based API for idiomatic reactive programming
-- **DSL-style usage**: Clean, idiomatic Kotlin API with DSL configuration
+- **Transport Flexibility**: TCP and WebSocket transports supported
+- **Coroutines**: Coroutine-based API
+- **DSL-style usage**: Clean Kotlin API with a configuration DSL
 - **Built on Ktor**: Leverage Ktor's stability for networking capabilities and performance
 
 ## 🎯 Supported Platforms
 
-| Platform | Status |
+| Platform | Support |
 |----------|--------|
-| JVM | Full Support |
-| Android | Full Support |
-| iOS (ARM64) | Full Support |
-| iOS Simulator (ARM64) | Full Support |
-| macOS (ARM64) | Full Support |
-| Linux (x64) | Full Support |
-| Linux (ARM64) | Full Support |
-| JavaScript (Browser) | Full Support |
-| JavaScript (Node.js) | Full Support |
-| WasmJS | Full Support |
+| JVM | Full |
+| Android | Full |
+| iOS (ARM64) | Full |
+| iOS Simulator (ARM64) | Full |
+| macOS (ARM64) | Full |
+| Linux (x64) | Full |
+| Linux (ARM64) | Full |
+| JavaScript (Browser) | Full |
+| JavaScript (Node.js) | Full |
+| WasmJS | Full |
 
 **Minimum JVM**: 17
 
 **Minimum Kotlin**: 2.1
 
-## 🚀 Quick Start
+## 🏃 Quick Start
 
 ### Installation
 
@@ -90,8 +88,8 @@ NATS.kt is under **active development**.
 | Request/Reply                         |✅ |                              |
 | **Jetstream**                         |  |                              |
 | Basic API client                      |✅ |                              |
-| Pull consumer                         |🟠 |                              |
-| Push consumer                         |✅ |                              |
+| Pull consumer                         |✅ |                              |
+| Push consumer                         |🟠 | Functional, missing server liveness timeout  |
 | Key-Value Store                       |✅ |                              |
 | Object Store                          |❌ |                              |
 | **JetStream Management**              |  |                              |
@@ -110,15 +108,15 @@ Check out our [examples directory](examples/) for comprehensive usage examples:
 
 More coming soon!
 
-## 🛡️ Security
+## 🛡️ Security notice - Signature generation
 
 Please do not rely on the NKEY/Creds authentication features included in this client in a production environment. Although functionally correct, some cryptographic operations have not been formally verified and may have vulnerabilities. 
 
 The NKEY implementation uses an Ed25519 algorithm implementation from an [un-attested library](https://github.com/andreypfau/curve25519-kotlin). This is used to sign authentication requests by the server on connect.
 
-I plan to move the NKEY implementation to use [cryptography-kotlin](https://github.com/whyoleg/cryptography-kotlin), a multiplatform binding to various other platform-native attested libraries, like JCA, OpenSSL and WebCrypto. This is waiting on the features being developed in that library upstream.
+I plan to move the NKEY implementation to use [cryptography-kotlin](https://github.com/whyoleg/cryptography-kotlin), a multiplatform binding to various other platform-native attested libraries, like JCA, OpenSSL and WebCrypto. This is waiting on the next release of that library.
 
-The rest of the secure operations, including [secure-random](https://github.com/whyoleg/cryptography-kotlin) and TLS for TCP and WebSocket transports, use implementations which delegate to platform-native libraries and should not pose a notable security risk. 
+The rest of the secure operations, including [secure-random](https://github.com/whyoleg/cryptography-kotlin) and TLS for TCP and WebSocket transports, use implementations which delegate to platform-native libraries and will not pose security concerns. 
 
 ## 📄 License
 
