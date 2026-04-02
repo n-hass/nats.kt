@@ -6,7 +6,7 @@
     _module.args.common = {
       packages = with pkgs; [
         jdk21
-        gradle
+        gradle_9
 
         nats-server
         natscli
