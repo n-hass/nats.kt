@@ -1,0 +1,30 @@
+site_name: NATS.kt
+site_description: Kotlin Multiplatform client for NATS and JetStream
+site_url: https://n-hass.github.io/nats.kt/
+repo_url: https://github.com/n-hass/nats.kt
+repo_name: n-hass/nats.kt
+docs_dir: docs
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+plugins:
+  - search
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Core Client: core-client.md
+  - JetStream: jetstream.md
+  - Cryptography: cryptography.md
