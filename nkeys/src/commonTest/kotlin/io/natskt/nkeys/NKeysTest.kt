@@ -6,7 +6,9 @@ import kotlinx.coroutines.test.runTest
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalEncodingApi::class)
 class NKeysTest {
@@ -51,8 +53,12 @@ class NKeysTest {
 			val seedString = NKeySeed.encodeSeed(NKeyType.User, seedBytes)
 			val parsed = NKeys.parseSeed(seedString)
 			val nonce = "deadbeef"
-			val expectedSignature = Base64.encode(key.signatureGenerator().generateSignature(nonce.encodeToByteArray()))
-			assertEquals(expectedSignature, parsed.signNonce(nonce))
+			val payload = nonce.encodeToByteArray()
+			val expectedSignature = key.signatureGenerator().generateSignature(payload)
+			val parsedSignature = Base64.decode(parsed.signNonce(nonce))
+			val verifier = key.getPublicKey().signatureVerifier()
+			assertTrue(verifier.tryVerifySignature(payload, expectedSignature))
+			assertTrue(verifier.tryVerifySignature(payload, parsedSignature))
 			assertEquals(NKeys.parseSeed(seedString).getPublicKey(), parsed.getPublicKey())
 		}
 
@@ -67,7 +73,13 @@ class NKeysTest {
 				eddsa
 					.privateKeyDecoder(EdDSA.Curve.Ed25519)
 					.decodeFromByteArray(EdDSA.PrivateKey.Format.RAW, seedBytes)
-			assertEquals(key.getPublicKey().encodeToByteArray(EdDSA.PublicKey.Format.RAW).decodeToString(), parsed.getPublicKey().encodeToByteArray().decodeToString())
+			val (type, publicKeyBytes) = NKeySeed.decodePublicKey(parsed.getPublicKey())
+			assertEquals(NKeyType.User, type)
+			assertEquals(
+				key.getPublicKey().encodeToByteArray(EdDSA.PublicKey.Format.RAW).size,
+				publicKeyBytes.size,
+			)
+			assertContentEquals(key.getPublicKey().encodeToByteArray(EdDSA.PublicKey.Format.RAW), publicKeyBytes)
 		}
 
 	@Test

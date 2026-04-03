@@ -31,12 +31,12 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
 			implementation(libs.whyoleg.cryptography.core)
-			implementation(projects.crypto)
 		}
 
         commonTest.dependencies {
 			implementation(kotlin("test"))
 			implementation(libs.kotlinx.coroutines.test)
+			implementation(projects.crypto)
 		}
 
 

@@ -1,5 +1,7 @@
 package io.natskt.client.connection
 
+import dev.whyoleg.cryptography.CryptographyProvider
+import dev.whyoleg.cryptography.algorithms.EdDSA
 import io.natskt.api.AuthPayload
 import io.natskt.api.AuthProvider
 import io.natskt.api.Credentials
@@ -8,11 +10,15 @@ import io.natskt.nkeys.NKeySeed
 import io.natskt.nkeys.NKeyType
 import io.natskt.nkeys.NKeys
 import kotlinx.coroutines.test.runTest
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
+@OptIn(ExperimentalEncodingApi::class)
 class ResolveAuthTest {
 	private fun defaultInfo(nonce: String? = "test_nonce_1234567890"): ServerOperation.InfoOp =
 		ServerOperation.InfoOp(
@@ -172,7 +178,17 @@ class ResolveAuthTest {
 			assertEquals("custompass", auth.password)
 			assertNull(auth.jwt)
 			assertEquals(nkey.getPublicKey(), auth.nkey)
-			assertEquals(nkey.signToBase64(defaultInfo.nonce!!.encodeToByteArray()), auth.signature)
+			val key =
+				CryptographyProvider.Default
+					.get(EdDSA)
+					.privateKeyDecoder(EdDSA.Curve.Ed25519)
+					.decodeFromByteArray(EdDSA.PrivateKey.Format.RAW, seedBytes)
+			assertTrue {
+				key
+					.getPublicKey()
+					.signatureVerifier()
+					.tryVerifySignature(defaultInfo.nonce!!.encodeToByteArray(), Base64.decode(auth.signature!!))
+			}
 		}
 
 	@Test

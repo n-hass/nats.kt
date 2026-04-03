@@ -126,6 +126,7 @@ public class NatsServerHarness(
 			wsReady = wsReady || probePort(websocketPort)
 
 			if (tcpReady && wsReady) {
+				Thread.sleep(50)
 				return
 			}
 
