@@ -97,6 +97,7 @@ kotlin {
 		commonTest.dependencies {
 			implementation(kotlin("test"))
 			implementation(projects.testHarness)
+			implementation(projects.crypto)
 			implementation(libs.kotlinx.coroutines.core)
 			implementation(libs.kotlinx.coroutines.test)
 			implementation(libs.turbine)

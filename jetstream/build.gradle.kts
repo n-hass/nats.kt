@@ -73,6 +73,7 @@ kotlin {
 			implementation(libs.kotest.assertions.core)
 			implementation(libs.turbine)
 			implementation(projects.testHarness)
+			implementation(projects.crypto)
 		}
 
 		jvmTest.dependencies {
