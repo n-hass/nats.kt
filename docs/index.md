@@ -39,4 +39,3 @@ The JVM artifacts target Java 17 bytecode.
 - Start with [Getting Started](getting-started.md) for installation and a minimal connection example.
 - Use [Core Client](core-client.md) when you need configuration details and transport selection.
 - Use [JetStream](jetstream.md) when you want streams, consumers, or key-value buckets.
-- Use [Development](development.md) for local setup and docs publishing.
