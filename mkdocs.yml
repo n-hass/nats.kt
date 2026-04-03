@@ -4,6 +4,8 @@ site_url: https://n-hass.github.io/nats.kt/
 repo_url: https://github.com/n-hass/nats.kt
 repo_name: n-hass/nats.kt
 docs_dir: docs
+extra:
+  current_version: 0.7.0
 theme:
   name: material
   features:
@@ -22,6 +24,7 @@ markdown_extensions:
   - pymdownx.superfences
 plugins:
   - search
+  - macros
 nav:
   - Home: index.md
   - Getting Started: getting-started.md

@@ -12,8 +12,8 @@ NATS.kt automatically installs a compatible cryptographic provider with the `nat
 
 ```kotlin
 commonMain.dependencies {
-	implementation("io.github.n-hass:natskt-core:<natskt-version>")
-	implementation("io.github.n-hass:natskt-jetstream:<natskt-version>")
+	implementation("io.github.n-hass:natskt-core:{{ current_version }}")
+	implementation("io.github.n-hass:natskt-jetstream:{{ current_version }}")
 }
 
 jvmMain.dependencies {

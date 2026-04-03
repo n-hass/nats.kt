@@ -6,7 +6,7 @@ If you are **not** using the `natskt-platform` module, add the following to your
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.n-hass:natskt-jetstream:<version>")
+    implementation("io.github.n-hass:natskt-jetstream:{{ current_version }}")
 }
 ```
 

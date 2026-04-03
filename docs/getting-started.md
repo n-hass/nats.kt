@@ -17,7 +17,7 @@ repositories {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.n-hass:natskt-platform:<version>")
+            implementation("io.github.n-hass:natskt-platform:{{ current_version }}")
         }
     }
 }
@@ -35,9 +35,9 @@ The `platform` artifact is a convenience that includes all 3 of the above, and s
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.n-hass:natskt-core:<version>")
-    implementation("io.github.n-hass:natskt-jetstream:<version>")
-	implementation("io.github.n-hass:natskt-crypto:<version>")
+    implementation("io.github.n-hass:natskt-core:{{ current_version }}")
+    implementation("io.github.n-hass:natskt-jetstream:{{ current_version }}")
+    implementation("io.github.n-hass:natskt-crypto:{{ current_version }}")
 }
 ```
 
@@ -93,6 +93,7 @@ val client = NatsClient {
 
 ## Where To Go Next
 
+- Update `current_version` in `mkdocs.yml` after each release to refresh every versioned docs snippet.
 - [Core Client](core-client.md) covers lifecycle, transports, authentication, and request/reply behavior.
 - [JetStream](jetstream.md) covers streams, consumers, publishes, and key-value buckets.
 - [Examples](https://github.com/n-hass/nats.kt/tree/main/examples) for runnable samples of different things you can do with NATS.kt.
