@@ -5,7 +5,7 @@ repo_url: https://github.com/n-hass/nats.kt
 repo_name: n-hass/nats.kt
 docs_dir: docs
 extra:
-  current_version: 0.7.0
+  current_version: 1.0.0-rc.1
 theme:
   name: material
   features:

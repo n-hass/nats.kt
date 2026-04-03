@@ -108,15 +108,17 @@ Check out our [examples directory](examples/) for comprehensive usage examples:
 
 More coming soon!
 
-## 🛡️ Security notice - Signature generation
+## 🛡️ Security notice
 
-Please do not rely on the NKEY/Creds authentication features included in this client in a production environment. Although functionally correct, some cryptographic operations have not been formally verified and may have vulnerabilities. 
+The upcoming 1.0.0 stable release of NATS.kt will include a new platform-native cryptography library that was not used in pre-release versions (0.1.0 – 0.7.0).
 
-The NKEY implementation uses an Ed25519 algorithm implementation from an [un-attested library](https://github.com/andreypfau/curve25519-kotlin). This is used to sign authentication requests by the server on connect.
+If you are concerned about potential security vulnerabilities when using an un-attested Ed25519 implementation, please use the 1.0.0-rc.1 pre-release:
 
-I plan to move the NKEY implementation to use [cryptography-kotlin](https://github.com/whyoleg/cryptography-kotlin), a multiplatform binding to various other platform-native attested libraries, like JCA, OpenSSL and WebCrypto. This is waiting on the next release of that library.
-
-The rest of the secure operations, including [secure-random](https://github.com/whyoleg/cryptography-kotlin) and TLS for TCP and WebSocket transports, use implementations which delegate to platform-native libraries and will not pose security concerns. 
+```kotlin
+commonMain.dependencies {
+	implementation("io.github.n-hass:natskt-platform:1.0.0-rc.1")
+}
+```
 
 ## 📄 License
 
