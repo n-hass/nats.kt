@@ -200,6 +200,11 @@ gradle-app.setting
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 
+# Local docs build artifacts
+.venv/
+.venv-docs/
+site/
+
 ### Gradle Patch ###
 # Java heap dump
 *.hprof
