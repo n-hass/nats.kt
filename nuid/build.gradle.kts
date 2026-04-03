@@ -29,11 +29,9 @@ kotlin {
     macosArm64()
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation(libs.whyoleg.secureRandom)
-            }
-        }
+        commonMain.dependencies {
+			implementation(libs.whyoleg.secureRandom)
+		}
     }
 }
 

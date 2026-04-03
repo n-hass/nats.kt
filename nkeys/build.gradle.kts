@@ -29,22 +29,19 @@ kotlin {
     macosArm64()
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation(libs.curve25519.kt)
-            }
-        }
+        commonMain.dependencies {
+			implementation(libs.whyoleg.cryptography.core)
+			implementation(projects.crypto)
+		}
 
-        val commonTest by getting {
-            dependencies {
-                implementation(kotlin("test"))
-            }
-        }
+        commonTest.dependencies {
+			implementation(kotlin("test"))
+			implementation(libs.kotlinx.coroutines.test)
+		}
 
-		val jvmTest by getting {
-			dependencies {
-				implementation("io.nats:nkeys-java:2.1.1")
-			}
+
+		jvmTest.dependencies {
+			implementation("io.nats:nkeys-java:2.1.1")
 		}
     }
 }

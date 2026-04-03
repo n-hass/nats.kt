@@ -6,9 +6,9 @@ public object NKeys {
 		public val seed: NKeySeed,
 	)
 
-	public fun parseSeed(seed: String): NKeySeed = NKeySeed.parse(seed)
+	public suspend fun parseSeed(seed: String): NKeySeed = NKeySeed.parse(seed)
 
-	public fun parseCreds(content: String): Creds {
+	public suspend fun parseCreds(content: String): Creds {
 		val jwtBlock = extractBlock(content, "-----BEGIN NATS USER JWT-----", "-----END NATS USER JWT-----")
 		val seedBlock =
 			extractBlock(content, "-----BEGIN USER NKEY SEED-----", "-----END USER NKEY SEED-----")

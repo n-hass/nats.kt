@@ -76,7 +76,7 @@ internal class ProtocolEngineImpl(
 		}
 	}
 
-	internal fun buildConnectOp(info: ServerOperation.InfoOp): ClientOperation.ConnectOp {
+	internal suspend fun buildConnectOp(info: ServerOperation.InfoOp): ClientOperation.ConnectOp {
 		val auth = resolveAuth(info, credentials)
 		return ClientOperation.ConnectOp(
 			verbose = false,
@@ -96,7 +96,7 @@ internal class ProtocolEngineImpl(
 		)
 	}
 
-	internal fun resolveAuth(
+	internal suspend fun resolveAuth(
 		info: ServerOperation.InfoOp,
 		credentials: Credentials?,
 	): AuthPayload {
@@ -124,7 +124,7 @@ internal class ProtocolEngineImpl(
 		}
 	}
 
-	private fun buildNKeyAuth(
+	private suspend fun buildNKeyAuth(
 		info: ServerOperation.InfoOp,
 		seedValue: String,
 		jwt: String?,
@@ -135,14 +135,14 @@ internal class ProtocolEngineImpl(
 		return buildNKeyAuth(info, NKeys.parseSeed(seedValue), jwt)
 	}
 
-	private fun buildNKeyAuth(
+	private suspend fun buildNKeyAuth(
 		info: ServerOperation.InfoOp,
 		seed: NKeySeed,
 		jwt: String?,
 	): AuthPayload {
 		val nonce = info.nonce ?: return AuthPayload()
 		val signature = seed.signNonce(nonce)
-		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.publicKey)
+		return AuthPayload(jwt = jwt, signature = signature, nkey = seed.getPublicKey())
 	}
 
 	override suspend fun send(op: ClientOperation) {
