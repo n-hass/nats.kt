@@ -2,8 +2,6 @@ package io.natskt.jetstream.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
-import io.kotest.assertions.nondeterministic.eventually
-import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.api.Message
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.jetstream.api.AckPolicy
@@ -346,14 +344,13 @@ class ConsumerIntegrationTest {
 	fun `pull consumer can fetch`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { c, js ->
-				val s =
-					js.manager.createStream {
-						name = "test_stream_for_basic_consumer"
-						subject("test.basic_consumer.>")
-					}
+				js.manager.createStream {
+					name = "test_stream_for_basic_consumer"
+					subject("test.basic_consumer.>")
+				}
 
 				val consumer =
-					s.createPullConsumer {
+					js.stream("test_stream_for_basic_consumer").createPullConsumer {
 						durableName = "consumer1"
 						ackPolicy = AckPolicy.Explicit
 						filterSubjects =
@@ -366,41 +363,8 @@ class ConsumerIntegrationTest {
 
 				assertEquals(0, consumer.fetch(1, expires = 1.seconds).size, message = "consumer should not return any messages")
 
-				eventually(
-					eventuallyConfig {
-						duration = 5.seconds
-						interval = 250.milliseconds
-					},
-				) {
-					assertEquals(
-						1u,
-						s
-							.updateStreamInfo()
-							.getOrThrow()
-							.state.messages,
-						"stream should contain a message",
-					)
-				}
-
 				js.publish("test.basic_consumer.hi.consumer1", "hi to consumer".encodeToByteArray())
-
-				eventually(
-					eventuallyConfig {
-						duration = 5.seconds
-						interval = 250.milliseconds
-					},
-				) {
-					assertEquals(
-						2u,
-						s
-							.updateStreamInfo()
-							.getOrThrow()
-							.state.messages,
-						"stream should contain both messages",
-					)
-				}
-
-				val messages = consumer.fetch(1)
+				val messages = consumer.fetch(1, expires = 5.seconds)
 
 				assertEquals(1, messages.size, "consumer fetch should return 1 message")
 

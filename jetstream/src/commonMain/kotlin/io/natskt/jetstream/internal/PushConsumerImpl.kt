@@ -139,7 +139,7 @@ internal class PushConsumerImpl(
 	}
 
 	companion object {
-		suspend fun newSubscription(
+		internal suspend fun newSubscription(
 			client: NatsClient,
 			subject: String?,
 			eager: Boolean = false,

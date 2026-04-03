@@ -15,6 +15,7 @@ fun main(): Unit = runBlocking {
 		maxReconnects = 3
 		authentication = Credentials.Custom(
 			AuthProvider { info ->
+				signNonce("deadbeef", info)
 				AuthPayload(
 					jwt = "ey8786",
 					nkey = "customkey",

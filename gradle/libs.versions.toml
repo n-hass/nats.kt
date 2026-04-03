@@ -13,7 +13,7 @@ kotlinx-serialization = "1.10.0"
 buildkonfig = "0.17.1"
 
 ktor = "3.4.2"
-whyoleg-crypto = "0.5.0"
+whyoleg-crypto = "0.6.0"
 kotlinLogging = "8.0.01"
 
 # Testing
@@ -22,7 +22,7 @@ turbine = "1.2.1"
 konsist = "0.17.3"
 spotless = "7.2.1"
 ktlint = "1.7.1"
-maven-publish = "0.34.0"
+maven-publish = "0.36.0"
 slf4j-simple = "2.0.17"
 
 [libraries]
@@ -49,7 +49,10 @@ ktor-utils = { module = "io.ktor:ktor-utils", version.ref = "ktor"}
 # Third-party libs
 kotlinLogging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlinLogging" }
 whyoleg-secureRandom = { module = "dev.whyoleg.cryptography:cryptography-random", version.ref = "whyoleg-crypto" }
-curve25519-kt = { module = "io.github.andreypfau:curve25519-kotlin", version = "0.0.8" }
+whyoleg-cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "whyoleg-crypto" }
+whyoleg-cryptography-provider-optimal = { module = "dev.whyoleg.cryptography:cryptography-provider-optimal", version.ref = "whyoleg-crypto" }
+whyoleg-cryptography-provider-jdk-bc = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk-bc", version.ref = "whyoleg-crypto" }
+whyoleg-cryptography-provider-cryptokit = { module = "dev.whyoleg.cryptography:cryptography-provider-cryptokit", version.ref = "whyoleg-crypto" }
 
 # Testing
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }

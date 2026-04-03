@@ -103,8 +103,12 @@ subprojects {
 		}
 	}
 
+	val doSign = properties["natskt.gpgsign"].toString().toBoolean()
+
 	extensions.getByType<MavenPublishBaseExtension>().apply {
-		signAllPublications()
+		if (doSign) {
+			signAllPublications()
+		}
 
 		pom {
 			url = "https://github.com/n-hass/nats.kt"
@@ -132,7 +136,7 @@ subprojects {
 		}
 	}
 
-	if (properties["natskt.gpgsign"].toString().toBoolean()) {
+	if (doSign) {
 		println("Build signing enabled")
 		extensions.getByType<SigningExtension>().apply {
 			useGpgCmd()

@@ -97,11 +97,12 @@ kotlin {
 		commonTest.dependencies {
 			implementation(kotlin("test"))
 			implementation(projects.testHarness)
+			implementation(projects.crypto)
 			implementation(libs.kotlinx.coroutines.core)
 			implementation(libs.kotlinx.coroutines.test)
 			implementation(libs.turbine)
 			implementation(libs.ktor.client.engine.cio)
-			implementation(libs.curve25519.kt)
+			implementation(libs.whyoleg.cryptography.core)
 		}
 
 		appleTest.dependencies {

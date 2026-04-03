@@ -1,7 +1,7 @@
 package io.natskt.nkeys
 
-import io.github.andreypfau.curve25519.ed25519.Ed25519
 import io.nats.nkey.NKey
+import kotlinx.coroutines.test.runTest
 import java.security.SecureRandom
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -9,33 +9,34 @@ import kotlin.test.assertEquals
 
 class NKeyInteropTest {
 	@Test
-	fun `encode seed roundtrips through Java nkey`() {
-		val seedBytes = ByteArray(32) { it.toByte() }
-		val privateKey = Ed25519.keyFromSeed(seedBytes)
-		val encoded = NKeySeed.encodeSeed(NKeyType.User, privateKey)
-		val javaKey = NKey.fromSeed(encoded.toCharArray())
+	fun `encode seed roundtrips through Java nkey`() =
+		runTest {
+			val seedBytes = ByteArray(32) { it.toByte() }
+			val encoded = NKeySeed.encodeSeed(NKeyType.User, seedBytes)
+			val javaKey = NKey.fromSeed(encoded.toCharArray())
+			val parsed = NKeySeed.parse(encoded)
 
-		assertEquals(encoded, String(javaKey.seed))
-		val expectedPublic = NKeySeed.encodePublicKey(NKeyType.User, privateKey.publicKey().toByteArray())
-		assertEquals(expectedPublic, String(javaKey.publicKey))
+			assertEquals(encoded, String(javaKey.seed))
+			assertEquals(parsed.getPublicKey(), String(javaKey.publicKey))
 
-		val payload = "nkey interop payload".encodeToByteArray()
-		val kotlinSignature = privateKey.sign(payload)
-		val javaSignature = javaKey.sign(payload)
-		assertContentEquals(kotlinSignature, javaSignature)
-	}
+			val payload = "nkey interop payload".encodeToByteArray()
+			val kotlinSignature = parsed.sign(payload)
+			val javaSignature = javaKey.sign(payload)
+			assertContentEquals(kotlinSignature, javaSignature)
+		}
 
 	@Test
-	fun `Kotlin parses seed from Java library`() {
-		val deterministicSeed = ByteArray(32) { (it * 13 + 7).toByte() }
-		val javaKey = NKey.createUser(DeterministicSecureRandom(deterministicSeed))
-		val javaSeed = String(javaKey.seed)
+	fun `Kotlin parses seed from Java library`() =
+		runTest {
+			val deterministicSeed = ByteArray(32) { (it * 13 + 7).toByte() }
+			val javaKey = NKey.createUser(DeterministicSecureRandom(deterministicSeed))
+			val javaSeed = String(javaKey.seed)
 
-		val parsed = NKeySeed.parse(javaSeed)
-		val reencoded = NKeySeed.encodeSeed(parsed.type, Ed25519.keyFromSeed(parsed.rawSeed()))
-		assertEquals(javaSeed, reencoded)
-		assertEquals(String(javaKey.publicKey), parsed.publicKey)
-	}
+			val parsed = NKeySeed.parse(javaSeed)
+			val reencoded = NKeySeed.encodeSeed(parsed.type, parsed.rawSeed())
+			assertEquals(javaSeed, reencoded)
+			assertEquals(String(javaKey.publicKey), parsed.getPublicKey())
+		}
 
 	private class DeterministicSecureRandom(
 		private val pattern: ByteArray,

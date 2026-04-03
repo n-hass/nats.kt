@@ -1,32 +1,42 @@
 package io.natskt.nkeys
 
-import io.github.andreypfau.curve25519.ed25519.Ed25519
-import io.github.andreypfau.curve25519.ed25519.Ed25519PrivateKey
+import dev.whyoleg.cryptography.CryptographyProvider
+import dev.whyoleg.cryptography.algorithms.EdDSA
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 public class NKeySeed private constructor(
-	private val privateKey: Ed25519PrivateKey,
+	internal val privateKey: EdDSA.PrivateKey,
 	public val type: NKeyType,
 ) {
-	private val publicKeyBytes: ByteArray by lazy { privateKey.publicKey().toByteArray() }
+	private var publicKey: String? = null
 
-	public val publicKey: String by lazy { encodePublicKey(type, publicKeyBytes) }
+	public suspend fun getPublicKey(): String {
+		publicKey?.let { return it }
+		val new =
+			encodePublicKey(
+				type,
+				privateKey.getPublicKey().encodeToByteArray(EdDSA.PublicKey.Format.RAW),
+			)
+		publicKey = new
+		return new
+	}
 
-	public fun sign(payload: ByteArray): ByteArray = privateKey.sign(payload)
+	public suspend fun sign(payload: ByteArray): ByteArray = privateKey.signatureGenerator().generateSignature(payload)
 
 	@OptIn(ExperimentalEncodingApi::class)
-	public fun signToBase64(payload: ByteArray): String = Base64.Default.encode(sign(payload))
+	public suspend fun signToBase64(payload: ByteArray): String = Base64.encode(sign(payload))
 
 	@OptIn(ExperimentalEncodingApi::class)
-	public fun signNonce(nonce: String): String = signToBase64(nonce.encodeToByteArray())
+	public suspend fun signNonce(nonce: String): String = signToBase64(nonce.encodeToByteArray())
 
-	public fun rawSeed(): ByteArray = privateKey.seed()
+	public suspend fun rawSeed(): ByteArray = privateKey.encodeToByteArray(EdDSA.PrivateKey.Format.RAW)
 
 	public companion object {
 		private const val SEED_PREFIX: Int = 18 shl 3
+		private val ed25519: EdDSA by lazy { CryptographyProvider.Default.get(EdDSA) }
 
-		public fun parse(seed: String): NKeySeed {
+		public suspend fun parse(seed: String): NKeySeed {
 			val payload = decodeWithChecksum(seed)
 			if (payload.size < 2 + 32) {
 				throw IllegalArgumentException("Seed payload is too short")
@@ -47,7 +57,7 @@ public class NKeySeed private constructor(
 			}
 
 			val seedBytes = body.copyOfRange(0, 32)
-			val privateKey = Ed25519.keyFromSeed(seedBytes)
+			val privateKey = privateKeyFromSeed(seedBytes)
 			return NKeySeed(privateKey, type)
 		}
 
@@ -64,17 +74,24 @@ public class NKeySeed private constructor(
 			return encodeWithChecksum(payload)
 		}
 
+		public suspend fun encodeSeed(
+			type: NKeyType,
+			privateKey: EdDSA.PrivateKey,
+		): String = encodeSeed(type, privateKey.encodeToByteArray(EdDSA.PrivateKey.Format.RAW))
+
 		public fun encodeSeed(
 			type: NKeyType,
-			privateKey: Ed25519PrivateKey,
+			rawSeed: ByteArray,
 		): String {
-			val seedBytes = privateKey.seed()
+			if (rawSeed.size != 32) {
+				throw IllegalArgumentException("Seed must be 32 bytes")
+			}
 			val b1 = (SEED_PREFIX or (type.prefix shr 5)) and 0xFF
 			val b2 = ((type.prefix and 0x1F) shl 3) and 0xFF
-			val payload = ByteArray(2 + seedBytes.size)
+			val payload = ByteArray(2 + rawSeed.size)
 			payload[0] = b1.toByte()
 			payload[1] = b2.toByte()
-			seedBytes.copyInto(payload, 2)
+			rawSeed.copyInto(payload, 2)
 			return encodeWithChecksum(payload)
 		}
 
@@ -90,6 +107,15 @@ public class NKeySeed private constructor(
 				throw IllegalArgumentException("Public key must be 32 bytes")
 			}
 			return type to key
+		}
+
+		private suspend fun privateKeyFromSeed(seedBytes: ByteArray): EdDSA.PrivateKey {
+			if (seedBytes.size != 32) {
+				throw IllegalArgumentException("Seed must be 32 bytes")
+			}
+			return ed25519
+				.privateKeyDecoder(EdDSA.Curve.Ed25519)
+				.decodeFromByteArray(EdDSA.PrivateKey.Format.RAW, seedBytes)
 		}
 
 		private fun encodeWithChecksum(payload: ByteArray): String {
