@@ -1,6 +1,6 @@
 plugins {
     id("application")
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.2.0"
 }
 
 application {
@@ -9,6 +9,7 @@ application {
 
 dependencies {
 	implementation("io.github.n-hass:core")
+	implementation("io.github.n-hass:nkeys")
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.engine.cio)
