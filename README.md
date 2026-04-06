@@ -1,6 +1,6 @@
 # NATS.kt 🚀
 
-> **A fully multiplatform, Ktor-kased NATS client in pure Kotlin**
+> **A fully multiplatform, Ktor-based NATS client in pure Kotlin**
 
 [![Kotlin](https://img.shields.io/badge/kotlin-multiplatform-blue.svg?logo=kotlin)](https://kotlinlang.org/docs/multiplatform.html)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
