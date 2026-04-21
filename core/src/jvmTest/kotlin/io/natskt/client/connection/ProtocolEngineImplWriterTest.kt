@@ -107,6 +107,7 @@ class ProtocolEngineImplWriterTest {
 			pendingRequests = ConcurrentMap<String, PendingRequest>(),
 			serverInfo = MutableStateFlow(null),
 			credentials = null,
+			name = null,
 			tlsRequired = false,
 			operationBufferCapacity = 32,
 			writeBufferLimitBytes = writeBufferLimitBytes,

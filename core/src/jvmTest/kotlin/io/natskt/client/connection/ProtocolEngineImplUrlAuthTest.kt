@@ -46,6 +46,22 @@ class ProtocolEngineImplUrlAuthTest {
 			assertNull(connect.pass)
 		}
 
+	@Test
+	fun `name is null by default`() =
+		runTest {
+			val engine = engine()
+			val connect = engine.buildConnectOp(defaultInfo())
+			assertNull(connect.name)
+		}
+
+	@Test
+	fun `name is set when provided`() =
+		runTest {
+			val engine = engine(name = "my-service")
+			val connect = engine.buildConnectOp(defaultInfo())
+			assertEquals("my-service", connect.name)
+		}
+
 	private fun defaultInfo(): ServerOperation.InfoOp =
 		ServerOperation.InfoOp(
 			serverId = "test",

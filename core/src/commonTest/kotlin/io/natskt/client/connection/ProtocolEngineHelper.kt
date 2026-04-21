@@ -19,6 +19,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 internal fun engine(
 	url: String = "nats://localhost:4222",
 	credentials: Credentials? = null,
+	name: String? = null,
 ): ProtocolEngineImpl =
 	ProtocolEngineImpl(
 		transportFactory = FakeTransportFactory,
@@ -28,6 +29,7 @@ internal fun engine(
 		pendingRequests = ConcurrentMap(),
 		serverInfo = MutableStateFlow(null),
 		credentials = credentials,
+		name = name,
 		tlsRequired = false,
 		operationBufferCapacity = 32,
 		writeBufferLimitBytes = 64 * 1024,

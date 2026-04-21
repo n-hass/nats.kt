@@ -272,6 +272,7 @@ class WriterJobTest {
 			pendingRequests = ConcurrentMap<String, PendingRequest>(),
 			serverInfo = MutableStateFlow(null),
 			credentials = null,
+			name = null,
 			tlsRequired = false,
 			operationBufferCapacity = operationBufferCapacity,
 			writeBufferLimitBytes = writeBufferLimitBytes,
