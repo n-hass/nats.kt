@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 
 internal data class ClientConfiguration(
 	val servers: List<NatsServerAddress>,
+	val name: String?,
 	val transportFactory: TransportFactory,
 	val credentials: Credentials?,
 	val inboxPrefix: String,

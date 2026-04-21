@@ -27,6 +27,13 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var servers: Collection<String>? = null
 
 	/**
+	 * Optional name to identify this client to the server.
+	 *
+	 * Visible in server monitoring tools.
+	 */
+	public var name: String? = null
+
+	/**
 	 * Configure an authentication provider with an instance of [Credentials]
 	 *
 	 * Valid types:
@@ -167,6 +174,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 
 	return ClientConfiguration(
 		servers = serversList,
+		name = name,
 		transportFactory = transport ?: platformDefaultTransport,
 		credentials = authentication,
 		inboxPrefix = inboxPrefix,
