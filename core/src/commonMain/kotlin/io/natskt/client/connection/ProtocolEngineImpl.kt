@@ -294,11 +294,11 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun close() {
-		val t = transport ?: throw ConnectionClosedException("Cannot close connection as it is not open")
+		val t = transport ?: return
 		state.update {
 			phase = ConnectionPhase.Closing
 		}
-		flushWriter()
+		runCatching { withTimeoutOrNull(5_000) { flushWriter() } }
 		stopWriter()
 		t.close()
 		state.update {
