@@ -124,6 +124,15 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var maxParallelRequests: Int? = null
 
 	/**
+	 * Enable the no-responders protocol feature.
+	 *
+	 * When enabled, the server will send a status 503 response on a request
+	 * when no subscribers are available to handle it, instead of letting the
+	 * request time out.
+	 */
+	public var noResponders: Boolean = true
+
+	/**
 	 * Tries to connect with TLS first, and forces the server to use TLS.
 	 */
 	public var tlsRequired: Boolean? = null
@@ -188,6 +197,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		writeFlushIntervalMs = writeFlushInterval.inWholeMilliseconds,
 		tlsRequired = tls,
 		maxParallelRequests = parallelRequestLimit,
+		noResponders = noResponders,
 		nuid = NUID.Default,
 		scope = finalScope,
 		ownsScope = scope == null,

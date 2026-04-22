@@ -56,6 +56,7 @@ internal class ProtocolEngineImpl(
 	private val credentials: Credentials?,
 	private val name: String?,
 	private val tlsRequired: Boolean,
+	private val noResponders: Boolean,
 	private val operationBufferCapacity: Int,
 	private val writeBufferLimitBytes: Int,
 	private val writeFlushIntervalMs: Long,
@@ -91,7 +92,7 @@ internal class ProtocolEngineImpl(
 			echo = false,
 			sig = auth.signature,
 			jwt = auth.jwt,
-			noResponders = null,
+			noResponders = noResponders,
 			headers = true,
 			nkey = auth.nkey,
 		)
