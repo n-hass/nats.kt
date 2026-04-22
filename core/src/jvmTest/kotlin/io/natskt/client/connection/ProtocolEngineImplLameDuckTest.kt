@@ -65,6 +65,7 @@ class ProtocolEngineImplLameDuckTest {
 			name = null,
 			tlsRequired = false,
 			noResponders = true,
+			echo = false,
 			operationBufferCapacity = 32,
 			writeBufferLimitBytes = 64 * 1024,
 			writeFlushIntervalMs = 5,

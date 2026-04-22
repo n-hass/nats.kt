@@ -130,7 +130,15 @@ public class ClientConfigurationBuilder internal constructor() {
 	 * when no subscribers are available to handle it, instead of letting the
 	 * request time out.
 	 */
-	public var noResponders: Boolean = true
+	public var noResponders: Boolean = false
+
+	/**
+	 * When enabled, the server will echo messages published by this client
+	 * back to its own subscriptions.
+	 *
+	 * Disabling echo can be useful to avoid receiving your own messages on shared subjects.
+	 */
+	public var echo: Boolean = false
 
 	/**
 	 * Tries to connect with TLS first, and forces the server to use TLS.
@@ -198,6 +206,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		tlsRequired = tls,
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
+		echo = echo,
 		nuid = NUID.Default,
 		scope = finalScope,
 		ownsScope = scope == null,

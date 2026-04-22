@@ -32,6 +32,7 @@ internal fun engine(
 		name = name,
 		tlsRequired = false,
 		noResponders = true,
+		echo = false,
 		operationBufferCapacity = 32,
 		writeBufferLimitBytes = 64 * 1024,
 		writeFlushIntervalMs = 5,
