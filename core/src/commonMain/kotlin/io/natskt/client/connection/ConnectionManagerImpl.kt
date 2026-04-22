@@ -72,6 +72,7 @@ internal class ConnectionManagerImpl(
 							name = config.name,
 							tlsRequired = config.tlsRequired,
 							noResponders = config.noResponders,
+							echo = config.echo,
 							operationBufferCapacity = config.operationBufferCapacity,
 							writeBufferLimitBytes = config.writeBufferLimitBytes,
 							writeFlushIntervalMs = config.writeFlushIntervalMs,

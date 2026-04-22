@@ -22,6 +22,7 @@ internal data class ClientConfiguration(
 	val tlsRequired: Boolean,
 	val maxParallelRequests: Int?,
 	val noResponders: Boolean,
+	val echo: Boolean,
 	val nuid: NUID,
 	val scope: CoroutineScope,
 	val ownsScope: Boolean,

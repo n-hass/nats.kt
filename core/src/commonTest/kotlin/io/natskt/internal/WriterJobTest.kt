@@ -275,6 +275,7 @@ class WriterJobTest {
 			name = null,
 			tlsRequired = false,
 			noResponders = true,
+			echo = false,
 			operationBufferCapacity = operationBufferCapacity,
 			writeBufferLimitBytes = writeBufferLimitBytes,
 			writeFlushIntervalMs = writeFlushIntervalMs,

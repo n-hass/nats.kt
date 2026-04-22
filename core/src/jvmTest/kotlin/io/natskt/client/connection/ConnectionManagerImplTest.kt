@@ -73,6 +73,7 @@ class ConnectionManagerImplTest {
 				writeFlushIntervalMs = 5,
 				tlsRequired = false,
 				noResponders = true,
+				echo = false,
 				nuid = NUID.Default,
 				scope = CoroutineScope(EmptyCoroutineContext),
 				maxParallelRequests = null,
