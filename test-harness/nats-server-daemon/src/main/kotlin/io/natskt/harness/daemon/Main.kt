@@ -23,6 +23,7 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.delay
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
@@ -119,13 +120,13 @@ private class NatsHarnessManager(
 	private val servers = ConcurrentHashMap<String, ManagedServer>()
 
 	@OptIn(ExperimentalUuidApi::class)
-	fun create(enableJetStream: Boolean): RemoteNatsServerInfo {
+	suspend fun create(enableJetStream: Boolean): RemoteNatsServerInfo {
 		val id = Uuid.random().toHexDashString()
 		var lastError: Throwable? = null
 
 		repeat(START_ATTEMPTS) { attempt ->
 			if (attempt >= 2) {
-				Thread.sleep(RETRY_DELAY_MILLIS)
+				delay(RETRY_DELAY_MILLIS)
 			}
 
 			val harness =

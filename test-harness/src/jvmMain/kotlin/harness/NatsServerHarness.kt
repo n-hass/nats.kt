@@ -2,6 +2,7 @@
 
 package harness
 
+import kotlinx.coroutines.delay
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
@@ -17,10 +18,10 @@ import kotlin.concurrent.thread
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-public class NatsServerHarness(
-	private val enableJetStream: Boolean = true,
+public class NatsServerHarness private constructor(
+	private val enableJetStream: Boolean,
 	private val logId: String,
-	fixedPort: Int? = null,
+	fixedPort: Int?,
 ) : AutoCloseable {
 	private val port: Int = fixedPort ?: ServerSocket(0).use { it.localPort }
 	private val websocketPort: Int = ServerSocket(0).use { it.localPort }
@@ -47,10 +48,6 @@ public class NatsServerHarness(
 
 	public val logs: List<String>
 		get() = synchronized(outputLines) { outputLines.toList() }
-
-	init {
-		waitForReady()
-	}
 
 	private fun startProcess(): Process {
 		val command =
@@ -113,7 +110,7 @@ public class NatsServerHarness(
 			}
 		}
 
-	private fun waitForReady() {
+	private suspend fun waitForReady() {
 		val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
 		var tcpReady = false
 		var wsReady = false
@@ -126,11 +123,11 @@ public class NatsServerHarness(
 			wsReady = wsReady || probePort(websocketPort)
 
 			if (tcpReady && wsReady) {
-				Thread.sleep(50)
+				delay(200)
 				return
 			}
 
-			Thread.sleep(50)
+			delay(50)
 		}
 		throw IllegalStateException("Timed out waiting for nats-server to start")
 	}
@@ -154,5 +151,15 @@ public class NatsServerHarness(
 		stdoutReader.join(500)
 	}
 
-	public companion object
+	public companion object {
+		public suspend operator fun invoke(
+			enableJetStream: Boolean = true,
+			logId: String,
+			fixedPort: Int? = null,
+		): NatsServerHarness {
+			val harness = NatsServerHarness(enableJetStream, logId, fixedPort)
+			harness.waitForReady()
+			return harness
+		}
+	}
 }

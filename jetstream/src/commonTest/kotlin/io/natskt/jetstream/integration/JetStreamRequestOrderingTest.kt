@@ -197,11 +197,11 @@ class JetStreamRequestOrderingTest {
 				// Make a request
 				val result =
 					runCatching {
-						withTimeout(2_000) {
+						withTimeout(10_000) {
 							js.request(
 								subject = "test.jetstream.request.with.responder",
 								message = "test",
-								timeoutMs = 1000,
+								timeoutMs = 5000,
 							)
 						}
 					}

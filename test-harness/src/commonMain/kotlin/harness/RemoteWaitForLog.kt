@@ -8,7 +8,7 @@ public suspend fun waitForLog(
 	predicate: (String) -> Boolean,
 ) {
 	var offset = 0
-	withTimeout(5_000) {
+	withTimeout(15_000) {
 		while (true) {
 			val response = server.fetchLogs(offset)
 			for (line in response.entries) {

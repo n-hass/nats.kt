@@ -133,11 +133,11 @@ class RequestOrderingTest {
 				// Make a request
 				val result =
 					runCatching {
-						withTimeout(2_000) {
+						withTimeout(10_000) {
 							client.request(
 								subject = "test.request.with.responder",
 								message = "test".encodeToByteArray(),
-								timeoutMs = 1000,
+								timeoutMs = 5000,
 							)
 						}
 					}

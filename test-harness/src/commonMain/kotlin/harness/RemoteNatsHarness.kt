@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.minutes
 
 public object RemoteNatsHarness {
 	private val httpClient by lazy { createHttpClient() }
@@ -39,7 +40,7 @@ public fun RemoteNatsHarness.runBlocking(
 	baseUrl: String = DEFAULT_REMOTE_HARNESS_URL,
 	block: suspend CoroutineScope.(RemoteNatsServer) -> Unit,
 ): TestResult =
-	runTest {
+	runTest(timeout = 2.minutes) {
 		withContext(Dispatchers.Default.limitedParallelism(1) + exceptionHandler) {
 			withServer(enableJetStream, baseUrl) { server ->
 				block(this, server)
