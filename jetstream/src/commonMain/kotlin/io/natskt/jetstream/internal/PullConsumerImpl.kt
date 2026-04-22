@@ -10,6 +10,7 @@ import io.natskt.jetstream.api.ConsumerPullRequest
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.consumer.PullConsumer
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
@@ -72,16 +73,22 @@ internal class PullConsumerImpl(
 				body
 			}
 
-		val timeoutMillis = expires?.inWholeMilliseconds ?: 10_000
+		val replyTo = nextRequestSubject()
+		val timeoutMillis = (expires?.inWholeMilliseconds ?: 10_000) + 500
 		val messages =
 			withTimeoutOrNull(timeoutMillis) {
 				inboxMessages
-					.takeWhile { message ->
+					.filter { message ->
+						// Data messages (no status) always pass through.
+						// Status messages are only relevant if they're for the current request;
+						// drop stale status messages from previous fetch calls.
+						message.status == null || message.subject.raw == replyTo
+					}.takeWhile { message ->
 						val status = message.status
 						status == null || status in 200..300
 					}.take(batch)
 					.onStart {
-						publishMsgNext(streamName, name, body, nextRequestSubject())
+						publishMsgNext(streamName, name, body, replyTo)
 					}.toCollection(ArrayList(batch))
 			} ?: return emptyList()
 
