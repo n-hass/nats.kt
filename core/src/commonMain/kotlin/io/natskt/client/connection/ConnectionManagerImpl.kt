@@ -71,6 +71,7 @@ internal class ConnectionManagerImpl(
 							credentials = config.credentials,
 							name = config.name,
 							tlsRequired = config.tlsRequired,
+							noResponders = config.noResponders,
 							operationBufferCapacity = config.operationBufferCapacity,
 							writeBufferLimitBytes = config.writeBufferLimitBytes,
 							writeFlushIntervalMs = config.writeFlushIntervalMs,

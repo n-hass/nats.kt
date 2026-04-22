@@ -21,6 +21,7 @@ internal data class ClientConfiguration(
 	val writeFlushIntervalMs: Long,
 	val tlsRequired: Boolean,
 	val maxParallelRequests: Int?,
+	val noResponders: Boolean,
 	val nuid: NUID,
 	val scope: CoroutineScope,
 	val ownsScope: Boolean,

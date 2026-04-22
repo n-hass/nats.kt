@@ -109,6 +109,7 @@ class ProtocolEngineImplWriterTest {
 			credentials = null,
 			name = null,
 			tlsRequired = false,
+			noResponders = true,
 			operationBufferCapacity = 32,
 			writeBufferLimitBytes = writeBufferLimitBytes,
 			writeFlushIntervalMs = 10_000,

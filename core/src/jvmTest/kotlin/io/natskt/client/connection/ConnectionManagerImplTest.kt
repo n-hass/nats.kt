@@ -72,6 +72,7 @@ class ConnectionManagerImplTest {
 				writeBufferLimitBytes = 64 * 1024,
 				writeFlushIntervalMs = 5,
 				tlsRequired = false,
+				noResponders = true,
 				nuid = NUID.Default,
 				scope = CoroutineScope(EmptyCoroutineContext),
 				maxParallelRequests = null,
