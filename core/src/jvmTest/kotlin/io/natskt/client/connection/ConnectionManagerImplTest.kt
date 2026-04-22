@@ -60,6 +60,7 @@ class ConnectionManagerImplTest {
 		val config =
 			ClientConfiguration(
 				servers = addresses,
+				name = null,
 				transportFactory = NoopTransportFactory,
 				credentials = null,
 				inboxPrefix = "_INBOX.",

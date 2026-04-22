@@ -69,6 +69,7 @@ internal class ConnectionManagerImpl(
 							pendingRequests = pendingRequests,
 							serverInfo = serverInfo,
 							credentials = config.credentials,
+							name = config.name,
 							tlsRequired = config.tlsRequired,
 							operationBufferCapacity = config.operationBufferCapacity,
 							writeBufferLimitBytes = config.writeBufferLimitBytes,
