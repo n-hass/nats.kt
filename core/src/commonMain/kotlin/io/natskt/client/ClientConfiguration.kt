@@ -20,6 +20,7 @@ internal data class ClientConfiguration(
 	val writeBufferLimitBytes: Int,
 	val writeFlushIntervalMs: Long,
 	val tlsRequired: Boolean,
+	val tlsVerify: Boolean,
 	val maxParallelRequests: Int?,
 	val noResponders: Boolean,
 	val echo: Boolean,

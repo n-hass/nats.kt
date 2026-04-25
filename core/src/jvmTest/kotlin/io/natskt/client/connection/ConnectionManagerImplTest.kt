@@ -72,6 +72,7 @@ class ConnectionManagerImplTest {
 				writeBufferLimitBytes = 64 * 1024,
 				writeFlushIntervalMs = 5,
 				tlsRequired = false,
+				tlsVerify = true,
 				noResponders = true,
 				echo = false,
 				nuid = NUID.Default,
@@ -91,6 +92,7 @@ class ConnectionManagerImplTest {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsVerify: Boolean,
 		): Transport = throw UnsupportedOperationException("not used")
 	}
 }

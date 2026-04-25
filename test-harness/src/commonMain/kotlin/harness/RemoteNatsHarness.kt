@@ -15,11 +15,12 @@ public object RemoteNatsHarness {
 
 	public suspend fun <T> withServer(
 		enableJetStream: Boolean = true,
+		enableTls: Boolean = false,
 		baseUrl: String = defaultBaseUrl(),
 		block: suspend (RemoteNatsServer) -> T,
 	): T {
 		val client = RemoteNatsHarnessClient(httpClient, baseUrl)
-		val serverInfo = client.createServer(enableJetStream)
+		val serverInfo = client.createServer(enableJetStream, enableTls)
 		println("test using server id: ${serverInfo.id}")
 		val server = RemoteNatsServer(client, serverInfo)
 		return try {
@@ -37,12 +38,13 @@ private val exceptionHandler =
 
 public fun RemoteNatsHarness.runBlocking(
 	enableJetStream: Boolean = true,
+	enableTls: Boolean = false,
 	baseUrl: String = DEFAULT_REMOTE_HARNESS_URL,
 	block: suspend CoroutineScope.(RemoteNatsServer) -> Unit,
 ): TestResult =
 	runTest(timeout = 2.minutes) {
 		withContext(Dispatchers.Default.limitedParallelism(1) + exceptionHandler) {
-			withServer(enableJetStream, baseUrl) { server ->
+			withServer(enableJetStream, enableTls, baseUrl) { server ->
 				block(this, server)
 			}
 		}

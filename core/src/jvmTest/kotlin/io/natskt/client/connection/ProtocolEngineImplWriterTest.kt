@@ -109,6 +109,7 @@ class ProtocolEngineImplWriterTest {
 			credentials = null,
 			name = null,
 			tlsRequired = false,
+			tlsVerify = true,
 			noResponders = true,
 			echo = false,
 			operationBufferCapacity = 32,
@@ -206,6 +207,7 @@ class ProtocolEngineImplWriterTest {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsVerify: Boolean,
 		): Transport = transport
 	}
 

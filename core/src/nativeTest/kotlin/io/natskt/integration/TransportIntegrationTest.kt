@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 class TransportIntegrationTest {
@@ -79,5 +80,35 @@ class TransportIntegrationTest {
 					it.connect()
 				},
 			)
+		}
+
+	@OptIn(InternalNatsApi::class)
+	@Test
+	fun `receives messages with TLS TCP transport`() =
+		RemoteNatsHarness.runBlocking(enableTls = true) { server ->
+			testDelivery(
+				NatsClient {
+					this.server = server.tlsUri!!
+					transport = TcpTransport
+					tlsVerify = false
+					maxReconnects = 3
+				}.also {
+					it.connect()
+				},
+			)
+		}
+
+	@OptIn(InternalNatsApi::class)
+	@Test
+	fun `fails to connect with invalid self-signed cert`() =
+		RemoteNatsHarness.runBlocking(enableTls = true) { server ->
+			val client =
+				NatsClient {
+					this.server = server.tlsUri!!
+					transport = TcpTransport
+					maxReconnects = 1
+				}
+			val result = client.connect()
+			assertTrue(result.isFailure, "Expected connection to fail with self-signed cert, but it succeeded")
 		}
 }

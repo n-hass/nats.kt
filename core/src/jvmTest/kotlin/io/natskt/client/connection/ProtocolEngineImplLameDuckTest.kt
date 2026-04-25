@@ -64,6 +64,7 @@ class ProtocolEngineImplLameDuckTest {
 			credentials = null,
 			name = null,
 			tlsRequired = false,
+			tlsVerify = true,
 			noResponders = true,
 			echo = false,
 			operationBufferCapacity = 32,
@@ -121,6 +122,7 @@ class ProtocolEngineImplLameDuckTest {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsVerify: Boolean,
 		): Transport = transport
 	}
 

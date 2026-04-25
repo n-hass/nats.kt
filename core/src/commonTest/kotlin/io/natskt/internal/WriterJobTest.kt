@@ -274,6 +274,7 @@ class WriterJobTest {
 			credentials = null,
 			name = null,
 			tlsRequired = false,
+			tlsVerify = true,
 			noResponders = true,
 			echo = false,
 			operationBufferCapacity = operationBufferCapacity,
@@ -347,6 +348,7 @@ class WriterJobTest {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsVerify: Boolean,
 		): Transport = transport
 	}
 

@@ -146,6 +146,12 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var tlsRequired: Boolean? = null
 
 	/**
+	 * Whether to verify the server's TLS certificate against the system trust store.
+	 * Defaults to true. Set to false to accept self-signed certificates.
+	 */
+	public var tlsVerify: Boolean = true
+
+	/**
 	 * The transport type to use. Will default to TCP on supported platforms, or a WebSocket transport
 	 * with the platforms preferred [Ktor client engine](https://ktor.io/docs/client-engines.html#dependencies)
 	 */
@@ -204,6 +210,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		writeBufferLimitBytes = writeBufferLimitBytes,
 		writeFlushIntervalMs = writeFlushInterval.inWholeMilliseconds,
 		tlsRequired = tls,
+		tlsVerify = tlsVerify,
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
 		echo = echo,

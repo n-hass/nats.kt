@@ -1,0 +1,739 @@
+@file:OptIn(
+	dev.whyoleg.cryptography.DelicateCryptographyApi::class,
+	kotlinx.cinterop.ExperimentalForeignApi::class,
+)
+
+package io.natskt.tls.internal
+
+import dev.whyoleg.cryptography.CryptographyProvider
+import dev.whyoleg.cryptography.algorithms.Digest
+import dev.whyoleg.cryptography.algorithms.EC
+import dev.whyoleg.cryptography.algorithms.ECDH
+import dev.whyoleg.cryptography.algorithms.ECDSA
+import dev.whyoleg.cryptography.algorithms.RSA
+import dev.whyoleg.cryptography.random.CryptographyRandom
+import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.writeFully
+import io.natskt.tls.cert.validateCertificateChain
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.ClosedSendChannelException
+import kotlinx.coroutines.launch
+import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
+import kotlin.coroutines.CoroutineContext
+
+private const val EXT_SUPPORTED_VERSIONS = 43
+private const val EXT_KEY_SHARE = 51
+
+/**
+ * TLS handshake and encrypted I/O.
+ *
+ * During the handshake, records are read/written synchronously from [rawInput]/[rawOutput].
+ * After the handshake, two coroutine loops run for app data:
+ * - Input parser: decrypts incoming records and writes plaintext to [appDataInput]
+ * - Output encoder: reads from [appDataOutput], encrypts, and writes to [rawOutput]
+ */
+internal class TlsHandshake(
+	private val rawInput: ByteReadChannel,
+	private val rawOutput: ByteWriteChannel,
+	private val serverName: String?,
+	override val coroutineContext: CoroutineContext,
+	private val verifyCertificates: Boolean = true,
+) : CoroutineScope {
+	private var digest = TlsDigest()
+	private val clientRandom: ByteArray = generateClientRandom()
+
+	private val ecdh = CryptographyProvider.Default.get(ECDH)
+	private var ecdhCurve = EC.Curve.P256
+	private var ecdhGroupId: Short = 23
+	private var ecdhKeyPair = ecdh.keyPairGenerator(ecdhCurve).generateKeyBlocking()
+	private var ecdhPublicBytes = ecdhKeyPair.publicKey.encodeToByteArrayBlocking(EC.PublicKey.Format.RAW)
+
+	private lateinit var negotiatedSuite: SuiteInfo
+	private var isTls13 = false
+
+	// Cipher used after handshake for app data
+	private lateinit var tls12Cipher: GcmTlsCipher
+	private lateinit var tls13Cipher: Tls13Cipher
+
+	// Buffered handshake messages from coalesced records
+	private val pendingHandshakeMessages = ArrayDeque<TlsHandshakeMessage>()
+
+	// App-facing channels
+	private val appInput = ByteChannel(autoFlush = true)
+	private val appOutput = ByteChannel(autoFlush = true)
+	val appDataInput: ByteReadChannel get() = appInput
+	val appDataOutput: ByteWriteChannel get() = appOutput
+
+	private var inputJob: kotlinx.coroutines.Job? = null
+	private var outputJob: kotlinx.coroutines.Job? = null
+
+	// --- Handshake: all I/O is synchronous (no coroutine producers) ---
+
+	suspend fun negotiate() {
+		try {
+			val serverHello = performHandshake()
+			startAppDataIO()
+		} catch (cause: Throwable) {
+			close()
+			throw cause
+		}
+	}
+
+	private suspend fun performHandshake(): TlsServerHello {
+		// Send initial ClientHello
+		sendClientHello()
+
+		// Read ServerHello (may be HelloRetryRequest)
+		var serverHello = receiveAndParseServerHello()
+
+		// RFC 8446 §4.1.4: HelloRetryRequest
+		if (isTls13 && isHelloRetryRequest(serverHello)) {
+			handleHelloRetryRequest(serverHello)
+			serverHello = receiveAndParseServerHello()
+			if (isHelloRetryRequest(serverHello)) {
+				throw TlsException("Server sent second HelloRetryRequest")
+			}
+		}
+
+		if (!isTls13) {
+			checkDowngradeProtection(serverHello.serverRandom)
+		}
+
+		if (isTls13) {
+			negotiateTls13(serverHello)
+		} else {
+			negotiateTls12(serverHello)
+		}
+
+		return serverHello
+	}
+
+	private suspend fun sendClientHello() {
+		val body = buildClientHelloBytes(SupportedSuites, clientRandom, serverName, ecdhPublicBytes, ecdhGroupId)
+		val record = buildHandshakeType(TlsHandshakeType.ClientHello, body.size) + body
+		digest.update(record)
+		rawOutput.writeRecordBytes(TlsRecordType.Handshake, record)
+	}
+
+	private suspend fun receiveAndParseServerHello(): TlsServerHello {
+		val msg = readHandshakeMessage(TlsHandshakeType.ServerHello)
+		val serverHello = parseServerHello(msg.data)
+
+		val svExt = serverHello.extensions.find { it.type == EXT_SUPPORTED_VERSIONS }
+		if (svExt != null && svExt.data.size >= 2) {
+			val version = ((svExt.data[0].toInt() and 0xff) shl 8) or (svExt.data[1].toInt() and 0xff)
+			if (version == TlsVersion.TLS13.code) isTls13 = true
+		}
+
+		negotiatedSuite = findSuiteByCode(serverHello.cipherSuiteCode)
+			?: throw TlsException("Unsupported cipher suite: 0x${serverHello.cipherSuiteCode.toString(16)}")
+
+		return serverHello
+	}
+
+	/**
+	 * RFC 8446 §4.1.4: HelloRetryRequest is a ServerHello with server_random
+	 * equal to SHA-256("HelloRetryRequest").
+	 */
+	private fun isHelloRetryRequest(serverHello: TlsServerHello): Boolean = serverHello.serverRandom.contentEquals(HRR_RANDOM)
+
+	/**
+	 * RFC 8446 §4.1.4: Handle HelloRetryRequest.
+	 * Replaces the transcript with a synthetic message_hash, regenerates the
+	 * ECDH key pair for the server's requested group, and sends a new ClientHello.
+	 */
+	private suspend fun handleHelloRetryRequest(hrr: TlsServerHello) {
+		// Extract the server's requested group from key_share extension
+		val ksExt =
+			hrr.extensions.find { it.type == EXT_KEY_SHARE }
+				?: throw TlsException("HelloRetryRequest missing key_share extension")
+		val requestedGroup = ((ksExt.data[0].toInt() and 0xff) shl 8) or (ksExt.data[1].toInt() and 0xff)
+
+		val newCurve =
+			when (requestedGroup.toShort()) {
+				CurveInfo.Secp256r1.code -> EC.Curve.P256
+				CurveInfo.Secp384r1.code -> EC.Curve.P384
+				CurveInfo.Secp521r1.code -> EC.Curve.P521
+				else -> throw TlsException("HelloRetryRequest requested unsupported group: $requestedGroup")
+			}
+
+		// RFC 8446 §4.4.1: replace transcript with synthetic message_hash.
+		// Current digest contains ClientHello1 || ServerHello(HRR).
+		// Replace with: MessageHash(Hash(ClientHello1 || HRR))
+		val hashAlg = digestAlgorithmForSuite(negotiatedSuite)
+		val currentHash = digest.doHash(hashAlg)
+		digest.close()
+		digest = TlsDigest()
+		val syntheticRecord = buildHandshakeType(TlsHandshakeType.MessageHash, currentHash.size) + currentHash
+		digest.update(syntheticRecord)
+
+		// Regenerate ECDH key pair for the requested group
+		ecdhCurve = newCurve
+		ecdhGroupId = requestedGroup.toShort()
+		ecdhKeyPair = ecdh.keyPairGenerator(ecdhCurve).generateKeyBlocking()
+		ecdhPublicBytes = ecdhKeyPair.publicKey.encodeToByteArrayBlocking(EC.PublicKey.Format.RAW)
+
+		// Send new ClientHello (added to the new digest by sendClientHello)
+		sendClientHello()
+
+		// Send middlebox-compatibility CCS after the second ClientHello
+		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
+	}
+
+	/**
+	 * Read the next handshake message. Handles coalesced messages: a single TLS record
+	 * can contain multiple handshake messages. Remaining messages are buffered and
+	 * returned by subsequent calls before reading another record from the wire.
+	 */
+	private suspend fun readHandshakeMessage(expectedType: TlsHandshakeType? = null): TlsHandshakeMessage {
+		while (true) {
+			// Drain buffered messages from a previous coalesced record
+			val pending = pendingHandshakeMessages.removeFirstOrNull()
+			if (pending != null) {
+				if (expectedType != null && pending.type != expectedType) {
+					throw TlsException("Expected $expectedType, got ${pending.type}")
+				}
+				digest.addHandshakeMessage(pending)
+				return pending
+			}
+
+			// Read a new record from the wire
+			val record = rawInput.readTlsRecord()
+			when (record.type) {
+				TlsRecordType.ChangeCipherSpec -> continue
+				TlsRecordType.Alert -> {
+					val code = if (record.length >= 2) TlsAlertType.byCode(record.data[record.offset + 1].toInt() and 0xff) else TlsAlertType.InternalError
+					throw TlsException("Alert during handshake: $code")
+				}
+				TlsRecordType.Handshake -> {
+					val messages = parseHandshakeMessages(record.data)
+					if (messages.isEmpty()) throw TlsException("Empty handshake record")
+					// Return the first, buffer the rest
+					for (i in 1 until messages.size) {
+						pendingHandshakeMessages.addLast(messages[i])
+					}
+					val msg = messages.first()
+					if (expectedType != null && msg.type != expectedType) {
+						throw TlsException("Expected $expectedType, got ${msg.type}")
+					}
+					digest.addHandshakeMessage(msg)
+					return msg
+				}
+				else -> throw TlsException("Unexpected record type during handshake: ${record.type}")
+			}
+		}
+	}
+
+	// --- Post-handshake app data I/O ---
+
+	private fun startAppDataIO() {
+		inputJob =
+			launch(CoroutineName("natskt-tls-input")) {
+				try {
+					while (true) {
+						val rawRecord = rawInput.readTlsRecord()
+						if (isTls13) {
+							if (rawRecord.type == TlsRecordType.ChangeCipherSpec) continue
+							val decrypted = tls13Cipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length)
+							when (decrypted.innerType) {
+								TlsRecordType.ApplicationData -> {
+									appInput.writeFully(decrypted.data)
+									appInput.flush()
+								}
+								TlsRecordType.Handshake -> {} // NewSessionTicket -- ignore
+								TlsRecordType.Alert -> {
+									if (decrypted.data.size >= 2 && TlsAlertType.byCode(decrypted.data[1].toInt() and 0xff) == TlsAlertType.CloseNotify) return@launch
+								}
+								else -> {}
+							}
+						} else {
+							when (rawRecord.type) {
+								TlsRecordType.ApplicationData -> {
+									val plaintext = tls12Cipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length, rawRecord.type)
+									appInput.writeFully(plaintext)
+									appInput.flush()
+								}
+								TlsRecordType.Alert -> {
+									val plaintext = tls12Cipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length, rawRecord.type)
+									if (plaintext.size >= 2 && TlsAlertType.byCode(plaintext[1].toInt() and 0xff) == TlsAlertType.CloseNotify) return@launch
+								}
+								else -> {}
+							}
+						}
+					}
+				} catch (cause: Throwable) {
+					appInput.cancel(cause)
+				} finally {
+					appInput.close()
+				}
+			}
+
+		outputJob =
+			launch(CoroutineName("natskt-tls-output")) {
+				val buffer = ByteArray(16384)
+				try {
+					while (true) {
+						val rc = appOutput.readAvailable(buffer)
+						if (rc == -1) break
+						if (isTls13) {
+							val encrypted = tls13Cipher.encrypt(buffer, 0, rc, TlsRecordType.ApplicationData)
+							rawOutput.writeRecordBytes(TlsRecordType.ApplicationData, encrypted)
+						} else {
+							val encrypted = tls12Cipher.encrypt(buffer, 0, rc, TlsRecordType.ApplicationData)
+							rawOutput.writeRecordBytes(TlsRecordType.ApplicationData, encrypted)
+						}
+					}
+				} catch (_: ClosedSendChannelException) {
+				} catch (cause: Throwable) {
+					appOutput.cancel(cause)
+				}
+			}
+	}
+
+	suspend fun closeGracefully() {
+		try {
+			val alert = byteArrayOf(TlsAlertLevel.WARNING.code.toByte(), TlsAlertType.CloseNotify.code.toByte())
+			if (isTls13 && ::tls13Cipher.isInitialized) {
+				val encrypted = tls13Cipher.encrypt(alert, 0, alert.size, TlsRecordType.Alert)
+				rawOutput.writeRecordBytes(TlsRecordType.ApplicationData, encrypted)
+			} else if (::tls12Cipher.isInitialized) {
+				val encrypted = tls12Cipher.encrypt(alert, 0, alert.size, TlsRecordType.Alert)
+				rawOutput.writeRecordBytes(TlsRecordType.Alert, encrypted)
+			} else {
+				rawOutput.writeRecordBytes(TlsRecordType.Alert, alert)
+			}
+		} catch (_: Throwable) {
+			// Connection already broken — hard close
+		}
+		close()
+	}
+
+	fun close() {
+		inputJob?.cancel()
+		outputJob?.cancel()
+		appInput.close()
+		appOutput.close()
+		digest.close()
+	}
+
+	// ==================== TLS 1.3 ====================
+
+	private suspend fun negotiateTls13(serverHello: TlsServerHello) {
+		val ksExt =
+			serverHello.extensions.find { it.type == EXT_KEY_SHARE }
+				?: throw TlsException("TLS 1.3: missing key_share")
+		val ksReader = ByteArrayReader(ksExt.data)
+		val group = ksReader.readShort()
+		val keyLen = ksReader.readShort()
+		val serverPubBytes = ksReader.readBytes(keyLen)
+
+		val serverKeyCurve =
+			when (group.toShort()) {
+				CurveInfo.Secp256r1.code -> EC.Curve.P256
+				CurveInfo.Secp384r1.code -> EC.Curve.P384
+				CurveInfo.Secp521r1.code -> EC.Curve.P521
+				else -> throw TlsException("TLS 1.3: unsupported key share group: $group")
+			}
+		val serverPubKey = ecdh.publicKeyDecoder(serverKeyCurve).decodeFromByteArrayBlocking(EC.PublicKey.Format.RAW, serverPubBytes)
+		val sharedSecret = ecdhKeyPair.privateKey.sharedSecretGenerator().generateSharedSecretToByteArrayBlocking(serverPubKey)
+
+		val hashAlg = digestAlgorithmForSuite(negotiatedSuite)
+		val ks = Tls13KeySchedule(hashAlg)
+
+		val helloHash = digest.doHash(hashAlg)
+		val hsSecrets = ks.computeHandshakeSecrets(sharedSecret, helloHash)
+		sharedSecret.fill(0)
+
+		val serverHsKeys = ks.deriveTrafficKeys(hsSecrets.serverHandshakeTrafficSecret, negotiatedSuite.keyStrengthBytes, negotiatedSuite.ivLength)
+		val clientHsKeys = ks.deriveTrafficKeys(hsSecrets.clientHandshakeTrafficSecret, negotiatedSuite.keyStrengthBytes, negotiatedSuite.ivLength)
+
+		val hsCipher =
+			when (negotiatedSuite.cipherAlgorithm) {
+				CipherAlgorithm.AesGcm -> Tls13Cipher.createAesGcm(clientHsKeys.key, serverHsKeys.key, clientHsKeys.iv, serverHsKeys.iv)
+				CipherAlgorithm.ChaCha20Poly1305 -> Tls13Cipher.createChaCha20Poly1305(clientHsKeys.key, serverHsKeys.key, clientHsKeys.iv, serverHsKeys.iv)
+			}
+
+		// Read encrypted handshake messages
+		var serverPublicKey: CertPublicKey? = null
+
+		loop@ while (true) {
+			val rawRecord = rawInput.readTlsRecord()
+			if (rawRecord.type == TlsRecordType.ChangeCipherSpec) continue // middlebox compat
+			if (rawRecord.type != TlsRecordType.ApplicationData) {
+				throw TlsException("TLS 1.3: expected encrypted record, got ${rawRecord.type}")
+			}
+
+			val decrypted = hsCipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length)
+			if (decrypted.innerType != TlsRecordType.Handshake) {
+				throw TlsException("TLS 1.3: expected handshake, got ${decrypted.innerType}")
+			}
+
+			for (msg in parseHandshakeMessages(decrypted.data)) {
+				when (msg.type) {
+					TlsHandshakeType.EncryptedExtensions -> digest.addHandshakeMessage(msg)
+					TlsHandshakeType.Certificate -> {
+						digest.addHandshakeMessage(msg)
+						val certChain = parseTls13CertificateChain(msg.data)
+						if (verifyCertificates) validateCertificateChain(certChain, serverName)
+						serverPublicKey = extractPublicKeyFromCertificate(certChain.first())
+					}
+					TlsHandshakeType.CertificateRequest -> digest.addHandshakeMessage(msg)
+					TlsHandshakeType.CertificateVerify -> {
+						verifyTls13CertificateVerify(msg.data, serverPublicKey ?: throw TlsException("Server certificate required but not received"), hashAlg)
+						digest.addHandshakeMessage(msg)
+					}
+					TlsHandshakeType.Finished -> {
+						verifyTls13ServerFinished(msg.data, hsSecrets.serverHandshakeTrafficSecret, hashAlg, ks)
+						digest.addHandshakeMessage(msg)
+						break@loop
+					}
+					else -> throw TlsException("TLS 1.3: unexpected: ${msg.type}")
+				}
+			}
+		}
+
+		// Derive application keys
+		val finHash = digest.doHash(hashAlg)
+		val appSecrets = ks.computeApplicationSecrets(hsSecrets.handshakeSecret, finHash)
+
+		// Send client Finished
+		val clientFinVerify = ks.finishedVerifyData(hsSecrets.clientHandshakeTrafficSecret, finHash)
+		val finRecord = buildHandshakeType(TlsHandshakeType.Finished, clientFinVerify.size) + clientFinVerify
+		val encFin = hsCipher.encrypt(finRecord, 0, finRecord.size, TlsRecordType.Handshake)
+		rawOutput.writeRecordBytes(TlsRecordType.ApplicationData, encFin)
+
+		// Create application cipher
+		val sak = ks.deriveTrafficKeys(appSecrets.serverAppTrafficSecret, negotiatedSuite.keyStrengthBytes, negotiatedSuite.ivLength)
+		val cak = ks.deriveTrafficKeys(appSecrets.clientAppTrafficSecret, negotiatedSuite.keyStrengthBytes, negotiatedSuite.ivLength)
+		tls13Cipher =
+			when (negotiatedSuite.cipherAlgorithm) {
+				CipherAlgorithm.AesGcm -> Tls13Cipher.createAesGcm(cak.key, sak.key, cak.iv, sak.iv)
+				CipherAlgorithm.ChaCha20Poly1305 -> Tls13Cipher.createChaCha20Poly1305(cak.key, sak.key, cak.iv, sak.iv)
+			}
+
+		// Wipe derivation intermediates
+		hsSecrets.handshakeSecret.fill(0)
+	}
+
+	private fun parseTls13CertificateChain(data: ByteArray): List<ByteArray> {
+		val r = ByteArrayReader(data)
+		val ctxLen = r.readByte()
+		if (ctxLen > 0) r.readBytes(ctxLen)
+		val certsLen = (r.readByte() shl 16) or r.readShort()
+		val certs = mutableListOf<ByteArray>()
+		val end = r.pos + certsLen
+		while (r.pos < end) {
+			val certLen = (r.readByte() shl 16) or r.readShort()
+			certs += r.readBytes(certLen)
+			val extLen = r.readShort()
+			if (extLen > 0) r.readBytes(extLen)
+		}
+		if (certs.isEmpty()) throw TlsException("TLS 1.3: no certificate")
+		return certs
+	}
+
+	private fun verifyTls13CertificateVerify(
+		data: ByteArray,
+		serverPubKey: CertPublicKey,
+		hashAlg: dev.whyoleg.cryptography.CryptographyAlgorithmId<Digest>,
+	) {
+		val r = ByteArrayReader(data)
+		val scheme = r.readShort()
+		val sigLen = r.readShort()
+		val sig = r.readBytes(sigLen)
+		val txHash = digest.doHash(hashAlg)
+		val content = ByteArray(64) { 0x20 } + "TLS 1.3, server CertificateVerify".encodeToByteArray() + byteArrayOf(0) + txHash
+		when (serverPubKey) {
+			is CertPublicKey.Ec -> {
+				val curve =
+					when (serverPubKey.curveOid) {
+						OID_SECP256R1 -> EC.Curve.P256
+						OID_SECP384R1 -> EC.Curve.P384
+						OID_SECP521R1 -> EC.Curve.P521
+						else -> throw TlsException("Unknown curve")
+					}
+				val ecdsa = CryptographyProvider.Default.get(ECDSA)
+				val pk = ecdsa.publicKeyDecoder(curve).decodeFromByteArrayBlocking(EC.PublicKey.Format.RAW, serverPubKey.point)
+				val d =
+					when (scheme) {
+						0x0403 -> dev.whyoleg.cryptography.algorithms.SHA256
+						0x0503 -> dev.whyoleg.cryptography.algorithms.SHA384
+						else -> hashAlg
+					}
+				if (!pk.signatureVerifier(d, ECDSA.SignatureFormat.DER).tryVerifySignatureBlocking(content, sig)) {
+					throw TlsException("TLS 1.3: CertificateVerify failed")
+				}
+			}
+			is CertPublicKey.Rsa -> {
+				val rsa = CryptographyProvider.Default.get(RSA.PSS)
+				val d =
+					when (scheme) {
+						0x0804 -> dev.whyoleg.cryptography.algorithms.SHA256
+						0x0805 -> dev.whyoleg.cryptography.algorithms.SHA384
+						else -> hashAlg
+					}
+				val pk = rsa.publicKeyDecoder(d).decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, serverPubKey.spkiDer)
+				if (!pk.signatureVerifier().tryVerifySignatureBlocking(content, sig)) {
+					throw TlsException("TLS 1.3: CertificateVerify failed")
+				}
+			}
+		}
+	}
+
+	private fun verifyTls13ServerFinished(
+		data: ByteArray,
+		serverHsSecret: ByteArray,
+		hashAlg: dev.whyoleg.cryptography.CryptographyAlgorithmId<Digest>,
+		ks: Tls13KeySchedule,
+	) {
+		val txHash = digest.doHash(hashAlg)
+		val expected = ks.finishedVerifyData(serverHsSecret, txHash)
+		if (!data.contentEquals(expected)) throw TlsException("TLS 1.3: ServerFinished failed")
+	}
+
+	// ==================== TLS 1.2 ====================
+
+	private suspend fun negotiateTls12(serverHello: TlsServerHello) {
+		var serverPublicKey: CertPublicKey? = null
+		var ecdhServerPoint: ByteArray? = null
+		var ecdhCurve: CurveInfo? = null
+
+		loop@ while (true) {
+			val msg = readHandshakeMessage()
+			when (msg.type) {
+				TlsHandshakeType.Certificate -> {
+					val certs = parseCertificatesDer(msg.data)
+					if (certs.isEmpty()) throw TlsException("No certificate")
+					if (verifyCertificates) validateCertificateChain(certs, serverName)
+					serverPublicKey = extractPublicKeyFromCertificate(certs.first())
+				}
+				TlsHandshakeType.ServerKeyExchange -> {
+					val r = ByteArrayReader(msg.data)
+					val curve = r.readCurveParams()
+					val point = r.readECPoint(curve.fieldSize)
+					val hs = r.readHashAndSign() ?: throw TlsException("Unknown hash and sign")
+					val params = byteArrayOf(ServerKeyExchangeType.NamedCurve.code.toByte(), (curve.code.toInt() shr 8).toByte(), curve.code.toByte(), point.size.toByte()) + point
+					val signed = clientRandom + serverHello.serverRandom + params
+					val sigLen = r.readShort()
+					val sig = r.readBytes(sigLen)
+					verifyServerKeyExchangeSignature(serverPublicKey ?: throw TlsException("Server certificate required but not received"), signed, sig, hs)
+					ecdhServerPoint = point
+					ecdhCurve = curve
+				}
+				TlsHandshakeType.CertificateRequest -> {}
+				TlsHandshakeType.ServerDone -> break@loop
+				else -> throw TlsException("Unexpected: ${msg.type}")
+			}
+		}
+
+		val hmacDigest = digestAlgorithmForSuite(negotiatedSuite)
+		val preSecret: ByteArray
+
+		when (negotiatedSuite.exchangeType) {
+			ExchangeType.ECDHE -> {
+				val cc =
+					when (ecdhCurve ?: throw TlsException("Missing EC curve parameters")) {
+						CurveInfo.Secp256r1 -> EC.Curve.P256
+						CurveInfo.Secp384r1 -> EC.Curve.P384
+						CurveInfo.Secp521r1 -> EC.Curve.P521
+					}
+				val kp = ecdh.keyPairGenerator(cc).generateKeyBlocking()
+				val cpub = kp.publicKey.encodeToByteArrayBlocking(EC.PublicKey.Format.RAW)
+				val spub = ecdh.publicKeyDecoder(cc).decodeFromByteArrayBlocking(EC.PublicKey.Format.RAW, ecdhServerPoint ?: throw TlsException("Missing server EC public key"))
+				preSecret = kp.privateKey.sharedSecretGenerator().generateSharedSecretToByteArrayBlocking(spub)
+				sendHandshakeRecord(TlsHandshakeType.ClientKeyExchange) { writeECPoint(cpub) }
+			}
+			ExchangeType.RSA -> {
+				preSecret = ByteArray(48)
+				CryptographyRandom.nextBytes(preSecret)
+				preSecret[0] = 3
+				preSecret[1] = 3
+				val rsaKey = serverPublicKey as CertPublicKey.Rsa
+				val rsa = CryptographyProvider.Default.get(RSA.PKCS1)
+				val pk = rsa.publicKeyDecoder(hmacDigest).decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, rsaKey.spkiDer)
+				val enc = pk.encryptor().encryptBlocking(preSecret)
+				sendHandshakeRecord(TlsHandshakeType.ClientKeyExchange) {
+					writeShort(enc.size.toShort())
+					write(enc)
+				}
+			}
+		}
+
+		val masterSecret = deriveMasterSecret(preSecret, clientRandom, serverHello.serverRandom, hmacDigest)
+		preSecret.fill(0)
+		val material =
+			deriveKeyMaterial(
+				masterSecret,
+				serverHello.serverRandom + clientRandom,
+				negotiatedSuite.keyStrengthBytes,
+				negotiatedSuite.macStrengthBytes,
+				negotiatedSuite.fixedIvLength,
+				hmacDigest,
+			)
+		tls12Cipher = GcmTlsCipher(negotiatedSuite, KeyMaterial(material, negotiatedSuite.keyStrengthBytes, negotiatedSuite.macStrengthBytes, negotiatedSuite.fixedIvLength))
+
+		// Send ChangeCipherSpec + Finished
+		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
+		val checksum = digest.doHash(digestAlgorithmForSuite(negotiatedSuite))
+		val fin = clientFinished(checksum, masterSecret, hmacDigest)
+		sendEncryptedHandshakeRecord(TlsHandshakeType.Finished, fin)
+
+		// Receive CCS + Finished
+		val serverFinMsg = readEncryptedTls12HandshakeMessage(tls12Cipher)
+		val expected = serverFinished(digest.doHash(hmacDigest), masterSecret, serverFinMsg.data.size, hmacDigest)
+		if (!serverFinMsg.data.contentEquals(expected)) throw TlsException("ServerFinished failed")
+
+		// Wipe key material
+		masterSecret.fill(0)
+		material.fill(0)
+	}
+
+	// --- Helpers ---
+
+	private suspend fun sendHandshakeRecord(
+		type: TlsHandshakeType,
+		block: kotlinx.io.Sink.() -> Unit,
+	) {
+		val body = Buffer().apply(block).readByteArray()
+		val record = buildHandshakeType(type, body.size) + body
+		digest.update(record)
+		rawOutput.writeRecordBytes(TlsRecordType.Handshake, record)
+	}
+
+	private suspend fun sendEncryptedHandshakeRecord(
+		type: TlsHandshakeType,
+		body: ByteArray,
+	) {
+		val record = buildHandshakeType(type, body.size) + body
+		digest.update(record)
+		val encrypted = tls12Cipher.encrypt(record, 0, record.size, TlsRecordType.Handshake)
+		rawOutput.writeRecordBytes(TlsRecordType.Handshake, encrypted)
+	}
+
+	private suspend fun readEncryptedTls12HandshakeMessage(cipher: GcmTlsCipher): TlsHandshakeMessage {
+		while (true) {
+			val pending = pendingHandshakeMessages.removeFirstOrNull()
+			if (pending != null) return pending
+
+			val record = rawInput.readTlsRecord()
+			when (record.type) {
+				TlsRecordType.ChangeCipherSpec -> continue
+				TlsRecordType.Alert -> throw TlsException("Alert during handshake")
+				TlsRecordType.Handshake -> {
+					val pt = cipher.decrypt(record.data, record.offset, record.length, record.type)
+					val msgs = parseHandshakeMessages(pt)
+					if (msgs.isEmpty()) throw TlsException("Empty handshake record")
+					for (i in 1 until msgs.size) pendingHandshakeMessages.addLast(msgs[i])
+					return msgs.first()
+				}
+				else -> throw TlsException("Unexpected: ${record.type}")
+			}
+		}
+	}
+
+	private fun verifyServerKeyExchangeSignature(
+		serverPubKey: CertPublicKey,
+		signedData: ByteArray,
+		signature: ByteArray,
+		hashAndSign: HashAndSignInfo,
+	) {
+		val digestAlg = digestAlgorithmForHash(hashAndSign.hashCode)
+		when (serverPubKey) {
+			is CertPublicKey.Ec -> {
+				val curve =
+					when (serverPubKey.curveOid) {
+						OID_SECP256R1 -> EC.Curve.P256
+						OID_SECP384R1 -> EC.Curve.P384
+						OID_SECP521R1 -> EC.Curve.P521
+						else -> throw TlsException("Unknown curve")
+					}
+				val pk =
+					CryptographyProvider.Default
+						.get(ECDSA)
+						.publicKeyDecoder(curve)
+						.decodeFromByteArrayBlocking(EC.PublicKey.Format.RAW, serverPubKey.point)
+				if (!pk.signatureVerifier(digestAlg, ECDSA.SignatureFormat.DER).tryVerifySignatureBlocking(signedData, signature)) {
+					throw TlsException("ECDSA sig failed")
+				}
+			}
+			is CertPublicKey.Rsa -> {
+				val pk =
+					CryptographyProvider.Default
+						.get(RSA.PKCS1)
+						.publicKeyDecoder(digestAlg)
+						.decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, serverPubKey.spkiDer)
+				if (!pk.signatureVerifier().tryVerifySignatureBlocking(signedData, signature)) {
+					throw TlsException("RSA sig failed")
+				}
+			}
+		}
+	}
+
+	companion object {
+		// RFC 8446 §4.1.4: HelloRetryRequest is a ServerHello with this specific random value
+		// (SHA-256 of "HelloRetryRequest")
+		private val HRR_RANDOM =
+			byteArrayOf(
+				0xCF.toByte(),
+				0x21.toByte(),
+				0xAD.toByte(),
+				0x74.toByte(),
+				0xE5.toByte(),
+				0x9A.toByte(),
+				0x61.toByte(),
+				0x11.toByte(),
+				0xBE.toByte(),
+				0x1D.toByte(),
+				0x8C.toByte(),
+				0x02.toByte(),
+				0x1E.toByte(),
+				0x65.toByte(),
+				0xB8.toByte(),
+				0x91.toByte(),
+				0xC2.toByte(),
+				0xA2.toByte(),
+				0x11.toByte(),
+				0x16.toByte(),
+				0x7A.toByte(),
+				0xBB.toByte(),
+				0x8C.toByte(),
+				0x5E.toByte(),
+				0x07.toByte(),
+				0x9E.toByte(),
+				0x09.toByte(),
+				0xE2.toByte(),
+				0xC8.toByte(),
+				0xA8.toByte(),
+				0x33.toByte(),
+				0x9C.toByte(),
+			)
+
+		// RFC 8446 §4.1.3 downgrade sentinels
+		private val DOWNGRADE_TLS12 = byteArrayOf(0x44, 0x4F, 0x57, 0x4E, 0x47, 0x52, 0x44, 0x01) // "DOWNGRD" + 0x01
+		private val DOWNGRADE_TLS11 = byteArrayOf(0x44, 0x4F, 0x57, 0x4E, 0x47, 0x52, 0x44, 0x00) // "DOWNGRD" + 0x00
+
+		private fun checkDowngradeProtection(serverRandom: ByteArray) {
+			if (serverRandom.size < 32) return
+			val last8 = serverRandom.copyOfRange(24, 32)
+			if (last8.contentEquals(DOWNGRADE_TLS12) || last8.contentEquals(DOWNGRADE_TLS11)) {
+				throw TlsException("TLS downgrade attack detected: server random contains downgrade sentinel")
+			}
+		}
+
+		private fun generateClientRandom(): ByteArray {
+			val r = ByteArray(32)
+			CryptographyRandom.nextBytes(r)
+			val t = platform.posix.time(null)
+			r[0] = (t shr 24).toByte()
+			r[1] = (t shr 16).toByte()
+			r[2] = (t shr 8).toByte()
+			r[3] = t.toByte()
+			return r
+		}
+	}
+}

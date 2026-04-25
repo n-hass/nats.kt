@@ -56,6 +56,7 @@ internal class ProtocolEngineImpl(
 	private val credentials: Credentials?,
 	private val name: String?,
 	private val tlsRequired: Boolean,
+	private val tlsVerify: Boolean,
 	private val noResponders: Boolean,
 	private val echo: Boolean,
 	private val operationBufferCapacity: Int,
@@ -158,7 +159,7 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connecting }
 		transport =
 			runCatching {
-				transportFactory.connect(address, scope.coroutineContext)
+				transportFactory.connect(address, scope.coroutineContext, tlsVerify)
 			}.getOrElse {
 				logger.error(it) { "failed to open transport to ${address.url}" }
 				state.update { phase = ConnectionPhase.Failed }

@@ -48,6 +48,7 @@ public data class WebSocketTransport internal constructor(
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsVerify: Boolean,
 		): Transport =
 			WebSocketTransport(
 				httpClient,
