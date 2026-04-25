@@ -1,0 +1,28 @@
+package = io.natskt.tls.openssl
+---
+typedef struct x509_st X509;
+typedef struct x509_store_st X509_STORE;
+typedef struct x509_store_ctx_st X509_STORE_CTX;
+typedef struct stack_st OPENSSL_STACK;
+
+X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
+void X509_free(X509 *a);
+
+X509_STORE *X509_STORE_new(void);
+void X509_STORE_free(X509_STORE *v);
+int X509_STORE_set_default_paths(X509_STORE *ctx);
+int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
+
+X509_STORE_CTX *X509_STORE_CTX_new(void);
+void X509_STORE_CTX_free(X509_STORE_CTX *ctx);
+int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *trust_store, X509 *target, OPENSSL_STACK *chain);
+int X509_verify_cert(X509_STORE_CTX *ctx);
+int X509_STORE_CTX_get_error(X509_STORE_CTX *ctx);
+const char *X509_verify_cert_error_string(long n);
+
+int X509_check_host(X509 *x, const char *chk, unsigned long chklen, unsigned int flags, char **peername);
+int X509_check_ip_asc(X509 *x, const char *ipasc, unsigned int flags);
+
+OPENSSL_STACK *OPENSSL_sk_new_null(void);
+int OPENSSL_sk_push(OPENSSL_STACK *st, const void *data);
+void OPENSSL_sk_free(OPENSSL_STACK *st);

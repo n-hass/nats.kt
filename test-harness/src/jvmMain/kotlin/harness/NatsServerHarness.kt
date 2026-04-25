@@ -20,6 +20,7 @@ import kotlin.uuid.Uuid
 
 public class NatsServerHarness private constructor(
 	private val enableJetStream: Boolean,
+	private val enableTls: Boolean,
 	private val logId: String,
 	fixedPort: Int?,
 ) : AutoCloseable {
@@ -42,6 +43,9 @@ public class NatsServerHarness private constructor(
 
 	public val uri: String
 		get() = "nats://127.0.0.1:$port"
+
+	public val tlsUri: String?
+		get() = if (enableTls) "tls://127.0.0.1:$port" else null
 
 	public val websocketUri: String
 		get() = "ws://127.0.0.1:$websocketPort"
@@ -70,6 +74,19 @@ public class NatsServerHarness private constructor(
 	}
 
 	private fun createConfigFile(): Path {
+		val tlsConfig =
+			if (enableTls) {
+				generateTlsCert()
+				"""
+			tls {
+				cert_file: "${tmpDir.resolve("server-cert.pem").toAbsolutePath()}"
+				key_file: "${tmpDir.resolve("server-key.pem").toAbsolutePath()}"
+			}
+			"""
+			} else {
+				""
+			}
+
 		val config =
 			"""
 			jetstream {
@@ -81,6 +98,8 @@ public class NatsServerHarness private constructor(
 				same_origin: false
 				port: $websocketPort
 			}
+
+			$tlsConfig
 			""".trimIndent()
 
 		return Files
@@ -88,6 +107,39 @@ public class NatsServerHarness private constructor(
 			.also { path ->
 				Files.writeString(path, config)
 			}
+	}
+
+	private fun generateTlsCert() {
+		val certFile = tmpDir.resolve("server-cert.pem")
+		val keyFile = tmpDir.resolve("server-key.pem")
+
+		val process =
+			ProcessBuilder(
+				"openssl",
+				"req",
+				"-x509",
+				"-newkey",
+				"ec",
+				"-pkeyopt",
+				"ec_paramgen_curve:prime256v1",
+				"-keyout",
+				keyFile.toAbsolutePath().toString(),
+				"-out",
+				certFile.toAbsolutePath().toString(),
+				"-days",
+				"1",
+				"-nodes",
+				"-subj",
+				"/CN=localhost",
+				"-addext",
+				"subjectAltName=DNS:localhost,IP:127.0.0.1",
+			).redirectErrorStream(true).start()
+
+		val exitCode = process.waitFor()
+		if (exitCode != 0) {
+			val output = process.inputStream.bufferedReader().readText()
+			throw IllegalStateException("openssl cert generation failed (exit $exitCode): $output")
+		}
 	}
 
 	private fun consumeOutput(
@@ -154,10 +206,11 @@ public class NatsServerHarness private constructor(
 	public companion object {
 		public suspend operator fun invoke(
 			enableJetStream: Boolean = true,
+			enableTls: Boolean = false,
 			logId: String,
 			fixedPort: Int? = null,
 		): NatsServerHarness {
-			val harness = NatsServerHarness(enableJetStream, logId, fixedPort)
+			val harness = NatsServerHarness(enableJetStream, enableTls, logId, fixedPort)
 			harness.waitForReady()
 			return harness
 		}

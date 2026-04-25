@@ -31,6 +31,7 @@ internal fun engine(
 		credentials = credentials,
 		name = name,
 		tlsRequired = false,
+		tlsVerify = true,
 		noResponders = true,
 		echo = false,
 		supportUtf8Subjects = false,
@@ -46,6 +47,7 @@ internal object FakeTransportFactory : TransportFactory {
 	override suspend fun connect(
 		address: NatsServerAddress,
 		context: CoroutineContext,
+		tlsVerify: Boolean,
 	): Transport = throw UnsupportedOperationException("not used in test")
 }
 

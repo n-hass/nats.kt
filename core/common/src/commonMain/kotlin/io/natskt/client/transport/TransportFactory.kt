@@ -7,5 +7,6 @@ public interface TransportFactory {
 	public suspend fun connect(
 		address: NatsServerAddress,
 		context: CoroutineContext,
+		tlsVerify: Boolean = true,
 	): Transport
 }

@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 public data class RemoteNatsServerRequest(
 	@SerialName("enable_jetstream")
 	val enableJetStream: Boolean = true,
+	@SerialName("enable_tls")
+	val enableTls: Boolean = false,
 )
 
 @Serializable
@@ -16,6 +18,8 @@ public data class RemoteNatsServerInfo(
 	val tcpUri: String,
 	@SerialName("websocket_uri")
 	val websocketUri: String,
+	@SerialName("tls_uri")
+	val tlsUri: String? = null,
 )
 
 @Serializable

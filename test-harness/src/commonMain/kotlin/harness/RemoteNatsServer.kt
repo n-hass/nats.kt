@@ -9,6 +9,9 @@ public class RemoteNatsServer internal constructor(
 	public val tcpUri: String
 		get() = info.tcpUri
 
+	public val tlsUri: String?
+		get() = info.tlsUri
+
 	public val websocketUri: String
 		get() = info.websocketUri
 

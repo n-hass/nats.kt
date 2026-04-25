@@ -51,6 +51,8 @@ kotlinLogging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotl
 whyoleg-secureRandom = { module = "dev.whyoleg.cryptography:cryptography-random", version.ref = "whyoleg-crypto" }
 whyoleg-cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "whyoleg-crypto" }
 whyoleg-cryptography-provider-optimal = { module = "dev.whyoleg.cryptography:cryptography-provider-optimal", version.ref = "whyoleg-crypto" }
+whyoleg-cryptography-provider-openssl3-api = { module = "dev.whyoleg.cryptography:cryptography-provider-openssl3-api", version.ref = "whyoleg-crypto" }
+whyoleg-cryptography-provider-openssl3-prebuilt-nativebuilds = { module = "dev.whyoleg.cryptography:cryptography-provider-openssl3-prebuilt-nativebuilds", version.ref = "whyoleg-crypto" }
 whyoleg-cryptography-provider-jdk-bc = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk-bc", version.ref = "whyoleg-crypto" }
 whyoleg-cryptography-provider-cryptokit = { module = "dev.whyoleg.cryptography:cryptography-provider-cryptokit", version.ref = "whyoleg-crypto" }
 

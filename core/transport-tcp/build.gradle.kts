@@ -27,6 +27,8 @@ kotlin {
 
     macosArm64()
 
+    applyDefaultHierarchyTemplate()
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -38,6 +40,10 @@ kotlin {
                 implementation(libs.ktor.network)
                 implementation(libs.ktor.network.tls)
             }
+        }
+
+        nativeMain.dependencies {
+            implementation(projects.networkTls)
         }
     }
 }

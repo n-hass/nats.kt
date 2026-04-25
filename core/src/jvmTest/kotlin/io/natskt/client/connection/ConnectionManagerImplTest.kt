@@ -71,6 +71,7 @@ class ConnectionManagerImplTest {
 				operationBufferCapacity = 32,
 				writeBufferLimitBytes = 64 * 1024,
 				tlsRequired = false,
+				tlsVerify = true,
 				noResponders = true,
 				echo = false,
 				supportUtf8Subjects = false,
@@ -91,6 +92,7 @@ class ConnectionManagerImplTest {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsVerify: Boolean,
 		): Transport = throw UnsupportedOperationException("not used")
 	}
 }
