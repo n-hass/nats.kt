@@ -87,6 +87,43 @@ internal fun parseHandshakeMessages(data: ByteArray): List<TlsHandshakeMessage> 
 	return messages
 }
 
+/**
+ * Accumulates raw handshake bytes across TLS records and yields complete messages.
+ * Handles both coalescing (multiple messages in one record) and fragmentation
+ * (one message split across records) per RFC 5246 §6.2.1.
+ */
+internal class HandshakeBuffer {
+	private var buf = ByteArray(0)
+	private var len = 0
+
+	fun append(data: ByteArray) {
+		if (len + data.size > buf.size) {
+			val newBuf = ByteArray(maxOf(buf.size * 2, len + data.size))
+			buf.copyInto(newBuf, 0, 0, len)
+			buf = newBuf
+		}
+		data.copyInto(buf, len)
+		len += data.size
+	}
+
+	/** Returns the next complete handshake message, or null if not enough data accumulated. */
+	fun next(): TlsHandshakeMessage? {
+		if (len < 4) return null
+		val typeCode = buf[0].toInt() and 0xff
+		val msgLen =
+			((buf[1].toInt() and 0xff) shl 16) or
+				((buf[2].toInt() and 0xff) shl 8) or
+				(buf[3].toInt() and 0xff)
+		val totalLen = 4 + msgLen
+		if (len < totalLen) return null
+		val body = buf.copyOfRange(4, totalLen)
+		// Shift remaining data to front
+		buf.copyInto(buf, 0, totalLen, len)
+		len -= totalLen
+		return TlsHandshakeMessage(TlsHandshakeType.byCode(typeCode), body)
+	}
+}
+
 internal fun parseServerHello(data: ByteArray): TlsServerHello {
 	val r = ByteArrayReader(data)
 	val version = TlsVersion.byCode(r.readShort())
