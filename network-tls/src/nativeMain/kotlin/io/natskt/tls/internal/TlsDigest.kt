@@ -51,7 +51,7 @@ internal fun digestAlgorithmForHash(hashCode: Int): dev.whyoleg.cryptography.Cry
 	when (hashCode) {
 		4 -> SHA256
 		5 -> SHA384
-		else -> SHA256
+		else -> throw TlsException("Unsupported TLS hash algorithm: $hashCode")
 	}
 
 internal fun digestAlgorithmForSuite(suite: SuiteInfo): dev.whyoleg.cryptography.CryptographyAlgorithmId<Digest> =

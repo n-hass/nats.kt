@@ -84,8 +84,9 @@ private fun buildSignatureAlgorithmsExtension(): ByteArray {
 	buf.writeShort(13) // SIGNATURE_ALGORITHMS
 	val algorithms =
 		listOf(
-			byteArrayOf(5, 3),
-			byteArrayOf(4, 3), // SHA384/SHA256 + ECDSA
+			byteArrayOf(6, 3), // ecdsa_secp521r1_sha512
+			byteArrayOf(5, 3), // ecdsa_secp384r1_sha384
+			byteArrayOf(4, 3), // ecdsa_secp256r1_sha256
 			byteArrayOf(8, 4), // RSA-PSS with SHA256 (needed for TLS 1.3)
 			byteArrayOf(8, 5), // RSA-PSS with SHA384
 			byteArrayOf(8, 6), // RSA-PSS with SHA512
@@ -120,7 +121,7 @@ private fun buildECCurvesExtension(): ByteArray {
 private fun buildECPointFormatExtension(): ByteArray {
 	val buf = Buffer()
 	buf.writeShort(11) // EC_POINT_FORMAT
-	val formats = listOf<Byte>(0, 1, 2)
+	val formats = listOf<Byte>(0) // uncompressed only
 	buf.writeShort((1 + formats.size).toShort())
 	buf.writeByte(formats.size.toByte())
 	for (f in formats) {

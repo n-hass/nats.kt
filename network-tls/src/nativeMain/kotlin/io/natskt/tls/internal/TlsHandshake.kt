@@ -11,6 +11,7 @@ import dev.whyoleg.cryptography.algorithms.EC
 import dev.whyoleg.cryptography.algorithms.ECDH
 import dev.whyoleg.cryptography.algorithms.ECDSA
 import dev.whyoleg.cryptography.algorithms.RSA
+import dev.whyoleg.cryptography.algorithms.SHA256
 import dev.whyoleg.cryptography.random.CryptographyRandom
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
@@ -63,8 +64,8 @@ internal class TlsHandshake(
 	private lateinit var tls12Cipher: GcmTlsCipher
 	private lateinit var tls13Cipher: Tls13Cipher
 
-	// Buffered handshake messages from coalesced records
-	private val pendingHandshakeMessages = ArrayDeque<TlsHandshakeMessage>()
+	// Reassembly buffer for handshake messages that may span multiple records
+	private val handshakeBuffer = HandshakeBuffer()
 
 	// App-facing channels
 	private val appInput = ByteChannel(autoFlush = true)
@@ -186,31 +187,28 @@ internal class TlsHandshake(
 		ecdhKeyPair = ecdh.keyPairGenerator(ecdhCurve).generateKeyBlocking()
 		ecdhPublicBytes = ecdhKeyPair.publicKey.encodeToByteArrayBlocking(EC.PublicKey.Format.RAW)
 
+		// RFC 8446 §D.4: CCS before second ClientHello for middlebox compatibility
+		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
+
 		// Send new ClientHello (added to the new digest by sendClientHello)
 		sendClientHello()
-
-		// Send middlebox-compatibility CCS after the second ClientHello
-		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
 	}
 
 	/**
-	 * Read the next handshake message. Handles coalesced messages: a single TLS record
-	 * can contain multiple handshake messages. Remaining messages are buffered and
-	 * returned by subsequent calls before reading another record from the wire.
+	 * Read the next handshake message. Handles both coalescing (multiple messages in one
+	 * record) and fragmentation (one message split across records) per RFC 5246 §6.2.1.
 	 */
 	private suspend fun readHandshakeMessage(expectedType: TlsHandshakeType? = null): TlsHandshakeMessage {
 		while (true) {
-			// Drain buffered messages from a previous coalesced record
-			val pending = pendingHandshakeMessages.removeFirstOrNull()
-			if (pending != null) {
-				if (expectedType != null && pending.type != expectedType) {
-					throw TlsException("Expected $expectedType, got ${pending.type}")
+			val msg = handshakeBuffer.next()
+			if (msg != null) {
+				if (expectedType != null && msg.type != expectedType) {
+					throw TlsException("Expected $expectedType, got ${msg.type}")
 				}
-				digest.addHandshakeMessage(pending)
-				return pending
+				digest.addHandshakeMessage(msg)
+				return msg
 			}
 
-			// Read a new record from the wire
 			val record = rawInput.readTlsRecord()
 			when (record.type) {
 				TlsRecordType.ChangeCipherSpec -> continue
@@ -218,20 +216,7 @@ internal class TlsHandshake(
 					val code = if (record.length >= 2) TlsAlertType.byCode(record.data[record.offset + 1].toInt() and 0xff) else TlsAlertType.InternalError
 					throw TlsException("Alert during handshake: $code")
 				}
-				TlsRecordType.Handshake -> {
-					val messages = parseHandshakeMessages(record.data)
-					if (messages.isEmpty()) throw TlsException("Empty handshake record")
-					// Return the first, buffer the rest
-					for (i in 1 until messages.size) {
-						pendingHandshakeMessages.addLast(messages[i])
-					}
-					val msg = messages.first()
-					if (expectedType != null && msg.type != expectedType) {
-						throw TlsException("Expected $expectedType, got ${msg.type}")
-					}
-					digest.addHandshakeMessage(msg)
-					return msg
-				}
+				TlsRecordType.Handshake -> handshakeBuffer.append(record.data)
 				else -> throw TlsException("Unexpected record type during handshake: ${record.type}")
 			}
 		}
@@ -384,23 +369,14 @@ internal class TlsHandshake(
 		serverHsKeys.key.fill(0)
 		serverHsKeys.iv.fill(0)
 
-		// Read encrypted handshake messages
+		// Read encrypted handshake messages (with reassembly across records)
 		var serverPublicKey: CertPublicKey? = null
 		var certRequested = false
+		val encHsBuffer = HandshakeBuffer()
 
 		loop@ while (true) {
-			val rawRecord = rawInput.readTlsRecord()
-			if (rawRecord.type == TlsRecordType.ChangeCipherSpec) continue // middlebox compat
-			if (rawRecord.type != TlsRecordType.ApplicationData) {
-				throw TlsException("TLS 1.3: expected encrypted record, got ${rawRecord.type}")
-			}
-
-			val decrypted = hsCipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length)
-			if (decrypted.innerType != TlsRecordType.Handshake) {
-				throw TlsException("TLS 1.3: expected handshake, got ${decrypted.innerType}")
-			}
-
-			for (msg in parseHandshakeMessages(decrypted.data)) {
+			val msg = encHsBuffer.next()
+			if (msg != null) {
 				when (msg.type) {
 					TlsHandshakeType.EncryptedExtensions -> digest.addHandshakeMessage(msg)
 					TlsHandshakeType.Certificate -> {
@@ -424,7 +400,20 @@ internal class TlsHandshake(
 					}
 					else -> throw TlsException("TLS 1.3: unexpected: ${msg.type}")
 				}
+				continue@loop
 			}
+
+			val rawRecord = rawInput.readTlsRecord()
+			if (rawRecord.type == TlsRecordType.ChangeCipherSpec) continue // middlebox compat
+			if (rawRecord.type != TlsRecordType.ApplicationData) {
+				throw TlsException("TLS 1.3: expected encrypted record, got ${rawRecord.type}")
+			}
+
+			val decrypted = hsCipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length)
+			if (decrypted.innerType != TlsRecordType.Handshake) {
+				throw TlsException("TLS 1.3: expected handshake, got ${decrypted.innerType}")
+			}
+			encHsBuffer.append(decrypted.data)
 		}
 
 		// Derive application keys (transcript: CH..server Finished, before client Certificate)
@@ -507,6 +496,7 @@ internal class TlsHandshake(
 					when (scheme) {
 						0x0403 -> OID_SECP256R1 to dev.whyoleg.cryptography.algorithms.SHA256
 						0x0503 -> OID_SECP384R1 to dev.whyoleg.cryptography.algorithms.SHA384
+						0x0603 -> OID_SECP521R1 to dev.whyoleg.cryptography.algorithms.SHA512
 						else -> throw TlsException("TLS 1.3: unsupported ECDSA CertificateVerify scheme: 0x${scheme.toString(16)}")
 					}
 				if (serverPubKey.curveOid != expectedCurveOid) {
@@ -625,7 +615,8 @@ internal class TlsHandshake(
 				preSecret[1] = 3
 				val rsaKey = serverPublicKey as CertPublicKey.Rsa
 				val rsa = CryptographyProvider.Default.get(RSA.PKCS1)
-				val pk = rsa.publicKeyDecoder(hmacDigest).decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, rsaKey.spkiDer)
+				// Digest parameter is required by the API but unused for RSAES-PKCS1-v1_5 encryption
+				val pk = rsa.publicKeyDecoder(SHA256).decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, rsaKey.spkiDer)
 				val enc = pk.encryptor().encryptBlocking(preSecret)
 				sendHandshakeRecord(TlsHandshakeType.ClientKeyExchange) {
 					writeShort(enc.size.toShort())
@@ -693,9 +684,10 @@ internal class TlsHandshake(
 	}
 
 	private suspend fun readEncryptedTls12HandshakeMessage(cipher: GcmTlsCipher): TlsHandshakeMessage {
+		val encBuffer = HandshakeBuffer()
 		while (true) {
-			val pending = pendingHandshakeMessages.removeFirstOrNull()
-			if (pending != null) return pending
+			val msg = encBuffer.next()
+			if (msg != null) return msg
 
 			val record = rawInput.readTlsRecord()
 			when (record.type) {
@@ -703,10 +695,7 @@ internal class TlsHandshake(
 				TlsRecordType.Alert -> throw TlsException("Alert during handshake")
 				TlsRecordType.Handshake -> {
 					val pt = cipher.decrypt(record.data, record.offset, record.length, record.type)
-					val msgs = parseHandshakeMessages(pt)
-					if (msgs.isEmpty()) throw TlsException("Empty handshake record")
-					for (i in 1 until msgs.size) pendingHandshakeMessages.addLast(msgs[i])
-					return msgs.first()
+					encBuffer.append(pt)
 				}
 				else -> throw TlsException("Unexpected: ${record.type}")
 			}

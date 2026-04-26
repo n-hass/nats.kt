@@ -118,6 +118,17 @@ internal val Tls12Suites: List<SuiteInfo> =
 			hashAlgorithm = 4,
 			signatureAlgorithm = 1,
 		),
+		SuiteInfo(
+			code = 0x009c.toShort(),
+			name = "TLS_RSA_WITH_AES_128_GCM_SHA256",
+			exchangeType = ExchangeType.RSA,
+			keyStrengthBytes = 16,
+			fixedIvLength = 4,
+			ivLength = 12,
+			cipherTagBytes = 16,
+			hashAlgorithm = 4,
+			signatureAlgorithm = 1,
+		),
 	)
 
 internal val SupportedSuites: List<SuiteInfo> = Tls13Suites + Tls12Suites
