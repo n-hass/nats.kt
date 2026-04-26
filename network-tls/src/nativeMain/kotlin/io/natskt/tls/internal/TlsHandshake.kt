@@ -187,11 +187,13 @@ internal class TlsHandshake(
 		ecdhKeyPair = ecdh.keyPairGenerator(ecdhCurve).generateKeyBlocking()
 		ecdhPublicBytes = ecdhKeyPair.publicKey.encodeToByteArrayBlocking(EC.PublicKey.Format.RAW)
 
-		// RFC 8446 §D.4: CCS before second ClientHello for middlebox compatibility
-		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
-
 		// Send new ClientHello (added to the new digest by sendClientHello)
 		sendClientHello()
+
+		// RFC 8446 §D.4: CCS after second ClientHello for middlebox compatibility
+		// Placed after ClientHello2 to match Go/OpenSSL/BoringSSL behavior — JDK servers
+		// do not reliably accept CCS before the second ClientHello in the HRR flow.
+		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
 	}
 
 	/**
@@ -269,6 +271,10 @@ internal class TlsHandshake(
 							}
 						}
 					}
+				} catch (cause: io.ktor.utils.io.ClosedByteChannelException) {
+					// Transport closed — treat as connection close, not error
+				} catch (cause: kotlinx.io.EOFException) {
+					// Transport EOF — treat as connection close, not error
 				} catch (cause: Throwable) {
 					appInput.cancel(cause)
 				} finally {
@@ -708,6 +714,27 @@ internal class TlsHandshake(
 		signature: ByteArray,
 		hashAndSign: HashAndSignInfo,
 	) {
+		// RSA-PSS uses hash code 8 ("Intrinsic") — handle before digestAlgorithmForHash
+		if (serverPubKey is CertPublicKey.Rsa && hashAndSign.hashCode == 8) {
+			// RSA-PSS: actual digest is encoded in signCode (4=SHA256, 5=SHA384, 6=SHA512)
+			val pssDigest =
+				when (hashAndSign.signCode) {
+					4 -> dev.whyoleg.cryptography.algorithms.SHA256
+					5 -> dev.whyoleg.cryptography.algorithms.SHA384
+					6 -> dev.whyoleg.cryptography.algorithms.SHA512
+					else -> throw TlsException("Unsupported RSA-PSS scheme: 0x08${hashAndSign.signCode.toString(16).padStart(2, '0')}")
+				}
+			val pk =
+				CryptographyProvider.Default
+					.get(RSA.PSS)
+					.publicKeyDecoder(pssDigest)
+					.decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, serverPubKey.spkiDer)
+			if (!pk.signatureVerifier().tryVerifySignatureBlocking(signedData, signature)) {
+				throw TlsException("RSA-PSS sig failed")
+			}
+			return
+		}
+
 		val digestAlg = digestAlgorithmForHash(hashAndSign.hashCode)
 		when (serverPubKey) {
 			is CertPublicKey.Ec -> {
