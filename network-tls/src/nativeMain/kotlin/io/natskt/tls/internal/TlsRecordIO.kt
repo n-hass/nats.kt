@@ -13,15 +13,15 @@ private const val MAX_TLS_FRAME_SIZE = 0x4800
 internal suspend fun ByteReadChannel.readTlsRecord(): TlsRecord {
 	val typeByte = readByte().toInt() and 0xff
 	val type = TlsRecordType.byCode(typeByte)
-	val versionHigh = readByte().toInt() and 0xff
-	val versionLow = readByte().toInt() and 0xff
-	val version = TlsVersion.byCode((versionHigh shl 8) or versionLow)
+	// RFC 8446 §5.1: legacy_record_version MUST be ignored for all purposes
+	readByte() // version high
+	readByte() // version low
 	val lengthHigh = readByte().toInt() and 0xff
 	val lengthLow = readByte().toInt() and 0xff
 	val length = (lengthHigh shl 8) or lengthLow
 	if (length > MAX_TLS_FRAME_SIZE) throw TlsException("Illegal TLS frame size: $length")
 	val data = readPacket(length).readByteArray()
-	return TlsRecord(type, version, data)
+	return TlsRecord(type, data = data)
 }
 
 internal suspend fun ByteWriteChannel.writeRecordBytes(
@@ -104,7 +104,8 @@ internal fun parseServerHello(data: ByteArray): TlsServerHello {
 
 	val extensionSize = r.readShort()
 	val extensions = mutableListOf<TlsExtensionData>()
-	while (!r.exhausted()) {
+	val extensionEnd = r.pos + extensionSize
+	while (r.pos < extensionEnd) {
 		val extType = r.readShort()
 		val extLength = r.readShort()
 		val extData = r.readBytes(extLength)

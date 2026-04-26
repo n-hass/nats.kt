@@ -121,6 +121,9 @@ internal class Tls13KeySchedule(
 		val clientHandshakeTrafficSecret = deriveSecret(handshakeSecret, "c hs traffic", helloTranscriptHash)
 		val serverHandshakeTrafficSecret = deriveSecret(handshakeSecret, "s hs traffic", helloTranscriptHash)
 
+		earlySecret.fill(0)
+		derivedSecret.fill(0)
+
 		return HandshakeSecrets(
 			handshakeSecret = handshakeSecret,
 			clientHandshakeTrafficSecret = clientHandshakeTrafficSecret,
@@ -139,6 +142,9 @@ internal class Tls13KeySchedule(
 
 		val clientAppTrafficSecret = deriveSecret(masterSecret, "c ap traffic", finishedTranscriptHash)
 		val serverAppTrafficSecret = deriveSecret(masterSecret, "s ap traffic", finishedTranscriptHash)
+
+		derivedSecret.fill(0)
+		masterSecret.fill(0)
 
 		return ApplicationSecrets(
 			clientAppTrafficSecret = clientAppTrafficSecret,

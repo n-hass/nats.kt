@@ -185,7 +185,16 @@ internal class ProtocolEngineImpl(
 
 		if ((info.tlsRequired == true) || tlsRequired) {
 			logger.trace { "upgrading connection to TLS" }
-			transport = transport!!.upgradeTLS()
+			transport =
+				runCatching {
+					transport!!.upgradeTLS()
+				}.getOrElse {
+					logger.error(it) { "TLS upgrade failed for ${address.url}" }
+					state.update { phase = ConnectionPhase.Failed }
+					runCatching { transport?.close() }
+					closed.complete(CloseReason.IoError(it))
+					return
+				}
 		}
 		val connect =
 			runCatching { buildConnectOp(info) }

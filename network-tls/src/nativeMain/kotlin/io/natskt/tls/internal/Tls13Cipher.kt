@@ -20,10 +20,14 @@ import dev.whyoleg.cryptography.operations.IvAuthenticatedCipher
 internal class Tls13Cipher private constructor(
 	private val encryptCipher: IvAuthenticatedCipher,
 	private val decryptCipher: IvAuthenticatedCipher,
-	private val encryptIV: ByteArray,
-	private val decryptIV: ByteArray,
+	encryptIV: ByteArray,
+	decryptIV: ByteArray,
 	private val tagSize: Int,
 ) {
+	// Defensive copy: callers may wipe the original arrays after cipher creation
+	private val encryptIV: ByteArray = encryptIV.copyOf()
+	private val decryptIV: ByteArray = decryptIV.copyOf()
+
 	private var encryptSeq: Long = 0L
 	private var decryptSeq: Long = 0L
 
