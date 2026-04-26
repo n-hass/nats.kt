@@ -11,17 +11,21 @@ import kotlinx.io.readByteArray
 private const val MAX_TLS_FRAME_SIZE = 0x4800
 
 internal suspend fun ByteReadChannel.readTlsRecord(): TlsRecord {
-	val typeByte = readByte().toInt() and 0xff
-	val type = TlsRecordType.byCode(typeByte)
-	// RFC 8446 §5.1: legacy_record_version MUST be ignored for all purposes
-	readByte() // version high
-	readByte() // version low
-	val lengthHigh = readByte().toInt() and 0xff
-	val lengthLow = readByte().toInt() and 0xff
-	val length = (lengthHigh shl 8) or lengthLow
-	if (length > MAX_TLS_FRAME_SIZE) throw TlsException("Illegal TLS frame size: $length")
-	val data = readPacket(length).readByteArray()
-	return TlsRecord(type, data = data)
+	try {
+		val typeByte = readByte().toInt() and 0xff
+		val type = TlsRecordType.byCode(typeByte)
+		// RFC 8446 §5.1: legacy_record_version MUST be ignored for all purposes
+		readByte() // version high
+		readByte() // version low
+		val lengthHigh = readByte().toInt() and 0xff
+		val lengthLow = readByte().toInt() and 0xff
+		val length = (lengthHigh shl 8) or lengthLow
+		if (length > MAX_TLS_FRAME_SIZE) throw TlsException("Illegal TLS frame size: $length")
+		val data = readPacket(length).readByteArray()
+		return TlsRecord(type, data = data)
+	} catch (e: io.ktor.utils.io.ClosedByteChannelException) {
+		throw TlsException("Connection reset while reading TLS record", e)
+	}
 }
 
 internal suspend fun ByteWriteChannel.writeRecordBytes(

@@ -54,6 +54,39 @@ private val ensureNatsHarness =
 	}
 private val natsHarnessInstallTaskPath = ":test-harness:nats-server-daemon:installDist"
 
+// --- TLS Test Server ---
+
+private val tlsTestServerExecutable =
+	layout.projectDirectory
+		.dir("test-harness/tls-test-server/build/install/tls-test-server/bin")
+		.file(if (isWindowsHost) "tls-test-server.bat" else "tls-test-server")
+
+private val tlsTestServerService =
+	gradle.sharedServices.registerIfAbsent("tlsTestServerService", NatsServerDaemonService::class) {
+		parameters.executable.set(tlsTestServerExecutable)
+		parameters.workingDirectory.set(project(projects.testHarness.tlsTestServer.path).layout.projectDirectory.asFile.toString())
+		parameters.args.set(emptyList())
+		parameters.readyCheckUrl.set("http://127.0.0.1:4501/health")
+		parameters.startupTimeoutSeconds.set(30)
+		parameters.environment.putAll(
+			mapOf(
+				"TLS_TEST_SERVER_HOST" to "127.0.0.1",
+				"TLS_TEST_SERVER_PORT" to "4501",
+			),
+		)
+		maxParallelUsages.set(1)
+	}
+
+private val ensureTlsTestServer =
+	tasks.register<EnsureNatsHarnessTask>("ensureTlsTestServer") {
+		group = "verification"
+		description = "Ensures the TLS test server is running before network-tls tests execute"
+		dependsOn(tlsTestServerInstallTaskPath)
+		harnessService = tlsTestServerService
+		usesService(tlsTestServerService)
+	}
+private val tlsTestServerInstallTaskPath = ":test-harness:tls-test-server:installDist"
+
 allprojects {
     apply(plugin = "com.diffplug.spotless")
     val spotless = extensions.getByName("spotless") as SpotlessExtension
@@ -149,6 +182,19 @@ subprojects {
 		}
 		dependsOn(ensureNatsHarness)
 		usesService(natsServerDaemonService)
+	}
+
+	// Wire network-tls native tests to the TLS test server
+	if (path == ":network-tls") {
+		tasks.configureEach {
+			if (kotlinNativeTestClass?.isInstance(this) != true) return@configureEach
+			dependsOn(ensureTlsTestServer)
+			usesService(tlsTestServerService)
+			(this as? org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest)?.environment(
+				"TLS_TEST_PORTS_FILE",
+				rootProject.file("test-harness/tls-test-server/ports.properties").absolutePath,
+			)
+		}
 	}
 }
 
