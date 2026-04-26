@@ -29,8 +29,9 @@ kotlin {
 			implementation(libs.whyoleg.secureRandom)
 		}
 
-		linuxTest.dependencies {
+		nativeTest.dependencies {
 			implementation(kotlin("test"))
+			implementation(libs.kotlinx.coroutines.test)
 		}
 	}
 
