@@ -10,13 +10,19 @@ internal fun Sink.writeTlsClientHello(
 	serverName: String?,
 	keySharePublicKey: ByteArray? = null,
 	keyShareGroup: Short = 23,
+	sessionId: ByteArray? = null,
 ) {
 	// Legacy version: TLS 1.2 (required for TLS 1.3 compat)
 	writeShort(TlsVersion.TLS12.code.toShort())
 	write(clientRandom)
 
-	// Session ID: empty
-	writeByte(0)
+	// Session ID: non-empty for TLS 1.3 middlebox compatibility (RFC 8446 §D.4)
+	if (sessionId != null) {
+		writeByte(sessionId.size.toByte())
+		write(sessionId)
+	} else {
+		writeByte(0)
+	}
 
 	// Cipher suites (TLS 1.3 + TLS 1.2 combined)
 	writeShort((suites.size * 2).toShort())
@@ -34,6 +40,7 @@ internal fun Sink.writeTlsClientHello(
 	extensions += buildECCurvesExtension()
 	extensions += buildECPointFormatExtension()
 	extensions += buildSupportedVersionsExtension()
+	extensions += buildExtendedMasterSecretExtension()
 	if (keySharePublicKey != null) {
 		extensions += buildKeyShareExtension(keySharePublicKey, keyShareGroup)
 	}
@@ -63,9 +70,10 @@ internal fun buildClientHelloBytes(
 	serverName: String?,
 	keySharePublicKey: ByteArray? = null,
 	keyShareGroup: Short = 23,
+	sessionId: ByteArray? = null,
 ): ByteArray {
 	val buf = Buffer()
-	buf.writeTlsClientHello(suites, clientRandom, serverName, keySharePublicKey, keyShareGroup)
+	buf.writeTlsClientHello(suites, clientRandom, serverName, keySharePublicKey, keyShareGroup, sessionId)
 	return buf.readByteArray()
 }
 
@@ -129,6 +137,13 @@ private fun buildSupportedVersionsExtension(): ByteArray {
 	buf.writeByte(4) // list length: 4 bytes
 	buf.writeShort(TlsVersion.TLS13.code.toShort()) // 0x0304
 	buf.writeShort(TlsVersion.TLS12.code.toShort()) // 0x0303
+	return buf.readByteArray()
+}
+
+private fun buildExtendedMasterSecretExtension(): ByteArray {
+	val buf = Buffer()
+	buf.writeShort(0x0017) // extended_master_secret (RFC 7627)
+	buf.writeShort(0) // empty extension data
 	return buf.readByteArray()
 }
 

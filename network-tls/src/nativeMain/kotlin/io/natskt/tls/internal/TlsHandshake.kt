@@ -28,6 +28,7 @@ import kotlin.coroutines.CoroutineContext
 
 private const val EXT_SUPPORTED_VERSIONS = 43
 private const val EXT_KEY_SHARE = 51
+private const val EXT_EXTENDED_MASTER_SECRET = 0x0017
 
 /**
  * TLS handshake and encrypted I/O.
@@ -46,6 +47,7 @@ internal class TlsHandshake(
 ) : CoroutineScope {
 	private var digest = TlsDigest()
 	private val clientRandom: ByteArray = generateClientRandom()
+	private val legacySessionId: ByteArray = ByteArray(32).also { CryptographyRandom.nextBytes(it) }
 
 	private val ecdh = CryptographyProvider.Default.get(ECDH)
 	private var ecdhCurve = EC.Curve.P256
@@ -55,6 +57,7 @@ internal class TlsHandshake(
 
 	private lateinit var negotiatedSuite: SuiteInfo
 	private var isTls13 = false
+	private var useExtendedMasterSecret = false
 
 	// Cipher used after handshake for app data
 	private lateinit var tls12Cipher: GcmTlsCipher
@@ -114,7 +117,7 @@ internal class TlsHandshake(
 	}
 
 	private suspend fun sendClientHello() {
-		val body = buildClientHelloBytes(SupportedSuites, clientRandom, serverName, ecdhPublicBytes, ecdhGroupId)
+		val body = buildClientHelloBytes(SupportedSuites, clientRandom, serverName, ecdhPublicBytes, ecdhGroupId, legacySessionId)
 		val record = buildHandshakeType(TlsHandshakeType.ClientHello, body.size) + body
 		digest.update(record)
 		rawOutput.writeRecordBytes(TlsRecordType.Handshake, record)
@@ -132,6 +135,11 @@ internal class TlsHandshake(
 
 		negotiatedSuite = findSuiteByCode(serverHello.cipherSuiteCode)
 			?: throw TlsException("Unsupported cipher suite: 0x${serverHello.cipherSuiteCode.toString(16)}")
+
+		// RFC 7627: check if server supports extended master secret (TLS 1.2 only)
+		if (!isTls13) {
+			useExtendedMasterSecret = serverHello.extensions.any { it.type == EXT_EXTENDED_MASTER_SECRET }
+		}
 
 		return serverHello
 	}
@@ -154,12 +162,12 @@ internal class TlsHandshake(
 				?: throw TlsException("HelloRetryRequest missing key_share extension")
 		val requestedGroup = ((ksExt.data[0].toInt() and 0xff) shl 8) or (ksExt.data[1].toInt() and 0xff)
 
+		// RFC 8446 §4.1.4: selected_group must correspond to a group offered in supported_groups
 		val newCurve =
 			when (requestedGroup.toShort()) {
 				CurveInfo.Secp256r1.code -> EC.Curve.P256
 				CurveInfo.Secp384r1.code -> EC.Curve.P384
-				CurveInfo.Secp521r1.code -> EC.Curve.P521
-				else -> throw TlsException("HelloRetryRequest requested unsupported group: $requestedGroup")
+				else -> throw TlsException("HelloRetryRequest requested group not in supported_groups: 0x${requestedGroup.toString(16)}")
 			}
 
 		// RFC 8446 §4.4.1: replace transcript with synthetic message_hash.
@@ -247,7 +255,12 @@ internal class TlsHandshake(
 								}
 								TlsRecordType.Handshake -> {} // NewSessionTicket -- ignore
 								TlsRecordType.Alert -> {
-									if (decrypted.data.size >= 2 && TlsAlertType.byCode(decrypted.data[1].toInt() and 0xff) == TlsAlertType.CloseNotify) return@launch
+									if (decrypted.data.size >= 2) {
+										val alertType = TlsAlertType.byCode(decrypted.data[1].toInt() and 0xff)
+										if (alertType == TlsAlertType.CloseNotify) return@launch
+										// RFC 8446 §6: all alerts other than close_notify are fatal in TLS 1.3
+										throw TlsException("TLS 1.3 alert from server: $alertType")
+									}
 								}
 								else -> {}
 							}
@@ -260,7 +273,12 @@ internal class TlsHandshake(
 								}
 								TlsRecordType.Alert -> {
 									val plaintext = tls12Cipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length, rawRecord.type)
-									if (plaintext.size >= 2 && TlsAlertType.byCode(plaintext[1].toInt() and 0xff) == TlsAlertType.CloseNotify) return@launch
+									if (plaintext.size >= 2) {
+										val level = TlsAlertLevel.byCode(plaintext[0].toInt() and 0xff)
+										val alertType = TlsAlertType.byCode(plaintext[1].toInt() and 0xff)
+										if (alertType == TlsAlertType.CloseNotify) return@launch
+										if (level == TlsAlertLevel.FATAL) throw TlsException("Fatal alert from server: $alertType")
+									}
 								}
 								else -> {}
 							}
@@ -319,6 +337,7 @@ internal class TlsHandshake(
 		appInput.close()
 		appOutput.close()
 		digest.close()
+		clientRandom.fill(0)
 	}
 
 	// ==================== TLS 1.3 ====================
@@ -329,6 +348,9 @@ internal class TlsHandshake(
 				?: throw TlsException("TLS 1.3: missing key_share")
 		val ksReader = ByteArrayReader(ksExt.data)
 		val group = ksReader.readShort()
+		if (group.toShort() != ecdhGroupId) {
+			throw TlsException("TLS 1.3: server selected key share group 0x${group.toString(16)} but client offered 0x${ecdhGroupId.toString(16)}")
+		}
 		val keyLen = ksReader.readShort()
 		val serverPubBytes = ksReader.readBytes(keyLen)
 
@@ -357,9 +379,14 @@ internal class TlsHandshake(
 				CipherAlgorithm.AesGcm -> Tls13Cipher.createAesGcm(clientHsKeys.key, serverHsKeys.key, clientHsKeys.iv, serverHsKeys.iv)
 				CipherAlgorithm.ChaCha20Poly1305 -> Tls13Cipher.createChaCha20Poly1305(clientHsKeys.key, serverHsKeys.key, clientHsKeys.iv, serverHsKeys.iv)
 			}
+		clientHsKeys.key.fill(0)
+		clientHsKeys.iv.fill(0)
+		serverHsKeys.key.fill(0)
+		serverHsKeys.iv.fill(0)
 
 		// Read encrypted handshake messages
 		var serverPublicKey: CertPublicKey? = null
+		var certRequested = false
 
 		loop@ while (true) {
 			val rawRecord = rawInput.readTlsRecord()
@@ -382,7 +409,10 @@ internal class TlsHandshake(
 						if (verifyCertificates) validateCertificateChain(certChain, serverName)
 						serverPublicKey = extractPublicKeyFromCertificate(certChain.first())
 					}
-					TlsHandshakeType.CertificateRequest -> digest.addHandshakeMessage(msg)
+					TlsHandshakeType.CertificateRequest -> {
+						digest.addHandshakeMessage(msg)
+						certRequested = true
+					}
 					TlsHandshakeType.CertificateVerify -> {
 						verifyTls13CertificateVerify(msg.data, serverPublicKey ?: throw TlsException("Server certificate required but not received"), hashAlg)
 						digest.addHandshakeMessage(msg)
@@ -397,11 +427,25 @@ internal class TlsHandshake(
 			}
 		}
 
-		// Derive application keys
-		val finHash = digest.doHash(hashAlg)
-		val appSecrets = ks.computeApplicationSecrets(hsSecrets.handshakeSecret, finHash)
+		// Derive application keys (transcript: CH..server Finished, before client Certificate)
+		val appHash = digest.doHash(hashAlg)
+		val appSecrets = ks.computeApplicationSecrets(hsSecrets.handshakeSecret, appHash)
 
-		// Send client Finished
+		// Middlebox compatibility CCS (RFC 8446 §D.4): must precede client's encrypted flight
+		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
+
+		// RFC 8446 §4.4.2: respond to CertificateRequest with empty Certificate
+		if (certRequested) {
+			// TLS 1.3 Certificate: context_len(1 byte: 0) + cert_list_len(3 bytes: 0,0,0)
+			val emptyCertBody = byteArrayOf(0, 0, 0, 0)
+			val certRecord = buildHandshakeType(TlsHandshakeType.Certificate, emptyCertBody.size) + emptyCertBody
+			digest.update(certRecord)
+			val encCert = hsCipher.encrypt(certRecord, 0, certRecord.size, TlsRecordType.Handshake)
+			rawOutput.writeRecordBytes(TlsRecordType.ApplicationData, encCert)
+		}
+
+		// Send client Finished (transcript includes client Certificate if sent)
+		val finHash = digest.doHash(hashAlg)
 		val clientFinVerify = ks.finishedVerifyData(hsSecrets.clientHandshakeTrafficSecret, finHash)
 		val finRecord = buildHandshakeType(TlsHandshakeType.Finished, clientFinVerify.size) + clientFinVerify
 		val encFin = hsCipher.encrypt(finRecord, 0, finRecord.size, TlsRecordType.Handshake)
@@ -417,7 +461,15 @@ internal class TlsHandshake(
 			}
 
 		// Wipe derivation intermediates
+		cak.key.fill(0)
+		cak.iv.fill(0)
+		sak.key.fill(0)
+		sak.iv.fill(0)
+		appSecrets.clientAppTrafficSecret.fill(0)
+		appSecrets.serverAppTrafficSecret.fill(0)
 		hsSecrets.handshakeSecret.fill(0)
+		hsSecrets.clientHandshakeTrafficSecret.fill(0)
+		hsSecrets.serverHandshakeTrafficSecret.fill(0)
 	}
 
 	private fun parseTls13CertificateChain(data: ByteArray): List<ByteArray> {
@@ -450,36 +502,42 @@ internal class TlsHandshake(
 		val content = ByteArray(64) { 0x20 } + "TLS 1.3, server CertificateVerify".encodeToByteArray() + byteArrayOf(0) + txHash
 		when (serverPubKey) {
 			is CertPublicKey.Ec -> {
+				// RFC 8446 §4.2.3: validate scheme matches key curve
+				val (expectedCurveOid, d) =
+					when (scheme) {
+						0x0403 -> OID_SECP256R1 to dev.whyoleg.cryptography.algorithms.SHA256
+						0x0503 -> OID_SECP384R1 to dev.whyoleg.cryptography.algorithms.SHA384
+						else -> throw TlsException("TLS 1.3: unsupported ECDSA CertificateVerify scheme: 0x${scheme.toString(16)}")
+					}
+				if (serverPubKey.curveOid != expectedCurveOid) {
+					throw TlsException("TLS 1.3: certificate curve ${serverPubKey.curveOid} does not match scheme 0x${scheme.toString(16)}")
+				}
 				val curve =
 					when (serverPubKey.curveOid) {
 						OID_SECP256R1 -> EC.Curve.P256
 						OID_SECP384R1 -> EC.Curve.P384
 						OID_SECP521R1 -> EC.Curve.P521
-						else -> throw TlsException("Unknown curve")
+						else -> throw TlsException("Unknown curve: ${serverPubKey.curveOid}")
 					}
 				val ecdsa = CryptographyProvider.Default.get(ECDSA)
 				val pk = ecdsa.publicKeyDecoder(curve).decodeFromByteArrayBlocking(EC.PublicKey.Format.RAW, serverPubKey.point)
-				val d =
-					when (scheme) {
-						0x0403 -> dev.whyoleg.cryptography.algorithms.SHA256
-						0x0503 -> dev.whyoleg.cryptography.algorithms.SHA384
-						else -> hashAlg
-					}
 				if (!pk.signatureVerifier(d, ECDSA.SignatureFormat.DER).tryVerifySignatureBlocking(content, sig)) {
-					throw TlsException("TLS 1.3: CertificateVerify failed")
+					throw TlsException("TLS 1.3: CertificateVerify ECDSA verification failed")
 				}
 			}
 			is CertPublicKey.Rsa -> {
-				val rsa = CryptographyProvider.Default.get(RSA.PSS)
+				// RFC 8446 §4.4.3: only RSA-PSS schemes permitted for TLS 1.3 CertificateVerify
 				val d =
 					when (scheme) {
 						0x0804 -> dev.whyoleg.cryptography.algorithms.SHA256
 						0x0805 -> dev.whyoleg.cryptography.algorithms.SHA384
-						else -> hashAlg
+						0x0806 -> dev.whyoleg.cryptography.algorithms.SHA512
+						else -> throw TlsException("TLS 1.3: unsupported RSA-PSS CertificateVerify scheme: 0x${scheme.toString(16)}")
 					}
+				val rsa = CryptographyProvider.Default.get(RSA.PSS)
 				val pk = rsa.publicKeyDecoder(d).decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, serverPubKey.spkiDer)
 				if (!pk.signatureVerifier().tryVerifySignatureBlocking(content, sig)) {
-					throw TlsException("TLS 1.3: CertificateVerify failed")
+					throw TlsException("TLS 1.3: CertificateVerify RSA-PSS verification failed")
 				}
 			}
 		}
@@ -502,6 +560,7 @@ internal class TlsHandshake(
 		var serverPublicKey: CertPublicKey? = null
 		var ecdhServerPoint: ByteArray? = null
 		var ecdhCurve: CurveInfo? = null
+		var certRequested = false
 
 		loop@ while (true) {
 			val msg = readHandshakeMessage()
@@ -525,9 +584,20 @@ internal class TlsHandshake(
 					ecdhServerPoint = point
 					ecdhCurve = curve
 				}
-				TlsHandshakeType.CertificateRequest -> {}
+				TlsHandshakeType.CertificateRequest -> {
+					certRequested = true
+				}
 				TlsHandshakeType.ServerDone -> break@loop
 				else -> throw TlsException("Unexpected: ${msg.type}")
+			}
+		}
+
+		// RFC 5246 §7.4.6: respond to CertificateRequest with empty Certificate
+		if (certRequested) {
+			sendHandshakeRecord(TlsHandshakeType.Certificate) {
+				writeByte(0) // cert_list_length high byte
+				writeByte(0) // cert_list_length mid byte
+				writeByte(0) // cert_list_length low byte
 			}
 		}
 
@@ -564,7 +634,14 @@ internal class TlsHandshake(
 			}
 		}
 
-		val masterSecret = deriveMasterSecret(preSecret, clientRandom, serverHello.serverRandom, hmacDigest)
+		val masterSecret =
+			if (useExtendedMasterSecret) {
+				// RFC 7627: use session_hash (transcript through ClientKeyExchange) instead of random values
+				val sessionHash = digest.doHash(hmacDigest)
+				deriveExtendedMasterSecret(preSecret, sessionHash, hmacDigest)
+			} else {
+				deriveMasterSecret(preSecret, clientRandom, serverHello.serverRandom, hmacDigest)
+			}
 		preSecret.fill(0)
 		val material =
 			deriveKeyMaterial(
@@ -728,11 +805,6 @@ internal class TlsHandshake(
 		private fun generateClientRandom(): ByteArray {
 			val r = ByteArray(32)
 			CryptographyRandom.nextBytes(r)
-			val t = platform.posix.time(null)
-			r[0] = (t shr 24).toByte()
-			r[1] = (t shr 16).toByte()
-			r[2] = (t shr 8).toByte()
-			r[3] = t.toByte()
 			return r
 		}
 	}

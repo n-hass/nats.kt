@@ -5,6 +5,7 @@ import dev.whyoleg.cryptography.algorithms.Digest
 import dev.whyoleg.cryptography.algorithms.HMAC
 
 internal val MASTER_SECRET_LABEL = "master secret".encodeToByteArray()
+internal val EXTENDED_MASTER_SECRET_LABEL = "extended master secret".encodeToByteArray()
 internal val KEY_EXPANSION_LABEL = "key expansion".encodeToByteArray()
 internal val CLIENT_FINISHED_LABEL = "client finished".encodeToByteArray()
 internal val SERVER_FINISHED_LABEL = "server finished".encodeToByteArray()
@@ -60,6 +61,12 @@ internal fun deriveMasterSecret(
 	serverRandom: ByteArray,
 	hmacDigest: dev.whyoleg.cryptography.CryptographyAlgorithmId<Digest>,
 ): ByteArray = prf(preMasterSecret, MASTER_SECRET_LABEL, clientRandom + serverRandom, 48, hmacDigest)
+
+internal fun deriveExtendedMasterSecret(
+	preMasterSecret: ByteArray,
+	sessionHash: ByteArray,
+	hmacDigest: dev.whyoleg.cryptography.CryptographyAlgorithmId<Digest>,
+): ByteArray = prf(preMasterSecret, EXTENDED_MASTER_SECRET_LABEL, sessionHash, 48, hmacDigest)
 
 internal fun clientFinished(
 	handshakeHash: ByteArray,
