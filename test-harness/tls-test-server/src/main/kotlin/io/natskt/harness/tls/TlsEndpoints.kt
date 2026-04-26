@@ -90,13 +90,7 @@ class TlsEndpoints(
 			}
 
 		// Server that sends data then closes gracefully (close_notify)
-		ports["server_close"] =
-			startEndpoint("server_close", afterHandshake = { sslSocket ->
-				val output = sslSocket.outputStream
-				output.write("goodbye\n".toByteArray())
-				output.flush()
-				// SSLSocket.close() sends close_notify per RFC 8446 §6.1
-			})
+		ports["server_close"] = startServerCloseEndpoint()
 
 		return ports
 	}
@@ -161,6 +155,50 @@ class TlsEndpoints(
 			}
 
 		endpoints["sni_capture"] = EndpointInfo("sni_capture", serverSocket.localPort, thread)
+		return serverSocket.localPort
+	}
+
+	/**
+	 * Endpoint that sends data then closes gracefully. Does NOT enter the echo loop.
+	 * SSLSocket.close() sends close_notify per RFC 8446 §6.1.
+	 */
+	private fun startServerCloseEndpoint(): Int {
+		val serverSocket = sslContext.serverSocketFactory.createServerSocket(0) as SSLServerSocket
+		val params = serverSocket.sslParameters
+		params.protocols = arrayOf("TLSv1.3", "TLSv1.2")
+		serverSocket.sslParameters = params
+
+		val thread =
+			Thread({
+				while (!Thread.currentThread().isInterrupted) {
+					try {
+						val socket = serverSocket.accept() as SSLSocket
+						Thread({
+							try {
+								socket.use { s ->
+									s.startHandshake()
+									s.outputStream.write("goodbye\n".toByteArray())
+									s.outputStream.flush()
+									// Half-close the output to send close_notify without destroying the session
+									s.shutdownOutput()
+								}
+							} catch (e: Exception) {
+								System.err.println("[server_close] connection error: ${e.message}")
+							}
+						}, "tls-conn-server_close-${socket.port}").apply {
+							isDaemon = true
+							start()
+						}
+					} catch (_: Exception) {
+						break
+					}
+				}
+			}, "tls-endpoint-server_close").apply {
+				isDaemon = true
+				start()
+			}
+
+		endpoints["server_close"] = EndpointInfo("server_close", serverSocket.localPort, thread)
 		return serverSocket.localPort
 	}
 
