@@ -172,9 +172,10 @@ internal class TlsHandshake(
 		// RFC 8446 §4.2.2: echo cookie from HRR if present
 		val cookieExt = hrr.extensions.find { it.type == EXT_COOKIE }
 		val cookie =
-			if (cookieExt != null && cookieExt.data.size >= 2) {
+			if (cookieExt != null && cookieExt.data.size >= 3) {
 				val r = ByteArrayReader(cookieExt.data)
 				val cookieLen = r.readShort()
+				if (cookieLen != r.remaining) throw TlsException("HelloRetryRequest cookie length mismatch")
 				r.readBytes(cookieLen)
 			} else {
 				null
