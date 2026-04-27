@@ -18,4 +18,5 @@ dependencies {
 
 application {
 	mainClass = "io.natskt.harness.tls.MainKt"
+	// applicationDefaultJvmArgs = listOf("-Djavax.net.debug=ssl:handshake")
 }
