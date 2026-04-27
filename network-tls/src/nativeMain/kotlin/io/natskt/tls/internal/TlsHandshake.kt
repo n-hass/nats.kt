@@ -29,6 +29,7 @@ import kotlin.coroutines.CoroutineContext
 
 private const val EXT_SUPPORTED_VERSIONS = 43
 private const val EXT_KEY_SHARE = 51
+private const val EXT_COOKIE = 44
 private const val EXT_EXTENDED_MASTER_SECRET = 0x0017
 
 /**
@@ -90,15 +91,15 @@ internal class TlsHandshake(
 
 	private suspend fun performHandshake(): TlsServerHello {
 		// Send initial ClientHello
-		sendClientHello()
+		val ch1Record = sendClientHello()
 
 		// Read ServerHello (may be HelloRetryRequest)
-		var serverHello = receiveAndParseServerHello()
+		var (serverHello, serverHelloMsg) = receiveAndParseServerHello()
 
 		// RFC 8446 §4.1.4: HelloRetryRequest
 		if (isTls13 && isHelloRetryRequest(serverHello)) {
-			handleHelloRetryRequest(serverHello)
-			serverHello = receiveAndParseServerHello()
+			handleHelloRetryRequest(serverHello, ch1Record, serverHelloMsg)
+			serverHello = receiveAndParseServerHello().first
 			if (isHelloRetryRequest(serverHello)) {
 				throw TlsException("Server sent second HelloRetryRequest")
 			}
@@ -117,14 +118,15 @@ internal class TlsHandshake(
 		return serverHello
 	}
 
-	private suspend fun sendClientHello() {
-		val body = buildClientHelloBytes(SupportedSuites, clientRandom, serverName, ecdhPublicBytes, ecdhGroupId, legacySessionId)
+	private suspend fun sendClientHello(cookie: ByteArray? = null): ByteArray {
+		val body = buildClientHelloBytes(SupportedSuites, clientRandom, serverName, ecdhPublicBytes, ecdhGroupId, legacySessionId, cookie)
 		val record = buildHandshakeType(TlsHandshakeType.ClientHello, body.size) + body
 		digest.update(record)
 		rawOutput.writeRecordBytes(TlsRecordType.Handshake, record)
+		return record
 	}
 
-	private suspend fun receiveAndParseServerHello(): TlsServerHello {
+	private suspend fun receiveAndParseServerHello(): Pair<TlsServerHello, TlsHandshakeMessage> {
 		val msg = readHandshakeMessage(TlsHandshakeType.ServerHello)
 		val serverHello = parseServerHello(msg.data)
 
@@ -142,7 +144,7 @@ internal class TlsHandshake(
 			useExtendedMasterSecret = serverHello.extensions.any { it.type == EXT_EXTENDED_MASTER_SECRET }
 		}
 
-		return serverHello
+		return serverHello to msg
 	}
 
 	/**
@@ -156,12 +158,27 @@ internal class TlsHandshake(
 	 * Replaces the transcript with a synthetic message_hash, regenerates the
 	 * ECDH key pair for the server's requested group, and sends a new ClientHello.
 	 */
-	private suspend fun handleHelloRetryRequest(hrr: TlsServerHello) {
+	private suspend fun handleHelloRetryRequest(
+		hrr: TlsServerHello,
+		ch1Record: ByteArray,
+		hrrMsg: TlsHandshakeMessage,
+	) {
 		// Extract the server's requested group from key_share extension
 		val ksExt =
 			hrr.extensions.find { it.type == EXT_KEY_SHARE }
 				?: throw TlsException("HelloRetryRequest missing key_share extension")
 		val requestedGroup = ((ksExt.data[0].toInt() and 0xff) shl 8) or (ksExt.data[1].toInt() and 0xff)
+
+		// RFC 8446 §4.2.2: echo cookie from HRR if present
+		val cookieExt = hrr.extensions.find { it.type == EXT_COOKIE }
+		val cookie =
+			if (cookieExt != null && cookieExt.data.size >= 2) {
+				val r = ByteArrayReader(cookieExt.data)
+				val cookieLen = r.readShort()
+				r.readBytes(cookieLen)
+			} else {
+				null
+			}
 
 		// RFC 8446 §4.1.4: selected_group must correspond to a group offered in supported_groups
 		val newCurve =
@@ -172,14 +189,20 @@ internal class TlsHandshake(
 			}
 
 		// RFC 8446 §4.4.1: replace transcript with synthetic message_hash.
-		// Current digest contains ClientHello1 || ServerHello(HRR).
-		// Replace with: MessageHash(Hash(ClientHello1 || HRR))
+		// Transcript-Hash(CH1, HRR, ... Mn) = Hash(message_hash || HRR || ... || Mn)
+		// where message_hash is a handshake message of type 254 with body = Hash(CH1).
 		val hashAlg = digestAlgorithmForSuite(negotiatedSuite)
-		val currentHash = digest.doHash(hashAlg)
+		val ch1Hash =
+			CryptographyProvider.Default
+				.get(hashAlg)
+				.hasher()
+				.hashBlocking(ch1Record)
 		digest.close()
 		digest = TlsDigest()
-		val syntheticRecord = buildHandshakeType(TlsHandshakeType.MessageHash, currentHash.size) + currentHash
+		val syntheticRecord = buildHandshakeType(TlsHandshakeType.MessageHash, ch1Hash.size) + ch1Hash
 		digest.update(syntheticRecord)
+		// Re-add HRR to the transcript
+		digest.addHandshakeMessage(hrrMsg)
 
 		// Regenerate ECDH key pair for the requested group
 		ecdhCurve = newCurve
@@ -187,13 +210,11 @@ internal class TlsHandshake(
 		ecdhKeyPair = ecdh.keyPairGenerator(ecdhCurve).generateKeyBlocking()
 		ecdhPublicBytes = ecdhKeyPair.publicKey.encodeToByteArrayBlocking(EC.PublicKey.Format.RAW)
 
-		// Send new ClientHello (added to the new digest by sendClientHello)
-		sendClientHello()
+		// Send new ClientHello with cookie (added to the new digest by sendClientHello)
+		sendClientHello(cookie)
 
-		// RFC 8446 §D.4: CCS after second ClientHello for middlebox compatibility
-		// Placed after ClientHello2 to match Go/OpenSSL/BoringSSL behavior — JDK servers
-		// do not reliably accept CCS before the second ClientHello in the HRR flow.
-		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
+		// Note: CCS for middlebox compatibility is sent in negotiateTls13 before the client's
+		// encrypted flight, not here. The HRR flow does not need a separate CCS after CH2.
 	}
 
 	/**

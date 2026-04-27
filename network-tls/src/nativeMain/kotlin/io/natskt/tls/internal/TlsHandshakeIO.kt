@@ -11,6 +11,7 @@ internal fun Sink.writeTlsClientHello(
 	keySharePublicKey: ByteArray? = null,
 	keyShareGroup: Short = 23,
 	sessionId: ByteArray? = null,
+	cookie: ByteArray? = null,
 ) {
 	// Legacy version: TLS 1.2 (required for TLS 1.3 compat)
 	writeShort(TlsVersion.TLS12.code.toShort())
@@ -44,6 +45,9 @@ internal fun Sink.writeTlsClientHello(
 	if (keySharePublicKey != null) {
 		extensions += buildKeyShareExtension(keySharePublicKey, keyShareGroup)
 	}
+	if (cookie != null) {
+		extensions += buildCookieExtension(cookie)
+	}
 	if (serverName != null) {
 		extensions += buildServerNameExtension(serverName)
 	}
@@ -71,9 +75,10 @@ internal fun buildClientHelloBytes(
 	keySharePublicKey: ByteArray? = null,
 	keyShareGroup: Short = 23,
 	sessionId: ByteArray? = null,
+	cookie: ByteArray? = null,
 ): ByteArray {
 	val buf = Buffer()
-	buf.writeTlsClientHello(suites, clientRandom, serverName, keySharePublicKey, keyShareGroup, sessionId)
+	buf.writeTlsClientHello(suites, clientRandom, serverName, keySharePublicKey, keyShareGroup, sessionId, cookie)
 	return buf.readByteArray()
 }
 
@@ -164,6 +169,19 @@ internal fun buildKeyShareExtension(
 	buf.writeShort(group)
 	buf.writeShort(publicKey.size.toShort()) // key length
 	buf.write(publicKey)
+	return buf.readByteArray()
+}
+
+/**
+ * RFC 8446 §4.2.2: cookie extension (type 44). Echoes the cookie from HelloRetryRequest.
+ * Format: extension_type(2) || length(2) || cookie_length(2) || cookie
+ */
+private fun buildCookieExtension(cookie: ByteArray): ByteArray {
+	val buf = Buffer()
+	buf.writeShort(44) // COOKIE extension type
+	buf.writeShort((2 + cookie.size).toShort()) // extension data length
+	buf.writeShort(cookie.size.toShort()) // cookie length
+	buf.write(cookie)
 	return buf.readByteArray()
 }
 
