@@ -42,9 +42,9 @@ Gradle:
 
 ```kotlin
 commonMain.dependencies {
-	implementation("io.github.n-hass:natskt-core:0.7.0")
+	implementation("io.github.n-hass:natskt-core:0.8.0")
 	// and if you want jetstream:
-	implementation("io.github.n-hass:natskt-jetstream:0.7.0")
+	implementation("io.github.n-hass:natskt-jetstream:0.8.0")
 }
 ```
 
