@@ -594,6 +594,11 @@ public data class ConsumerPullRequest(
 	val maxBytes: Int? = null,
 	@SerialName("idle_heartbeat")
 	val idleHeartbeat: Long? = null,
+	val group: String? = null,
+	@SerialName("min_pending")
+	val minPending: Long? = null,
+	@SerialName("min_ack_pending")
+	val minAckPending: Long? = null,
 )
 
 @Serializable

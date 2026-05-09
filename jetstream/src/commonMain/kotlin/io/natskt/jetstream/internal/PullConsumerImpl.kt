@@ -49,6 +49,9 @@ internal class PullConsumerImpl(
 		noWait: Boolean?,
 		maxBytes: Int?,
 		heartbeat: Duration?,
+		group: String?,
+		minPending: Long?,
+		minAckPending: Long?,
 	): List<JetStreamMessage> {
 		val body =
 			wireJsonFormat.encodeToString(
@@ -58,6 +61,9 @@ internal class PullConsumerImpl(
 					noWait = noWait,
 					maxBytes = maxBytes,
 					idleHeartbeat = heartbeat?.inWholeNanoseconds,
+					group = group,
+					minPending = minPending,
+					minAckPending = minAckPending,
 				),
 			)
 
