@@ -247,7 +247,11 @@ internal class ProtocolEngineImpl(
 						}
 
 						is Operation.Err -> {
-							logger.error { "received a protocol error response: ${(out as Operation.Err).message}" }
+							val message = (out as Operation.Err).message
+							logger.error { "received a protocol error response: $message" }
+							if (message != null) {
+								state.update { lastError = message }
+							}
 						}
 
 						Operation.Ok -> {}

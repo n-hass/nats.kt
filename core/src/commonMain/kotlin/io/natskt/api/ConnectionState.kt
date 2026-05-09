@@ -18,6 +18,16 @@ public data class ConnectionState(
 	var lastPongAt: Long?,
 	var messagesIn: ULong,
 	var messagesOut: ULong,
+	/**
+	 * Reason text from the most recent `-ERR` operation sent by the server.
+	 *
+	 * Updated on every `-ERR`; persists across reconnects (latest wins) so a closed
+	 * connection's failure reason can be correlated with its cause (auth violations,
+	 * permissions violations, slow-consumer kicks, max-payload violations, etc.).
+	 *
+	 * `null` until the first `-ERR` is received.
+	 */
+	var lastError: String? = null,
 ) {
 	internal companion object {
 		val Uninitialised =
@@ -28,6 +38,7 @@ public data class ConnectionState(
 				lastPongAt = null,
 				messagesIn = 0u,
 				messagesOut = 0u,
+				lastError = null,
 			)
 	}
 }
