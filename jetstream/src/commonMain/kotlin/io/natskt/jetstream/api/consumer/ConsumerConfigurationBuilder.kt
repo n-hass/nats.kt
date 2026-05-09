@@ -4,13 +4,16 @@ import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.AckPolicy
 import io.natskt.jetstream.api.ConsumerConfig
 import io.natskt.jetstream.api.DeliverPolicy
+import io.natskt.jetstream.api.PriorityPolicy
 import io.natskt.jetstream.api.ReplayPolicy
 import io.natskt.jetstream.internal.JetStreamDsl
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 @JetStreamDsl
 public class ConsumerConfigurationBuilder internal constructor() {
 	public var durableName: String? = null
+	public var name: String? = null
 	public var description: String? = null
 	public var deliverSubject: String? = null
 	public var deliverGroup: String? = null
@@ -44,6 +47,10 @@ public class ConsumerConfigurationBuilder internal constructor() {
 	public var maxRequestExpires: Long? = null
 	public var maxRequestMaxBytes: Long? = null
 	public var deliverMetrics: Boolean? = null
+	public var pauseUntil: Instant? = null
+	public var priorityPolicy: PriorityPolicy? = null
+	public var priorityGroups: MutableList<String>? = null
+	public var priorityTimeout: Duration? = null
 
 	public fun filterSubject(subject: String) {
 		if (filterSubjects == null) {
@@ -58,13 +65,33 @@ public class ConsumerConfigurationBuilder internal constructor() {
 		}
 		backoff!!.add(delayInNanos)
 	}
+
+	public fun priorityGroup(group: String) {
+		if (priorityGroups == null) {
+			priorityGroups = mutableListOf()
+		}
+		priorityGroups!!.add(group)
+	}
 }
 
 internal fun ConsumerConfigurationBuilder.build(): ConsumerConfig {
 	durableName?.throwOnInvalidToken()
+	name?.throwOnInvalidToken()
+	val durable = this.durableName
+	val ephemeral = this.name
+	require(durable == null || ephemeral == null || durable == ephemeral) {
+		"durableName ($durable) and name ($ephemeral) must match when both are set"
+	}
+	val policy = this.priorityPolicy
+	if (policy != null && policy != PriorityPolicy.None) {
+		require(!this.priorityGroups.isNullOrEmpty()) {
+			"priorityPolicy=$policy requires at least one priority group"
+		}
+	}
 
 	return ConsumerConfig(
 		durableName = this.durableName,
+		name = this.name,
 		description = this.description,
 		deliverSubject = this.deliverSubject,
 		deliverGroup = this.deliverGroup,
@@ -98,5 +125,9 @@ internal fun ConsumerConfigurationBuilder.build(): ConsumerConfig {
 		maxRequestExpires = this.maxRequestExpires,
 		maxRequestMaxBytes = this.maxRequestMaxBytes,
 		deliverMetrics = this.deliverMetrics,
+		pauseUntil = this.pauseUntil,
+		priorityPolicy = this.priorityPolicy,
+		priorityGroups = this.priorityGroups?.toList(),
+		priorityTimeout = this.priorityTimeout,
 	)
 }

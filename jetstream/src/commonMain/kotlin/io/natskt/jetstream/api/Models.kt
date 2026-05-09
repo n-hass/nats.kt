@@ -428,9 +428,22 @@ public enum class ReplayPolicy {
 }
 
 @Serializable
+public enum class PriorityPolicy {
+	@SerialName("none")
+	None,
+
+	@SerialName("overflow")
+	Overflow,
+
+	@SerialName("pinned_client")
+	PinnedClient,
+}
+
+@Serializable
 public data class ConsumerConfig(
 	@SerialName("durable_name")
 	val durableName: String? = null,
+	val name: String? = null,
 	val description: String? = null,
 	@SerialName("deliver_subject")
 	val deliverSubject: String? = null,
@@ -496,6 +509,15 @@ public data class ConsumerConfig(
 	val maxRequestMaxBytes: Long? = null,
 	@SerialName("deliver_metrics")
 	val deliverMetrics: Boolean? = null,
+	@SerialName("pause_until")
+	val pauseUntil: Instant? = null,
+	@SerialName("priority_policy")
+	val priorityPolicy: PriorityPolicy? = null,
+	@SerialName("priority_groups")
+	val priorityGroups: List<String>? = null,
+	@SerialName("priority_timeout")
+	@Serializable(with = DurationNanosSerializer::class)
+	val priorityTimeout: Duration? = null,
 )
 
 @Serializable
@@ -704,6 +726,23 @@ public data class ConsumerPauseRequest(
 	@SerialName("pause_until")
 	public val pauseUntil: Instant?,
 )
+
+@Serializable
+public data class ConsumerResetRequest(
+	@SerialName("seq")
+	public val sequence: ULong? = null,
+)
+
+@Serializable
+public data class ConsumerUnpinRequest(
+	public val group: String,
+)
+
+@Serializable
+public data class ConsumerUnpinResponse(
+	public val type: String? = null,
+	public val success: Boolean = false,
+) : JetStreamApiResponse
 
 @Serializable
 public data class ConsumerPauseResponse(

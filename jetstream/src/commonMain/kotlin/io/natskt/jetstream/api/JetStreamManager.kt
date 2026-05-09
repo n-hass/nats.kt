@@ -152,6 +152,30 @@ public interface JetStreamManager {
 	): Boolean
 
 	/**
+	 * Reset a consumer's delivery position. With [sequence], the consumer resumes
+	 * from that point; without it, resets to the start.
+	 *
+	 * Requires NATS server ≥ 2.11.
+	 */
+	public suspend fun resetConsumer(
+		streamName: String,
+		consumerName: String,
+		sequence: ULong? = null,
+	): ConsumerInfo
+
+	/**
+	 * Release a pinned-client consumer's lease for the named priority [group],
+	 * letting another client in the group take over.
+	 *
+	 * Requires NATS server ≥ 2.11.
+	 */
+	public suspend fun unpinConsumer(
+		streamName: String,
+		consumerName: String,
+		group: String,
+	): Boolean
+
+	/**
 	 * Gets the info for an existing consumer.
 	 * @param streamName the stream name
 	 * @param consumerName the consumer name
