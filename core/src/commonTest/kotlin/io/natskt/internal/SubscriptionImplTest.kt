@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -108,5 +109,67 @@ class SubscriptionImplTest {
 
 			assertEquals(listOf("2"), stops)
 			assertFalse(subscription.isActive.value)
+		}
+
+	@Test
+	fun `unsubscribe with after issues UNSUB with max_msgs and tears down on count exhaustion`() =
+		runTest {
+			val stops = mutableListOf<Pair<String, Int?>>()
+
+			val subscription =
+				SubscriptionImpl(
+					subject = Subject.from("demo"),
+					queueGroup = null,
+					sid = "auto",
+					scope = this,
+					onStart = { _, _, _, _ -> },
+					onStop =
+						{ sid, maxMsgs ->
+							stops += sid to maxMsgs
+						},
+					eagerSubscribe = true,
+					unsubscribeOnLastCollector = false,
+					prefetchReplay = 0,
+				)
+
+			advanceUntilIdle()
+
+			subscription.unsubscribe(after = 3)
+			advanceUntilIdle()
+
+			assertEquals(listOf<Pair<String, Int?>>("auto" to 3), stops)
+			assertTrue(subscription.isActive.value)
+
+			repeat(3) { subscription.emit(newMessage("payload-$it")) }
+			advanceUntilIdle()
+
+			assertEquals(listOf<Pair<String, Int?>>("auto" to 3, "auto" to null), stops)
+			assertFalse(subscription.isActive.value)
+		}
+
+	@Test
+	fun `unsubscribe with non-positive after rejects`() =
+		runTest {
+			val subscription =
+				SubscriptionImpl(
+					subject = Subject.from("demo"),
+					queueGroup = null,
+					sid = "rej",
+					scope = this,
+					onStart = { _, _, _, _ -> },
+					onStop = { _, _ -> },
+					eagerSubscribe = true,
+					unsubscribeOnLastCollector = false,
+					prefetchReplay = 0,
+				)
+
+			advanceUntilIdle()
+
+			assertFailsWith<IllegalArgumentException> {
+				subscription.unsubscribe(after = 0)
+			}
+
+			subscription.unsubscribe()
+			advanceUntilIdle()
 		}
 }

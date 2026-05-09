@@ -17,6 +17,14 @@ public interface NatsClient {
 	public val connectionState: StateFlow<ConnectionState>
 
 	/**
+	 * The most recent [ServerInfo] published by the server.
+	 *
+	 * Updates on every fresh `INFO` operation, including topology updates pushed by the
+	 * server mid-connection. `null` until the first INFO is received.
+	 */
+	public val serverInfo: StateFlow<ServerInfo?>
+
+	/**
 	 * The subscriptions that have been created with this [NatsClient].
 	 */
 	public val subscriptions: Map<String, Subscription>

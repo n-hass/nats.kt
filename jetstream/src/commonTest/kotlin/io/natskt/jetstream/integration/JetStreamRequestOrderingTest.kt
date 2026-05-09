@@ -23,7 +23,11 @@ class JetStreamRequestOrderingTest {
 	@Test
 	fun `jetstream request sends SUB before PUB`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val client = NatsClient { this.server = server.uri }
+			val client =
+				NatsClient {
+					this.server = server.uri
+					noResponders = false
+				}
 			val js = JetStreamClient(client)
 
 			try {

@@ -57,6 +57,9 @@ internal class SubscriptionImpl(
 	@Volatile
 	private var closed = false
 
+	@Volatile
+	private var remainingDeliveries: Int? = null
+
 	override val messages: Flow<Message> =
 		channelFlow {
 			val activeStateWatcherJob =
@@ -100,7 +103,17 @@ internal class SubscriptionImpl(
 			}
 	}
 
-	override suspend fun emit(msg: Message) = bus.emit(msg)
+	override suspend fun emit(msg: Message) {
+		bus.emit(msg)
+		val current = remainingDeliveries ?: return
+		val next = current - 1
+		if (next <= 0) {
+			remainingDeliveries = 0
+			scope.launch { ensureStopped() }
+		} else {
+			remainingDeliveries = next
+		}
+	}
 
 	private suspend fun ensureStarted() =
 		lifecycle.withLock {
@@ -145,6 +158,14 @@ internal class SubscriptionImpl(
 		closed = true
 		cancelStopIfAny()
 		ensureStopped()
+	}
+
+	override suspend fun unsubscribe(after: Int) {
+		require(after > 0) { "after must be positive" }
+		if (closed) return
+		cancelStopIfAny()
+		remainingDeliveries = after
+		onStop(sid, after)
 	}
 
 	override fun close() {

@@ -33,9 +33,9 @@ internal fun engine(
 		tlsRequired = false,
 		noResponders = true,
 		echo = false,
+		supportUtf8Subjects = false,
 		operationBufferCapacity = 32,
 		writeBufferLimitBytes = 64 * 1024,
-		writeFlushIntervalMs = 5,
 		scope =
 			object : CoroutineScope {
 				override val coroutineContext: CoroutineContext = EmptyCoroutineContext

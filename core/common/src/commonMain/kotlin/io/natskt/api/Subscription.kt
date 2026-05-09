@@ -19,6 +19,18 @@ public interface Subscription : AutoCloseable {
 	public suspend fun unsubscribe()
 
 	/**
+	 * Auto-unsubscribe after [after] more messages have been delivered.
+	 *
+	 * Sends `UNSUB <sid> <after>` to the server, which delivers up to [after] more
+	 * messages on this subscription and then auto-unsubscribes server-side.
+	 * Once [after] messages have been received, the subscription's [messages]
+	 * flow completes and [isActive] flips to `false`.
+	 *
+	 * @throws IllegalArgumentException if [after] is not positive
+	 */
+	public suspend fun unsubscribe(after: Int)
+
+	/**
 	 * initiates [unsubscribe]
 	 */
 	abstract override fun close()

@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 public class ClientConfigurationBuilder internal constructor() {
@@ -104,15 +103,6 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var writeBufferLimitBytes: Int = 64 * 1024
 
 	/**
-	 * Automatically flush the write buffer at this interval, even if it is not full.
-	 *
-	 * This sets the write latency ceiling.
-	 *
-	 * Can be set to [Duration.ZERO] to immediately flush every message in full when it is published.
-	 */
-	public var writeFlushInterval: Duration = 5.milliseconds
-
-	/**
 	 * Set a limit on the maximum number of parallel requests.
 	 *
 	 * A value of `null` is no limit.
@@ -129,8 +119,11 @@ public class ClientConfigurationBuilder internal constructor() {
 	 * When enabled, the server will send a status 503 response on a request
 	 * when no subscribers are available to handle it, instead of letting the
 	 * request time out.
+	 *
+	 * Defaults to `true` to match the behavior of other NATS clients. Set to
+	 * `false` to disable for legacy compatibility.
 	 */
-	public var noResponders: Boolean = false
+	public var noResponders: Boolean = true
 
 	/**
 	 * When enabled, the server will echo messages published by this client
@@ -139,6 +132,16 @@ public class ClientConfigurationBuilder internal constructor() {
 	 * Disabling echo can be useful to avoid receiving your own messages on shared subjects.
 	 */
 	public var echo: Boolean = false
+
+	/**
+	 * Opt in to publishing and subscribing to subjects that contain UTF-8 characters.
+	 *
+	 * Requires a NATS server (>= 2.10) that accepts `utf8_only` in the CONNECT payload.
+	 *
+	 * When enabled, the client tells the server it will use UTF-8 subjects.
+	 * Without this flag, behaviour is unchanged: subjects are treated as ASCII.
+	 */
+	public var supportUtf8Subjects: Boolean = false
 
 	/**
 	 * Tries to connect with TLS first, and forces the server to use TLS.
@@ -202,11 +205,11 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		maxPayloadBytes = maxPayloadBytes,
 		operationBufferCapacity = operationBufferCapacity,
 		writeBufferLimitBytes = writeBufferLimitBytes,
-		writeFlushIntervalMs = writeFlushInterval.inWholeMilliseconds,
 		tlsRequired = tls,
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
 		echo = echo,
+		supportUtf8Subjects = supportUtf8Subjects,
 		nuid = NUID.Default,
 		scope = finalScope,
 		ownsScope = scope == null,

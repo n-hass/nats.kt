@@ -3,9 +3,6 @@ package io.natskt.api
 import io.natskt.api.internal.InternalNatsApi
 import kotlin.jvm.JvmInline
 
-private val disallowedSubjectChars = Regex("[\\u0000 \\t\\r\\n]")
-private val wildcardChars = Regex("[*>]")
-
 public class InvalidSubjectException(
 	subject: String,
 	message: String? = null,
@@ -44,8 +41,41 @@ public fun Subject.Companion.fullyQualified(s: String): Subject {
 	return Subject(s)
 }
 
+/**
+ * Returns `true` if [s] is not a valid NATS subject.
+ *
+ * Mirrors the wire-level validation done by nats.go's `badSubject`:
+ * rejects whitespace (space, tab, CR, LF) and any subject that has
+ * empty tokens (leading dot, trailing dot, or consecutive dots).
+ *
+ * UTF-8 characters are permitted; the server enforces `utf8_only` separately.
+ */
 @InternalNatsApi
-public fun isInvalidSubject(s: String): Boolean = disallowedSubjectChars.containsMatchIn(s)
+public fun isInvalidSubject(s: String): Boolean {
+	if (s.isEmpty()) return true
+	var tokenStart = 0
+	for (i in s.indices) {
+		when (s[i]) {
+			' ', '\t', '\r', '\n' -> return true
+			'.' -> {
+				if (i == tokenStart) return true
+				tokenStart = i + 1
+			}
+		}
+	}
+	return tokenStart == s.length
+}
 
+/**
+ * Returns `true` if [s] is not a valid fully-qualified (wildcard-free) NATS subject.
+ *
+ * Same checks as [isInvalidSubject], plus rejects the `*` and `>` wildcard tokens.
+ */
 @InternalNatsApi
-public fun isInvalidFullyQualifiedSubject(s: String): Boolean = disallowedSubjectChars.containsMatchIn(s) || wildcardChars.containsMatchIn(s)
+public fun isInvalidFullyQualifiedSubject(s: String): Boolean {
+	if (isInvalidSubject(s)) return true
+	for (c in s) {
+		if (c == '*' || c == '>') return true
+	}
+	return false
+}

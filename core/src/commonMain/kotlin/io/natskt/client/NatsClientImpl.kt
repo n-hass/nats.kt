@@ -10,12 +10,14 @@ import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
+import io.natskt.api.ServerInfo
 import io.natskt.api.Subject
 import io.natskt.api.Subscription
 import io.natskt.api.from
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OnSubscriptionStart
 import io.natskt.api.internal.OnSubscriptionStop
+import io.natskt.api.toPublicApi
 import io.natskt.client.connection.ConnectionManagerImpl
 import io.natskt.internal.ClientOperation
 import io.natskt.internal.InternalSubscriptionHandler
@@ -25,9 +27,12 @@ import io.natskt.internal.throwOnInvalidSubject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.ClosedSendChannelException
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeout
@@ -55,6 +60,11 @@ internal class NatsClientImpl(
 	internal val connectionManager = ConnectionManagerImpl(configuration, _subscriptions, pendingRequests)
 
 	override val connectionState: StateFlow<ConnectionState> = connectionManager.connectionState
+
+	override val serverInfo: StateFlow<ServerInfo?> =
+		connectionManager.serverInfo
+			.map { it?.toPublicApi() }
+			.stateIn(scope, SharingStarted.Eagerly, connectionManager.serverInfo.value?.toPublicApi())
 
 	@OptIn(ExperimentalAtomicApi::class)
 	private val sidAllocator = AtomicLong(1)
@@ -289,7 +299,9 @@ internal class NatsClientImpl(
 			maxMsgs: Int?,
 			->
 			_subscriptions[sid] ?: return@OnSubscriptionStop
-			_subscriptions.remove(sid)
+			if (maxMsgs == null) {
+				_subscriptions.remove(sid)
+			}
 			try {
 				connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
 			} catch (_: ConnectionClosedException) {

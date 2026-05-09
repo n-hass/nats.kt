@@ -13,8 +13,6 @@ internal class TransportWriteBuffer(
 	private val buffer = ByteArray(capacity.coerceAtLeast(32))
 	private var position = 0
 
-	fun hasPendingBytesAtCapacity(): Boolean = position >= buffer.size
-
 	override suspend fun writeByte(value: Byte) = writeByteFlush(value)
 
 	private suspend inline fun writeByteFlush(value: Byte) {

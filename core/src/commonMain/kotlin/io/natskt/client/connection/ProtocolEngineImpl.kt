@@ -58,9 +58,9 @@ internal class ProtocolEngineImpl(
 	private val tlsRequired: Boolean,
 	private val noResponders: Boolean,
 	private val echo: Boolean,
+	private val supportUtf8Subjects: Boolean,
 	private val operationBufferCapacity: Int,
 	private val writeBufferLimitBytes: Int,
-	private val writeFlushIntervalMs: Long,
 	private val scope: CoroutineScope,
 ) : ProtocolEngine {
 	override val state = MutableStateFlow(ConnectionState.Uninitialised)
@@ -96,6 +96,7 @@ internal class ProtocolEngineImpl(
 			noResponders = noResponders,
 			headers = true,
 			nkey = auth.nkey,
+			utf8Only = if (supportUtf8Subjects) true else null,
 		)
 	}
 
@@ -245,7 +246,11 @@ internal class ProtocolEngineImpl(
 						}
 
 						is Operation.Err -> {
-							logger.error { "received a protocol error response: ${(out as Operation.Err).message}" }
+							val message = (out as Operation.Err).message
+							logger.error { "received a protocol error response: $message" }
+							if (message != null) {
+								state.update { lastError = message }
+							}
 						}
 
 						Operation.Ok -> {}
@@ -350,49 +355,23 @@ internal class ProtocolEngineImpl(
 			)
 		writerCommands = commands
 		val buffer = TransportWriteBuffer(transport, writeBufferLimitBytes)
-		var lastFlushAt = Clock.System.now().toEpochMilliseconds()
 		writerJob =
 			scope.launch {
 				try {
 					while (isActive) {
-						val commandResult =
-							if (writeFlushIntervalMs > 0) {
-								withTimeoutOrNull(writeFlushIntervalMs) { commands.receiveCatching() }
-							} else {
-								commands.receiveCatching()
-							}
-
-						if (commandResult == null) {
-							buffer.flush()
-							continue
-						}
-
-						val cmd = commandResult.getOrNull()
-						if (cmd == null) {
+						val first = commands.receiveCatching().getOrNull()
+						if (first == null) {
 							buffer.flush()
 							break
 						}
+						handle(first, buffer)
 
-						when (cmd) {
-							is OutboundCommand.Op -> {
-								parser.encode(cmd.op, buffer)
-								val now = Clock.System.now().toEpochMilliseconds()
-								if (writeFlushIntervalMs <= 0 || now - lastFlushAt >= writeFlushIntervalMs || buffer.hasPendingBytesAtCapacity()) {
-									buffer.flush()
-									lastFlushAt = now
-								}
-							}
-
-							is OutboundCommand.Flush -> {
-								runCatching { buffer.flush() }
-									.onSuccess { cmd.ack.complete(Unit) }
-									.onFailure {
-										cmd.ack.completeExceptionally(it)
-										throw it
-									}
-								lastFlushAt = Clock.System.now().toEpochMilliseconds()
-							}
+						while (true) {
+							val next = commands.tryReceive().getOrNull() ?: break
+							handle(next, buffer)
 						}
+
+						buffer.flush()
 					}
 				} catch (_: CancellationException) {
 					commands.close()
@@ -407,6 +386,23 @@ internal class ProtocolEngineImpl(
 					commands.close()
 				}
 			}
+	}
+
+	private suspend inline fun handle(
+		cmd: OutboundCommand,
+		buffer: TransportWriteBuffer,
+	) {
+		when (cmd) {
+			is OutboundCommand.Op -> parser.encode(cmd.op, buffer)
+			is OutboundCommand.Flush -> {
+				runCatching { buffer.flush() }
+					.onSuccess { cmd.ack.complete(Unit) }
+					.onFailure {
+						cmd.ack.completeExceptionally(it)
+						throw it
+					}
+			}
+		}
 	}
 
 	private suspend fun stopWriter() {

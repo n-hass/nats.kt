@@ -32,6 +32,8 @@ sealed interface ClientOperation : Operation {
 		@EncodeDefault
 		val headers: Boolean? = true,
 		val nkey: String?,
+		@SerialName("utf8_only")
+		val utf8Only: Boolean? = null,
 	) : ClientOperation
 
 	@Serializable

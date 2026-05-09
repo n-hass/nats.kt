@@ -66,9 +66,9 @@ class ProtocolEngineImplLameDuckTest {
 			tlsRequired = false,
 			noResponders = true,
 			echo = false,
+			supportUtf8Subjects = false,
 			operationBufferCapacity = 32,
 			writeBufferLimitBytes = 64 * 1024,
-			writeFlushIntervalMs = 5,
 			scope = CoroutineScope(Dispatchers.Unconfined),
 		)
 	}
