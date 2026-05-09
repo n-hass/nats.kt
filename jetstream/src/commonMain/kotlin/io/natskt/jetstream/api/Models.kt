@@ -206,6 +206,24 @@ public data class StreamAlternate(
 )
 
 @Serializable
+public enum class PersistMode {
+	@SerialName("async")
+	Async,
+
+	@SerialName("sync")
+	Sync,
+}
+
+@Serializable
+public data class StreamConsumerLimits(
+	@SerialName("inactive_threshold")
+	@Serializable(with = DurationNanosSerializer::class)
+	val inactiveThreshold: Duration? = null,
+	@SerialName("max_ack_pending")
+	val maxAckPending: Int? = null,
+)
+
+@Serializable
 public data class StreamConfig(
 	val name: String,
 	val description: String? = null,
@@ -261,6 +279,22 @@ public data class StreamConfig(
 	@Serializable(with = DurationNanosSerializer::class)
 	val subjectDeleteMarkerTtl: Duration? = null,
 	val metadata: Map<String, String>? = null,
+	@SerialName("first_seq")
+	val firstSequence: ULong? = null,
+	@SerialName("allow_atomic")
+	val allowAtomicPublish: Boolean? = null,
+	@SerialName("allow_msg_schedules")
+	val allowMessageSchedules: Boolean? = null,
+	@SerialName("allow_msg_counter")
+	val allowMessageCounter: Boolean? = null,
+	@SerialName("allow_batched")
+	val allowBatched: Boolean? = null,
+	@SerialName("persist_mode")
+	val persistMode: PersistMode? = null,
+	@SerialName("consumer_limits")
+	val consumerLimits: StreamConsumerLimits? = null,
+	@SerialName("subject_transforms")
+	val subjectTransforms: List<SubjectTransform>? = null,
 )
 
 @Serializable
@@ -559,6 +593,8 @@ public data class MessageGetRequest(
 	public val lastFor: String? = null,
 	@SerialName("next_by_subj")
 	public val nextFor: String? = null,
+	@SerialName("start_time")
+	public val startTime: String? = null,
 )
 
 @Serializable

@@ -233,6 +233,34 @@ public interface JetStreamManager {
 	): StoredMessage
 
 	/**
+	 * Get the first message stored on the given subject.
+	 * @param streamName the stream name
+	 * @param subject the subject (wildcards allowed)
+	 * @param direct use the direct-get API, which must be supported by the server
+	 * @return message information
+	 */
+	public suspend fun getFirstMessage(
+		streamName: String,
+		subject: String,
+		direct: Boolean = false,
+	): StoredMessage
+
+	/**
+	 * Get the first message stored on or after [startTime], optionally constrained to [subject].
+	 * @param streamName the stream name
+	 * @param startTime the lower bound timestamp
+	 * @param subject optional subject filter (wildcards allowed)
+	 * @param direct use the direct-get API, which must be supported by the server
+	 * @return message information
+	 */
+	public suspend fun getFirstMessage(
+		streamName: String,
+		startTime: Instant,
+		subject: String? = null,
+		direct: Boolean = false,
+	): StoredMessage
+
+	/**
 	 * Deletes a message, optionally erasing its content.
 	 * @param streamName the stream name
 	 * @param sequence the message sequence number

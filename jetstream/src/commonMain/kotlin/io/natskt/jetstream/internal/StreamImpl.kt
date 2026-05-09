@@ -14,6 +14,7 @@ import io.natskt.jetstream.api.consumer.PushConsumer
 import io.natskt.jetstream.api.consumer.build
 import io.natskt.jetstream.api.stream.Stream
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.time.Instant
 
 @OptIn(InternalNatsApi::class)
 internal class StreamImpl(
@@ -96,6 +97,19 @@ internal class StreamImpl(
 	): StoredMessage {
 		supportsDirect ?: updateStreamInfo()
 		return js.manager.getNextMessage(name, sequence, subject, supportsDirect == true)
+	}
+
+	override suspend fun getFirstMessage(subject: String): StoredMessage {
+		supportsDirect ?: updateStreamInfo()
+		return js.manager.getFirstMessage(name, subject, supportsDirect == true)
+	}
+
+	override suspend fun getFirstMessage(
+		startTime: Instant,
+		subject: String?,
+	): StoredMessage {
+		supportsDirect ?: updateStreamInfo()
+		return js.manager.getFirstMessage(name, startTime, subject, supportsDirect == true)
 	}
 
 	override suspend fun deleteMessage(

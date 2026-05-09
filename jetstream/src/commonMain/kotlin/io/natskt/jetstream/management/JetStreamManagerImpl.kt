@@ -230,6 +230,35 @@ internal class JetStreamManagerImpl(
 		}
 	}
 
+	override suspend fun getFirstMessage(
+		streamName: String,
+		subject: String,
+		direct: Boolean,
+	): StoredMessage {
+		streamName.throwOnInvalidToken()
+		val req = MessageGetRequest(seq = 0u, nextFor = subject)
+		return if (direct) {
+			js.getMessageDirect(streamName, req).getOrThrow()
+		} else {
+			js.getMessageInfo(streamName, req).getOrThrow().message
+		}
+	}
+
+	override suspend fun getFirstMessage(
+		streamName: String,
+		startTime: Instant,
+		subject: String?,
+		direct: Boolean,
+	): StoredMessage {
+		streamName.throwOnInvalidToken()
+		val req = MessageGetRequest(startTime = startTime.toString(), nextFor = subject)
+		return if (direct) {
+			js.getMessageDirect(streamName, req).getOrThrow()
+		} else {
+			js.getMessageInfo(streamName, req).getOrThrow().message
+		}
+	}
+
 	override suspend fun deleteMessage(
 		streamName: String,
 		sequence: ULong,
