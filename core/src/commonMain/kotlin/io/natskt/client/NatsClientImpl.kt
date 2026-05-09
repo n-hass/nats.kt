@@ -299,7 +299,9 @@ internal class NatsClientImpl(
 			maxMsgs: Int?,
 			->
 			_subscriptions[sid] ?: return@OnSubscriptionStop
-			_subscriptions.remove(sid)
+			if (maxMsgs == null) {
+				_subscriptions.remove(sid)
+			}
 			try {
 				connectionManager.send(ClientOperation.UnSubOp(sid, maxMsgs))
 			} catch (_: ConnectionClosedException) {
