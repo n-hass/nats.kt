@@ -32,7 +32,7 @@
 
 **Minimum JVM**: 17
 
-**Minimum Kotlin**: 2.1
+**Minimum Kotlin**: 2.2
 
 ## 🏃 Quick Start
 
