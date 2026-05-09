@@ -23,8 +23,7 @@ internal const val STALLED_HEADER: String = "Nats-Consumer-Stalled"
  * in the `Nats-Consumer-Stalled` header.
  *
  * Pull consumers must NOT call this — pull-side `100 Idle Heartbeat` is a
- * watchdog signal only, never replied to (see nats.go `pull.go:checkMsg` /
- * `handleStatusMsg`).
+ * watchdog signal only, never replied to.
  */
 internal suspend fun replyToHeartbeatOrFlowControl(
 	client: NatsClient,

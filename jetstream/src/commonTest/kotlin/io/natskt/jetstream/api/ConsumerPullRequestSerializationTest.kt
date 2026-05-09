@@ -14,7 +14,7 @@ class ConsumerPullRequestSerializationTest {
 	}
 
 	@Test
-	fun `priority fields encode with nats-go canonical snake_case keys`() {
+	fun `priority fields encode with snake_case keys`() {
 		val req =
 			ConsumerPullRequest(
 				batch = 10,

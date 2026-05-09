@@ -38,7 +38,7 @@ class PullConsumerStatusTest {
 		}
 
 	@Test
-	fun `fetch on empty stream completes after expires (408)`() =
+	fun `fetch on empty stream completes after expires`() =
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
 				js.manager.createStream {
