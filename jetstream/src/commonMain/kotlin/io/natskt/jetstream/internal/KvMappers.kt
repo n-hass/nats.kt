@@ -22,7 +22,7 @@ internal fun StreamInfo.asKeyValueStatus(): KeyValueStatus =
 		ttl = config.maxAge,
 		backingStore = "JetStream",
 		bytes = state.bytes,
-		isCompressed = config.compression != null && config.compression == StreamCompression.None,
+		isCompressed = config.compression != null && config.compression != StreamCompression.None,
 	)
 
 internal fun StreamInfo.asKeyValueConfig(): KeyValueConfig =
