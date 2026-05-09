@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 
 public class TcpTransport internal constructor(
+	private val selectorManager: SelectorManager,
 	private val inner: Connection,
 	private val context: CoroutineContext,
 ) : Transport,
@@ -22,14 +23,17 @@ public class TcpTransport internal constructor(
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
-		): Transport =
-			TcpTransport(
-				aSocket(SelectorManager(context))
+		): Transport {
+			val selectorManager = SelectorManager(context)
+			return TcpTransport(
+				selectorManager,
+				aSocket(selectorManager)
 					.tcp()
 					.connect(address.url.host, address.url.port) { }
 					.connection(),
 				context,
 			)
+		}
 	}
 
 	override val isClosed: Boolean by inner.socket::isClosed
@@ -38,9 +42,10 @@ public class TcpTransport internal constructor(
 	override suspend fun close() {
 		inner.socket.close()
 		inner.socket.awaitClosed()
+		selectorManager.close()
 	}
 
-	override suspend fun upgradeTLS(): TcpTransport = TcpTransport(inner.tls(context).connection(), context)
+	override suspend fun upgradeTLS(): TcpTransport = TcpTransport(selectorManager, inner.tls(context).connection(), context)
 
 	override suspend fun write(block: suspend (ByteWriteChannel) -> Unit) {
 		block(inner.output)
