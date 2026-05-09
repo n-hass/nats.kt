@@ -70,7 +70,6 @@ class ConnectionManagerImplTest {
 				maxControlLineBytes = 1024,
 				operationBufferCapacity = 32,
 				writeBufferLimitBytes = 64 * 1024,
-				writeFlushIntervalMs = 5,
 				tlsRequired = false,
 				noResponders = true,
 				echo = false,

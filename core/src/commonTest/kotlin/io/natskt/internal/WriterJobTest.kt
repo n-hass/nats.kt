@@ -19,14 +19,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.readByteArray
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -41,7 +39,6 @@ class WriterJobTest {
 					transportFactory = RecordingTransportFactory(transport),
 					scope = this,
 					operationBufferCapacity = 2,
-					writeFlushIntervalMs = 100,
 				)
 
 			engine.start()
@@ -119,7 +116,7 @@ class WriterJobTest {
 		}
 
 	@Test
-	fun `writer flushes on explicit flush call`() =
+	fun `writer flushes after each batch`() =
 		runTest {
 			val transport = RecordingTransport(coroutineContext)
 			val engine =
@@ -127,7 +124,6 @@ class WriterJobTest {
 					serializer = BatchingSerializer(),
 					transportFactory = RecordingTransportFactory(transport),
 					scope = this,
-					writeFlushIntervalMs = Long.MAX_VALUE,
 				)
 
 			engine.start()
@@ -142,118 +138,38 @@ class WriterJobTest {
 			)
 			runCurrent()
 
-			assertEquals(handshakeFlushes, transport.flushCount, "should not auto-flush yet")
+			assertEquals(handshakeFlushes + 1, transport.flushCount, "writer should flush after handling the op")
 
+			engine.close()
+		}
+
+	@Test
+	fun `flush call resolves after pending ops are written`() =
+		runTest {
+			val transport = RecordingTransport(coroutineContext)
+			val engine =
+				engine(
+					serializer = BatchingSerializer(),
+					transportFactory = RecordingTransportFactory(transport),
+					scope = this,
+				)
+
+			engine.start()
+			val handshakeFlushes = transport.flushCount
+
+			engine.send(
+				ClientOperation.PubOp(
+					subject = "test",
+					replyTo = null,
+					payload = "data".encodeToByteArray(),
+				),
+			)
 			engine.flush()
 			runCurrent()
 
-			assertEquals(handshakeFlushes + 1, transport.flushCount, "explicit flush should trigger write")
+			assertTrue(transport.flushCount > handshakeFlushes, "flush should suspend until the op is on the wire")
 
 			engine.close()
-		}
-
-	@Test
-	fun `writer flushes after time interval expires`() =
-		runTest {
-			val transport = RecordingTransport(coroutineContext)
-			val engine =
-				engine(
-					serializer = BatchingSerializer(),
-					transportFactory = RecordingTransportFactory(transport),
-					scope = this,
-					writeFlushIntervalMs = 50,
-				)
-
-			engine.start()
-			val handshakeFlushes = transport.flushCount
-
-			engine.send(
-				ClientOperation.PubOp(
-					subject = "test",
-					replyTo = null,
-					payload = "data".encodeToByteArray(),
-				),
-			)
-
-			advanceTimeBy(60)
-			runCurrent()
-
-			assertTrue(
-				transport.flushCount > handshakeFlushes,
-				"flush should occur after time interval expires",
-			)
-
-			engine.close()
-		}
-
-	@Test
-	fun `writer immediately flushes when interval is zero`() =
-		runTest {
-			val transport = RecordingTransport(coroutineContext)
-			val engine =
-				engine(
-					serializer = BatchingSerializer(),
-					transportFactory = RecordingTransportFactory(transport),
-					scope = this,
-					writeFlushIntervalMs = 0,
-				)
-
-			engine.start()
-			val handshakeFlushes = transport.flushCount
-
-			engine.send(
-				ClientOperation.PubOp(
-					subject = "test",
-					replyTo = null,
-					payload = "data".encodeToByteArray(),
-				),
-			)
-			runCurrent()
-
-			assertEquals(handshakeFlushes + 1, transport.flushCount, "should flush immediately when interval is 0")
-
-			engine.close()
-		}
-
-	@Test
-	fun `writer batches multiple operations in single flush`() =
-		runTest {
-			val transport = RecordingTransport(coroutineContext)
-			val engine =
-				engine(
-					serializer = BatchingSerializer(),
-					transportFactory = RecordingTransportFactory(transport),
-					scope = this,
-					writeFlushIntervalMs = Long.MAX_VALUE,
-				)
-
-			engine.start()
-			val handshakeFlushes = transport.flushCount
-
-			engine.send(
-				ClientOperation.PubOp(
-					subject = "s1",
-					replyTo = null,
-					payload = "a".encodeToByteArray(),
-				),
-			)
-			engine.send(
-				ClientOperation.PubOp(
-					subject = "s2",
-					replyTo = null,
-					payload = "b".encodeToByteArray(),
-				),
-			)
-			runCurrent()
-
-			assertEquals(handshakeFlushes, transport.flushCount, "flush should not run per op")
-
-			engine.close()
-			runCurrent()
-
-			val payloadWrites = transport.writes.lastOrNull() ?: error("expected buffered writes")
-			assertContentEquals("PUB s1 1\r\na\r\nPUB s2 1\r\nb\r\n".encodeToByteArray(), payloadWrites)
-			assertEquals(handshakeFlushes + 1, transport.flushCount, "close should flush pending buffer once")
 		}
 
 	private fun engine(
@@ -261,7 +177,6 @@ class WriterJobTest {
 		transportFactory: TransportFactory,
 		scope: CoroutineScope,
 		writeBufferLimitBytes: Int = 1024,
-		writeFlushIntervalMs: Long = 10_000,
 		operationBufferCapacity: Int = 32,
 	): ProtocolEngineImpl =
 		ProtocolEngineImpl(
@@ -279,7 +194,6 @@ class WriterJobTest {
 			supportUtf8Subjects = false,
 			operationBufferCapacity = operationBufferCapacity,
 			writeBufferLimitBytes = writeBufferLimitBytes,
-			writeFlushIntervalMs = writeFlushIntervalMs,
 			scope = scope,
 		)
 

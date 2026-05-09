@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 public class ClientConfigurationBuilder internal constructor() {
@@ -102,15 +101,6 @@ public class ClientConfigurationBuilder internal constructor() {
 	 * while awaiting a flush to the network.
 	 */
 	public var writeBufferLimitBytes: Int = 64 * 1024
-
-	/**
-	 * Automatically flush the write buffer at this interval, even if it is not full.
-	 *
-	 * This sets the write latency ceiling.
-	 *
-	 * Can be set to [Duration.ZERO] to immediately flush every message in full when it is published.
-	 */
-	public var writeFlushInterval: Duration = 5.milliseconds
 
 	/**
 	 * Set a limit on the maximum number of parallel requests.
@@ -215,7 +205,6 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		maxPayloadBytes = maxPayloadBytes,
 		operationBufferCapacity = operationBufferCapacity,
 		writeBufferLimitBytes = writeBufferLimitBytes,
-		writeFlushIntervalMs = writeFlushInterval.inWholeMilliseconds,
 		tlsRequired = tls,
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,

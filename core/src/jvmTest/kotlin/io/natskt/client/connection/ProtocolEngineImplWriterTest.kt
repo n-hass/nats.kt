@@ -33,7 +33,7 @@ import kotlin.test.fail
 
 class ProtocolEngineImplWriterTest {
 	@Test
-	fun `writer batches ops until flush`() =
+	fun `writer batches drained ops into a single flush`() =
 		runTest {
 			val transport = RecordingTransport(coroutineContext)
 			val engine =
@@ -62,14 +62,11 @@ class ProtocolEngineImplWriterTest {
 			)
 			runCurrent()
 
-			assertEquals(handshakeFlushes, transport.flushCount, "flush should not run per op")
-
-			engine.close()
-			runCurrent()
-
+			assertEquals(handshakeFlushes + 1, transport.flushCount, "drain should produce a single flush")
 			val payloadWrites = transport.writes.lastOrNull() ?: fail("expected buffered writes")
 			assertContentEquals("PUB s1 1\r\na\r\nPUB s2 1\r\nb\r\n".encodeToByteArray(), payloadWrites)
-			assertEquals(handshakeFlushes + 1, transport.flushCount, "close should flush pending buffer once")
+
+			engine.close()
 		}
 
 	@Test
@@ -114,7 +111,6 @@ class ProtocolEngineImplWriterTest {
 			supportUtf8Subjects = false,
 			operationBufferCapacity = 32,
 			writeBufferLimitBytes = writeBufferLimitBytes,
-			writeFlushIntervalMs = 10_000,
 			scope = scope,
 		)
 

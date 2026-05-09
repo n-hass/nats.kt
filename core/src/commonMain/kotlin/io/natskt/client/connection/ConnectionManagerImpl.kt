@@ -76,7 +76,6 @@ internal class ConnectionManagerImpl(
 							supportUtf8Subjects = config.supportUtf8Subjects,
 							operationBufferCapacity = config.operationBufferCapacity,
 							writeBufferLimitBytes = config.writeBufferLimitBytes,
-							writeFlushIntervalMs = config.writeFlushIntervalMs,
 							scope = config.scope,
 						),
 					)

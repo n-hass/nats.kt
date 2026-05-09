@@ -18,7 +18,6 @@ internal data class ClientConfiguration(
 	val maxPayloadBytes: Int,
 	val operationBufferCapacity: Int,
 	val writeBufferLimitBytes: Int,
-	val writeFlushIntervalMs: Long,
 	val tlsRequired: Boolean,
 	val maxParallelRequests: Int?,
 	val noResponders: Boolean,
