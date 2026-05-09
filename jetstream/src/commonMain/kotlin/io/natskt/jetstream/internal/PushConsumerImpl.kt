@@ -3,7 +3,6 @@ package io.natskt.jetstream.internal
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.api.JetStreamMessage
-import io.natskt.api.Message
 import io.natskt.api.NatsClient
 import io.natskt.api.Subscription
 import io.natskt.api.internal.InternalNatsApi
@@ -26,9 +25,6 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
-
-private const val HEARTBEAT_STATUS = 100
-private const val STALLED_HEADER = "Nats-Consumer-Stalled"
 
 private val logger = KotlinLogging.logger { }
 
@@ -63,7 +59,7 @@ internal class PushConsumerImpl(
 					lastActivity = Clock.System.now()
 				}.collect { msg ->
 					when (msg.status) {
-						HEARTBEAT_STATUS -> handleStatus(msg)
+						HEARTBEAT_STATUS -> replyToHeartbeatOrFlowControl(js.client, msg)
 						else -> {
 							if (msg.status == null) {
 								send(wrapJetstreamMessage(msg, js))
@@ -90,16 +86,6 @@ internal class PushConsumerImpl(
 				// ignore if this runs on a closed connection
 			} catch (_: ClosedSendChannelException) {
 				// ignore if this runs on a closed connection
-			}
-		}
-	}
-
-	private suspend fun handleStatus(message: Message) {
-		if (message.replyTo != null) {
-			js.client.publish(message.replyTo!!.raw, null)
-		} else if (message.headers?.get(STALLED_HEADER) != null) {
-			message.headers?.get(STALLED_HEADER)?.firstOrNull()?.let {
-				js.client.publish(it, null)
 			}
 		}
 	}
