@@ -441,4 +441,99 @@ class OperationSerializerImplTest {
 			val hm = op as? IncomingCoreMessage ?: fail("Expected HMsgOp")
 			assertEquals(404, hm.status)
 		}
+
+	@Test
+	fun `parses status description from HMSG preamble - two word description`() =
+		runTest {
+			val headerBlock = "NATS/1.0 404 No Messages\r\n\r\n"
+			val hdrLen = headerBlock.toByteArray().size
+			val ch =
+				channelOf(
+					b("HMSG inbox.test 1 $hdrLen $hdrLen\r\n"),
+					b(headerBlock),
+					b("\r\n"),
+				)
+
+			val op = newSerializer().parse(ch)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected IncomingCoreMessage")
+			assertEquals(404, hm.status)
+			assertEquals("No Messages", hm.statusDescription)
+		}
+
+	@Test
+	fun `parses status description from HMSG preamble - multi word`() =
+		runTest {
+			val headerBlock = "NATS/1.0 409 Consumer Deleted\r\n\r\n"
+			val hdrLen = headerBlock.toByteArray().size
+			val ch =
+				channelOf(
+					b("HMSG inbox.test 1 $hdrLen $hdrLen\r\n"),
+					b(headerBlock),
+					b("\r\n"),
+				)
+
+			val op = newSerializer().parse(ch)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected IncomingCoreMessage")
+			assertEquals(409, hm.status)
+			assertEquals("Consumer Deleted", hm.statusDescription)
+		}
+
+	@Test
+	fun `statusDescription is null when preamble has status code but no description`() =
+		runTest {
+			// "NATS/1.0 503" with no trailing text
+			val headerBlock = "NATS/1.0 503\r\n\r\n"
+			val hdrLen = headerBlock.toByteArray().size
+			val ch =
+				channelOf(
+					b("HMSG inbox.test 1 $hdrLen $hdrLen\r\n"),
+					b(headerBlock),
+					b("\r\n"),
+				)
+
+			val op = newSerializer().parse(ch)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected IncomingCoreMessage")
+			assertEquals(503, hm.status)
+			assertNull(hm.statusDescription)
+		}
+
+	@Test
+	fun `statusDescription is null when HMSG has no status line`() =
+		runTest {
+			val headerBlock = "NATS/1.0\r\nHeader: Value\r\n\r\n"
+			val payload = "data"
+			val hdrLen = headerBlock.toByteArray().size
+			val total = hdrLen + payload.length
+			val ch =
+				channelOf(
+					b("HMSG s 1 $hdrLen $total\r\n"),
+					b(headerBlock),
+					b(payload),
+					b("\r\n"),
+				)
+
+			val op = newSerializer().parse(ch)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected IncomingCoreMessage")
+			assertNull(hm.status)
+			assertNull(hm.statusDescription)
+		}
+
+	@Test
+	fun `parses status description from HMSG with reply-to subject`() =
+		runTest {
+			val headerBlock = "NATS/1.0 408 Request Timeout\r\nNats-Pending-Messages: 1\r\n\r\n"
+			val hdrLen = headerBlock.toByteArray().size
+			val ch =
+				channelOf(
+					b("HMSG subject 5 inbox.reply $hdrLen $hdrLen\r\n"),
+					b(headerBlock),
+					b("\r\n"),
+				)
+
+			val op = newSerializer().parse(ch)
+			val hm = op as? IncomingCoreMessage ?: fail("Expected IncomingCoreMessage")
+			assertEquals(408, hm.status)
+			assertEquals("Request Timeout", hm.statusDescription)
+			assertEquals("inbox.reply", hm.replyTo?.raw)
+		}
 }

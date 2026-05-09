@@ -8,6 +8,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private class RecordingTransportFactory : TransportFactory {
 	override suspend fun connect(
@@ -70,5 +73,47 @@ class ClientConfigurationBuilderTest {
 				}.build()
 
 		assertSame(customTransport, config.transportFactory)
+	}
+
+	@Test
+	fun `writeFlushInterval defaults to 5 milliseconds`() {
+		val builder = ClientConfigurationBuilder()
+		assertEquals(5.milliseconds, builder.writeFlushInterval)
+	}
+
+	@Test
+	fun `writeFlushInterval is converted to milliseconds in built configuration`() {
+		val config =
+			ClientConfigurationBuilder()
+				.apply {
+					server = "nats://localhost:4222"
+					writeFlushInterval = 20.milliseconds
+				}.build()
+
+		assertEquals(20L, config.writeFlushIntervalMs)
+	}
+
+	@Test
+	fun `writeFlushInterval of zero produces zero milliseconds`() {
+		val config =
+			ClientConfigurationBuilder()
+				.apply {
+					server = "nats://localhost:4222"
+					writeFlushInterval = Duration.ZERO
+				}.build()
+
+		assertEquals(0L, config.writeFlushIntervalMs)
+	}
+
+	@Test
+	fun `writeFlushInterval of one second produces 1000 milliseconds`() {
+		val config =
+			ClientConfigurationBuilder()
+				.apply {
+					server = "nats://localhost:4222"
+					writeFlushInterval = 1.seconds
+				}.build()
+
+		assertEquals(1000L, config.writeFlushIntervalMs)
 	}
 }
