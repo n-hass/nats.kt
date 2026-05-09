@@ -394,4 +394,103 @@ class ObjectStoreIntegrationTest {
 				store.close()
 			}
 		}
+
+	@Test
+	fun `update modifies an existing bucket's mutable config`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket = bucketName("OSUpdate")
+				js.objectStoreManager
+					.create {
+						name = bucket
+						description = "before"
+						maxBytes = 1_000_000
+					}.close()
+
+				val updated =
+					js.objectStoreManager.update {
+						name = bucket
+						description = "after"
+						maxBytes = 2_000_000
+					}
+				assertEquals("after", updated.config!!.description)
+				assertEquals(2_000_000L, updated.config!!.maxBytes)
+				updated.close()
+			}
+		}
+
+	@Test
+	fun `update rejects an unknown bucket`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				assertFailsWith<JetStreamApiException> {
+					js.objectStoreManager.update {
+						name = bucketName("OSUpdateMissing")
+					}
+				}
+			}
+		}
+
+	@Test
+	fun `delete removes a bucket`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucket = bucketName("OSDelete")
+				js.objectStoreManager
+					.create {
+						name = bucket
+					}.close()
+
+				assertTrue(js.objectStoreManager.delete(bucket))
+				assertFailsWith<JetStreamApiException> {
+					js.objectStoreManager.get(bucket)
+				}
+			}
+		}
+
+	@Test
+	fun `delete rejects an unknown bucket`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				assertFailsWith<JetStreamApiException> {
+					js.objectStoreManager.delete(bucketName("OSDeleteMissing"))
+				}
+			}
+		}
+
+	@Test
+	fun `names lists every bucket without the OBJ_ prefix`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val a = bucketName("OSNamesA")
+				val b = bucketName("OSNamesB")
+				js.objectStoreManager.create { name = a }.close()
+				js.objectStoreManager.create { name = b }.close()
+
+				val names = js.objectStoreManager.names()
+				assertTrue(a in names, "expected $a in $names")
+				assertTrue(b in names, "expected $b in $names")
+				assertTrue(names.none { it.startsWith("OBJ_") }, "names must be unprefixed: $names")
+			}
+		}
+
+	@Test
+	fun `list returns statuses for every bucket`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val a = bucketName("OSListA")
+				val b = bucketName("OSListB")
+				js.objectStoreManager.create { name = a }.close()
+				js.objectStoreManager
+					.create {
+						name = b
+						description = "second"
+					}.close()
+
+				val statuses = js.objectStoreManager.list().associateBy { it.bucket }
+				assertNotNull(statuses[a])
+				val bStatus = assertNotNull(statuses[b])
+				assertEquals("second", bStatus.description)
+			}
+		}
 }
