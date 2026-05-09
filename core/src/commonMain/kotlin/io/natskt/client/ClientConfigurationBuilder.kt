@@ -129,8 +129,11 @@ public class ClientConfigurationBuilder internal constructor() {
 	 * When enabled, the server will send a status 503 response on a request
 	 * when no subscribers are available to handle it, instead of letting the
 	 * request time out.
+	 *
+	 * Defaults to `true` to match the behavior of other NATS clients. Set to
+	 * `false` to disable for legacy compatibility.
 	 */
-	public var noResponders: Boolean = false
+	public var noResponders: Boolean = true
 
 	/**
 	 * When enabled, the server will echo messages published by this client

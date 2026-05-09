@@ -71,7 +71,11 @@ class NatsClientIntegrationTest {
 	@Test
 	fun `client request engages inbox lifecycle`() =
 		RemoteNatsHarness.runBlocking { server ->
-			val client = NatsClient { this.server = server.uri } as NatsClientImpl
+			val client =
+				NatsClient {
+					this.server = server.uri
+					noResponders = false
+				} as NatsClientImpl
 
 			try {
 				val connectResult = client.connect()
