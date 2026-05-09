@@ -124,13 +124,15 @@ internal class OperationSerializerImpl(
 								require(c == CR_BYTE && l == LF_BYTE) { "malformed HMSG terminator" }
 								null
 							}
+						val statusLine = parseStatusLine(hdrString)
 						IncomingCoreMessage(
 							sid = sid,
 							subjectString = subject,
 							replyToString = null,
 							headers = parseHeaders(hdrString),
 							data = payload,
-							status = parseStatusCode(hdrString),
+							status = statusLine.code,
+							statusDescription = statusLine.description,
 						)
 					}
 					6 -> {
@@ -160,13 +162,15 @@ internal class OperationSerializerImpl(
 								null
 							}
 
+						val statusLine = parseStatusLine(hdrString)
 						IncomingCoreMessage(
 							sid = sid,
 							subjectString = subject,
 							replyToString = replyTo,
 							headers = parseHeaders(hdrString),
 							data = payload,
-							status = parseStatusCode(hdrString),
+							status = statusLine.code,
+							statusDescription = statusLine.description,
 						)
 					}
 					else -> {
@@ -343,7 +347,12 @@ private suspend fun ByteReadChannel.readExact(n: Int): ByteArray {
 	return out
 }
 
-private fun parseStatusCode(s: String): Int? {
+private data class StatusLine(
+	val code: Int?,
+	val description: String?,
+)
+
+private fun parseStatusLine(s: String): StatusLine {
 	require(s.startsWith(HEADER_START)) { "invalid NATS header preamble" }
 	val firstCrlf = s.indexOf(LINE_END)
 	require(firstCrlf >= HEADER_START.length) { "invalid NATS header preamble" }
@@ -352,10 +361,16 @@ private fun parseStatusCode(s: String): Int? {
 	// Check if there's a status code after "NATS/1.0"
 	if (firstLine.length > HEADER_START.length && firstLine[HEADER_START.length] == ' ') {
 		val statusPart = firstLine.substring(HEADER_START.length + 1).trim()
-		val statusCode = statusPart.split(' ').firstOrNull()?.toIntOrNull()
-		return statusCode
+		val firstSpace = statusPart.indexOf(' ')
+		return if (firstSpace > 0) {
+			val code = statusPart.substring(0, firstSpace).toIntOrNull()
+			val desc = statusPart.substring(firstSpace + 1).trim().takeIf { it.isNotEmpty() }
+			StatusLine(code, desc)
+		} else {
+			StatusLine(statusPart.toIntOrNull(), null)
+		}
 	}
-	return null
+	return StatusLine(null, null)
 }
 
 private fun headersSize(headers: Map<String, List<String>>?): Int {

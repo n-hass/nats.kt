@@ -22,7 +22,6 @@ public fun SubjectToken.Companion.from(s: String): SubjectToken {
  * Returns `true` if [s] is not a valid token (single subject token, stream name,
  * consumer name, or KV bucket name).
  *
- * Mirrors nats.go's `validateStreamName` / `validateConsumerName`: rejects
  * `>`, `*`, `.`, ` ` (space), `/`, `\`, plus tab/CR/LF for safety.
  *
  * Empty strings are also invalid.

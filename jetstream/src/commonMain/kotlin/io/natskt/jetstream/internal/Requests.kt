@@ -11,6 +11,9 @@ import io.natskt.jetstream.api.ConsumerListResponse
 import io.natskt.jetstream.api.ConsumerNamesResponse
 import io.natskt.jetstream.api.ConsumerPauseRequest
 import io.natskt.jetstream.api.ConsumerPauseResponse
+import io.natskt.jetstream.api.ConsumerResetRequest
+import io.natskt.jetstream.api.ConsumerUnpinRequest
+import io.natskt.jetstream.api.ConsumerUnpinResponse
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamUnknownResponseException
 import io.natskt.jetstream.api.MessageDeleteRequest
@@ -43,6 +46,8 @@ internal const val CONSUMER_CREATE = "CONSUMER.CREATE."
 internal const val CONSUMER_INFO = "CONSUMER.INFO."
 internal const val CONSUMER_DELETE = "CONSUMER.DELETE."
 internal const val CONSUMER_PAUSE = "CONSUMER.PAUSE."
+internal const val CONSUMER_RESET = "CONSUMER.RESET."
+internal const val CONSUMER_UNPIN = "CONSUMER.UNPIN."
 internal const val CONSUMER_LIST = "CONSUMER.LIST."
 internal const val CONSUMER_NAMES = "CONSUMER.NAMES."
 internal const val MSG_GET = "STREAM.MSG.GET."
@@ -383,6 +388,39 @@ internal suspend fun CanRequest.resumeConsumer(
 	val payload = wireJsonFormat.encodeToString(ConsumerPauseRequest(null))
 	return when (val data = request(subject, payload).decode<ConsumerPauseResponse>()) {
 		is ConsumerPauseResponse -> Result.success(!data.paused)
+		is ApiError -> Result.failure(JetStreamApiException(data))
+		else -> Result.failure(JetStreamUnknownResponseException(data))
+	}
+}
+
+internal suspend fun CanRequest.resetConsumer(
+	streamName: String,
+	consumerName: String,
+	sequence: ULong?,
+): Result<ConsumerInfo> {
+	val subject = context.config.apiPrefix + CONSUMER_RESET + streamName + "." + consumerName
+	val payload =
+		if (sequence != null) {
+			wireJsonFormat.encodeToString(ConsumerResetRequest(sequence))
+		} else {
+			null
+		}
+	return when (val data = request(subject, payload).decode<ConsumerInfo>()) {
+		is ConsumerInfo -> Result.success(data)
+		is ApiError -> Result.failure(JetStreamApiException(data))
+		else -> Result.failure(JetStreamUnknownResponseException(data))
+	}
+}
+
+internal suspend fun CanRequest.unpinConsumer(
+	streamName: String,
+	consumerName: String,
+	group: String,
+): Result<Boolean> {
+	val subject = context.config.apiPrefix + CONSUMER_UNPIN + streamName + "." + consumerName
+	val payload = wireJsonFormat.encodeToString(ConsumerUnpinRequest(group))
+	return when (val data = request(subject, payload).decode<ConsumerUnpinResponse>()) {
+		is ConsumerUnpinResponse -> Result.success(data.success)
 		is ApiError -> Result.failure(JetStreamApiException(data))
 		else -> Result.failure(JetStreamUnknownResponseException(data))
 	}

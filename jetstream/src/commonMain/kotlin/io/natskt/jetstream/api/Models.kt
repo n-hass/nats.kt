@@ -206,6 +206,24 @@ public data class StreamAlternate(
 )
 
 @Serializable
+public enum class PersistMode {
+	@SerialName("async")
+	Async,
+
+	@SerialName("sync")
+	Sync,
+}
+
+@Serializable
+public data class StreamConsumerLimits(
+	@SerialName("inactive_threshold")
+	@Serializable(with = DurationNanosSerializer::class)
+	val inactiveThreshold: Duration? = null,
+	@SerialName("max_ack_pending")
+	val maxAckPending: Int? = null,
+)
+
+@Serializable
 public data class StreamConfig(
 	val name: String,
 	val description: String? = null,
@@ -261,6 +279,22 @@ public data class StreamConfig(
 	@Serializable(with = DurationNanosSerializer::class)
 	val subjectDeleteMarkerTtl: Duration? = null,
 	val metadata: Map<String, String>? = null,
+	@SerialName("first_seq")
+	val firstSequence: ULong? = null,
+	@SerialName("allow_atomic")
+	val allowAtomicPublish: Boolean? = null,
+	@SerialName("allow_msg_schedules")
+	val allowMessageSchedules: Boolean? = null,
+	@SerialName("allow_msg_counter")
+	val allowMessageCounter: Boolean? = null,
+	@SerialName("allow_batched")
+	val allowBatched: Boolean? = null,
+	@SerialName("persist_mode")
+	val persistMode: PersistMode? = null,
+	@SerialName("consumer_limits")
+	val consumerLimits: StreamConsumerLimits? = null,
+	@SerialName("subject_transforms")
+	val subjectTransforms: List<SubjectTransform>? = null,
 )
 
 @Serializable
@@ -394,9 +428,22 @@ public enum class ReplayPolicy {
 }
 
 @Serializable
+public enum class PriorityPolicy {
+	@SerialName("none")
+	None,
+
+	@SerialName("overflow")
+	Overflow,
+
+	@SerialName("pinned_client")
+	PinnedClient,
+}
+
+@Serializable
 public data class ConsumerConfig(
 	@SerialName("durable_name")
 	val durableName: String? = null,
+	val name: String? = null,
 	val description: String? = null,
 	@SerialName("deliver_subject")
 	val deliverSubject: String? = null,
@@ -462,6 +509,15 @@ public data class ConsumerConfig(
 	val maxRequestMaxBytes: Long? = null,
 	@SerialName("deliver_metrics")
 	val deliverMetrics: Boolean? = null,
+	@SerialName("pause_until")
+	val pauseUntil: Instant? = null,
+	@SerialName("priority_policy")
+	val priorityPolicy: PriorityPolicy? = null,
+	@SerialName("priority_groups")
+	val priorityGroups: List<String>? = null,
+	@SerialName("priority_timeout")
+	@Serializable(with = DurationNanosSerializer::class)
+	val priorityTimeout: Duration? = null,
 )
 
 @Serializable
@@ -538,6 +594,11 @@ public data class ConsumerPullRequest(
 	val maxBytes: Int? = null,
 	@SerialName("idle_heartbeat")
 	val idleHeartbeat: Long? = null,
+	val group: String? = null,
+	@SerialName("min_pending")
+	val minPending: Long? = null,
+	@SerialName("min_ack_pending")
+	val minAckPending: Long? = null,
 )
 
 @Serializable
@@ -559,6 +620,8 @@ public data class MessageGetRequest(
 	public val lastFor: String? = null,
 	@SerialName("next_by_subj")
 	public val nextFor: String? = null,
+	@SerialName("start_time")
+	public val startTime: String? = null,
 )
 
 @Serializable
@@ -668,6 +731,23 @@ public data class ConsumerPauseRequest(
 	@SerialName("pause_until")
 	public val pauseUntil: Instant?,
 )
+
+@Serializable
+public data class ConsumerResetRequest(
+	@SerialName("seq")
+	public val sequence: ULong? = null,
+)
+
+@Serializable
+public data class ConsumerUnpinRequest(
+	public val group: String,
+)
+
+@Serializable
+public data class ConsumerUnpinResponse(
+	public val type: String? = null,
+	public val success: Boolean = false,
+) : JetStreamApiResponse
 
 @Serializable
 public data class ConsumerPauseResponse(

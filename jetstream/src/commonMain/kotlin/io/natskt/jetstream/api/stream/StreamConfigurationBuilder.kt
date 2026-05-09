@@ -2,10 +2,12 @@ package io.natskt.jetstream.api.stream
 
 import io.natskt.jetstream.api.DiscardPolicy
 import io.natskt.jetstream.api.ExternalStream
+import io.natskt.jetstream.api.PersistMode
 import io.natskt.jetstream.api.RetentionPolicy
 import io.natskt.jetstream.api.StorageType
 import io.natskt.jetstream.api.StreamCompression
 import io.natskt.jetstream.api.StreamConfig
+import io.natskt.jetstream.api.StreamConsumerLimits
 import io.natskt.jetstream.api.StreamPlacement
 import io.natskt.jetstream.api.StreamRepublish
 import io.natskt.jetstream.api.StreamSource
@@ -137,6 +139,18 @@ internal fun StreamRepublishBuilder.build(): StreamRepublish {
 }
 
 @JetStreamDsl
+public class StreamConsumerLimitsBuilder internal constructor() {
+	public var inactiveThreshold: Duration? = null
+	public var maxAckPending: Int? = null
+}
+
+internal fun StreamConsumerLimitsBuilder.build(): StreamConsumerLimits =
+	StreamConsumerLimits(
+		inactiveThreshold = this.inactiveThreshold,
+		maxAckPending = this.maxAckPending,
+	)
+
+@JetStreamDsl
 public class StreamConfigurationBuilder internal constructor() {
 	public var name: String? = null
 	public var description: String? = null
@@ -167,6 +181,16 @@ public class StreamConfigurationBuilder internal constructor() {
 	public var sealed: Boolean? = null
 	public var compression: StreamCompression? = null
 	public var metadata: MutableMap<String, String>? = null
+	public var firstSequence: ULong? = null
+	public var allowMessageTtl: Boolean? = null
+	public var subjectDeleteMarkerTtl: Duration? = null
+	public var allowAtomicPublish: Boolean? = null
+	public var allowMessageSchedules: Boolean? = null
+	public var allowMessageCounter: Boolean? = null
+	public var allowBatched: Boolean? = null
+	public var persistMode: PersistMode? = null
+	public var consumerLimits: StreamConsumerLimits? = null
+	public var subjectTransforms: MutableList<SubjectTransform>? = null
 
 	public fun subject(subject: String) {
 		if (subjects == null) {
@@ -193,6 +217,17 @@ public class StreamConfigurationBuilder internal constructor() {
 
 	public fun republish(builder: StreamRepublishBuilder.() -> Unit) {
 		republish = StreamRepublishBuilder().apply(builder).build()
+	}
+
+	public fun consumerLimits(builder: StreamConsumerLimitsBuilder.() -> Unit) {
+		consumerLimits = StreamConsumerLimitsBuilder().apply(builder).build()
+	}
+
+	public fun subjectTransform(builder: SubjectTransformBuilder.() -> Unit) {
+		if (subjectTransforms == null) {
+			subjectTransforms = mutableListOf()
+		}
+		subjectTransforms!!.add(SubjectTransformBuilder().apply(builder).build())
 	}
 }
 
@@ -225,10 +260,20 @@ internal fun StreamConfigurationBuilder.build(): StreamConfig {
 		denyDelete = this.denyDelete,
 		denyPurge = this.denyPurge,
 		allowDirect = this.allowDirect,
+		allowMessageTtl = this.allowMessageTtl,
 		mirrorDirect = this.mirrorDirect,
 		republish = this.republish,
 		sealed = this.sealed,
 		compression = this.compression,
+		subjectDeleteMarkerTtl = this.subjectDeleteMarkerTtl,
 		metadata = this.metadata?.toMap(),
+		firstSequence = this.firstSequence,
+		allowAtomicPublish = this.allowAtomicPublish,
+		allowMessageSchedules = this.allowMessageSchedules,
+		allowMessageCounter = this.allowMessageCounter,
+		allowBatched = this.allowBatched,
+		persistMode = this.persistMode,
+		consumerLimits = this.consumerLimits,
+		subjectTransforms = this.subjectTransforms?.toList(),
 	)
 }

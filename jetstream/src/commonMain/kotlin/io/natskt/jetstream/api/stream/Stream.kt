@@ -8,6 +8,7 @@ import io.natskt.jetstream.api.consumer.ConsumerConfigurationBuilder
 import io.natskt.jetstream.api.consumer.PullConsumer
 import io.natskt.jetstream.api.consumer.PushConsumer
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.time.Instant
 
 public interface Stream {
 	/**
@@ -88,6 +89,24 @@ public interface Stream {
 	public suspend fun getNextMessage(
 		sequence: ULong,
 		subject: String,
+	): StoredMessage
+
+	/**
+	 * Get the first message stored on the given subject.
+	 * @param subject the subject (wildcards allowed)
+	 * @return message information
+	 */
+	public suspend fun getFirstMessage(subject: String): StoredMessage
+
+	/**
+	 * Get the first message stored on or after [startTime], optionally constrained to [subject].
+	 * @param startTime the lower bound timestamp
+	 * @param subject optional subject filter (wildcards allowed)
+	 * @return message information
+	 */
+	public suspend fun getFirstMessage(
+		startTime: Instant,
+		subject: String? = null,
 	): StoredMessage
 
 	/**

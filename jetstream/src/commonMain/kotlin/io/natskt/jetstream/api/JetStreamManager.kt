@@ -152,6 +152,30 @@ public interface JetStreamManager {
 	): Boolean
 
 	/**
+	 * Reset a consumer's delivery position. With [sequence], the consumer resumes
+	 * from that point; without it, resets to the start.
+	 *
+	 * Requires NATS server ≥ 2.11.
+	 */
+	public suspend fun resetConsumer(
+		streamName: String,
+		consumerName: String,
+		sequence: ULong? = null,
+	): ConsumerInfo
+
+	/**
+	 * Release a pinned-client consumer's lease for the named priority [group],
+	 * letting another client in the group take over.
+	 *
+	 * Requires NATS server ≥ 2.11.
+	 */
+	public suspend fun unpinConsumer(
+		streamName: String,
+		consumerName: String,
+		group: String,
+	): Boolean
+
+	/**
 	 * Gets the info for an existing consumer.
 	 * @param streamName the stream name
 	 * @param consumerName the consumer name
@@ -230,6 +254,34 @@ public interface JetStreamManager {
 		sequence: ULong,
 		subject: String,
 		direct: Boolean = true,
+	): StoredMessage
+
+	/**
+	 * Get the first message stored on the given subject.
+	 * @param streamName the stream name
+	 * @param subject the subject (wildcards allowed)
+	 * @param direct use the direct-get API, which must be supported by the server
+	 * @return message information
+	 */
+	public suspend fun getFirstMessage(
+		streamName: String,
+		subject: String,
+		direct: Boolean = false,
+	): StoredMessage
+
+	/**
+	 * Get the first message stored on or after [startTime], optionally constrained to [subject].
+	 * @param streamName the stream name
+	 * @param startTime the lower bound timestamp
+	 * @param subject optional subject filter (wildcards allowed)
+	 * @param direct use the direct-get API, which must be supported by the server
+	 * @return message information
+	 */
+	public suspend fun getFirstMessage(
+		streamName: String,
+		startTime: Instant,
+		subject: String? = null,
+		direct: Boolean = false,
 	): StoredMessage
 
 	/**

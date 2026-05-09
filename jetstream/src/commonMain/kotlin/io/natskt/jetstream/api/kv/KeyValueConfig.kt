@@ -30,6 +30,7 @@ public data class KeyValueConfig(
 	val mirror: StreamSource? = null,
 	val sources: List<StreamSource>? = null,
 	val compression: StreamCompression? = null,
+	@SerialName("limit_marker_ttl")
 	@Serializable(with = DurationNanosSerializer::class)
 	val limitMarkerTtl: Duration? = null,
 	val metadata: Map<String, String>? = null,

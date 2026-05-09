@@ -7,6 +7,7 @@ import io.natskt.api.NatsClient
 import io.natskt.api.Subject
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.internal.MessageInternal
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -15,6 +16,10 @@ internal val ACK_ACK = "+ACK".encodeToByteArray()
 internal val ACK_NAK = "-NAK".encodeToByteArray()
 internal val ACK_PROGRESS = "+WPI".encodeToByteArray()
 internal val ACK_TERM = "+TERM".encodeToByteArray()
+
+internal fun nakWithDelayBody(delay: Duration): ByteArray = ("-NAK {\"delay\":" + delay.inWholeNanoseconds + "}").encodeToByteArray()
+
+internal fun termWithReasonBody(reason: String): ByteArray = ("+TERM " + reason).encodeToByteArray()
 
 internal data class IncomingJetStreamMessage(
 	private val original: MessageInternal,
@@ -33,9 +38,26 @@ internal data class IncomingJetStreamMessage(
 		}
 	}
 
+	override suspend fun ackSync(timeout: Duration) {
+		if (original.replyTo != null) {
+			client.request(
+				subject = original.replyTo!!.raw,
+				message = ACK_ACK,
+				timeoutMs = timeout.inWholeMilliseconds,
+			)
+		}
+	}
+
 	override suspend fun nak() {
 		if (original.replyTo != null) {
 			client.publish(original.replyTo!!.raw, ACK_NAK)
+		}
+	}
+
+	override suspend fun nakWithDelay(delay: Duration) {
+		if (original.replyTo != null) {
+			require(delay >= Duration.ZERO) { "nakWithDelay delay must be non-negative" }
+			client.publish(original.replyTo!!.raw, nakWithDelayBody(delay))
 		}
 	}
 
@@ -48,6 +70,14 @@ internal data class IncomingJetStreamMessage(
 	override suspend fun term() {
 		if (original.replyTo != null) {
 			client.publish(original.replyTo!!.raw, ACK_TERM)
+		}
+	}
+
+	override suspend fun term(reason: String) {
+		if (original.replyTo != null) {
+			require('\n' !in reason && '\r' !in reason) { "term reason must not contain newlines" }
+			val body = if (reason.isEmpty()) ACK_TERM else termWithReasonBody(reason)
+			client.publish(original.replyTo!!.raw, body)
 		}
 	}
 

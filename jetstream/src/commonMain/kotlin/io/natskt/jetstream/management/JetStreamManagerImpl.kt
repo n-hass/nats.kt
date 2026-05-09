@@ -35,7 +35,9 @@ import io.natskt.jetstream.internal.getStreamNames
 import io.natskt.jetstream.internal.getStreams
 import io.natskt.jetstream.internal.pauseConsumer
 import io.natskt.jetstream.internal.purgeStream
+import io.natskt.jetstream.internal.resetConsumer
 import io.natskt.jetstream.internal.resumeConsumer
+import io.natskt.jetstream.internal.unpinConsumer
 import io.natskt.jetstream.internal.updateConsumer
 import io.natskt.jetstream.internal.updateStream
 import kotlin.time.Instant
@@ -153,6 +155,27 @@ internal class JetStreamManagerImpl(
 		return js.resumeConsumer(streamName, consumerName).getOrThrow()
 	}
 
+	override suspend fun resetConsumer(
+		streamName: String,
+		consumerName: String,
+		sequence: ULong?,
+	): ConsumerInfo {
+		streamName.throwOnInvalidToken()
+		consumerName.throwOnInvalidToken()
+		return js.resetConsumer(streamName, consumerName, sequence).getOrThrow()
+	}
+
+	override suspend fun unpinConsumer(
+		streamName: String,
+		consumerName: String,
+		group: String,
+	): Boolean {
+		streamName.throwOnInvalidToken()
+		consumerName.throwOnInvalidToken()
+		require(group.isNotBlank()) { "priority group must not be blank" }
+		return js.unpinConsumer(streamName, consumerName, group).getOrThrow()
+	}
+
 	override suspend fun getConsumerInfo(
 		streamName: String,
 		consumerName: String,
@@ -223,6 +246,35 @@ internal class JetStreamManagerImpl(
 	): StoredMessage {
 		streamName.throwOnInvalidToken()
 		val req = MessageGetRequest(seq = sequence, nextFor = subject)
+		return if (direct) {
+			js.getMessageDirect(streamName, req).getOrThrow()
+		} else {
+			js.getMessageInfo(streamName, req).getOrThrow().message
+		}
+	}
+
+	override suspend fun getFirstMessage(
+		streamName: String,
+		subject: String,
+		direct: Boolean,
+	): StoredMessage {
+		streamName.throwOnInvalidToken()
+		val req = MessageGetRequest(seq = 0u, nextFor = subject)
+		return if (direct) {
+			js.getMessageDirect(streamName, req).getOrThrow()
+		} else {
+			js.getMessageInfo(streamName, req).getOrThrow().message
+		}
+	}
+
+	override suspend fun getFirstMessage(
+		streamName: String,
+		startTime: Instant,
+		subject: String?,
+		direct: Boolean,
+	): StoredMessage {
+		streamName.throwOnInvalidToken()
+		val req = MessageGetRequest(startTime = startTime.toString(), nextFor = subject)
 		return if (direct) {
 			js.getMessageDirect(streamName, req).getOrThrow()
 		} else {

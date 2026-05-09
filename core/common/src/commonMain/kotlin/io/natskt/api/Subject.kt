@@ -44,7 +44,6 @@ public fun Subject.Companion.fullyQualified(s: String): Subject {
 /**
  * Returns `true` if [s] is not a valid NATS subject.
  *
- * Mirrors the wire-level validation done by nats.go's `badSubject`:
  * rejects whitespace (space, tab, CR, LF) and any subject that has
  * empty tokens (leading dot, trailing dot, or consecutive dots).
  *
