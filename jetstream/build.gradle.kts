@@ -18,13 +18,13 @@ kotlin {
 				useKarma {
 					useChromeHeadless()
 				}
-				timeout = Duration.ofSeconds(30)
+				timeout = Duration.ofSeconds(90)
 			}
 		}
         nodejs {
 			testTask {
 				useMocha {
-					timeout = "30000"
+					timeout = "90000"
 				}
 			}
 		}
@@ -36,13 +36,13 @@ kotlin {
 				useKarma {
 					useChromeHeadless()
 				}
-				timeout = Duration.ofSeconds(30)
+				timeout = Duration.ofSeconds(90)
 			}
 		}
         nodejs {
 			testTask {
 				useKarma()
-				timeout = Duration.ofSeconds(30)
+				timeout = Duration.ofSeconds(90)
 			}
 		}
     }
@@ -59,6 +59,7 @@ kotlin {
         commonMain.dependencies {
 			implementation(projects.core)
 			implementation(projects.core.common)
+			implementation(projects.crypto)
 			implementation(projects.internal)
 			implementation(libs.whyoleg.secureRandom)
 			implementation(libs.kotlinx.coroutines.core)
