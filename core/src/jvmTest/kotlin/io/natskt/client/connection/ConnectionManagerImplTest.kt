@@ -74,6 +74,7 @@ class ConnectionManagerImplTest {
 				tlsRequired = false,
 				noResponders = true,
 				echo = false,
+				supportUtf8Subjects = false,
 				nuid = NUID.Default,
 				scope = CoroutineScope(EmptyCoroutineContext),
 				maxParallelRequests = null,

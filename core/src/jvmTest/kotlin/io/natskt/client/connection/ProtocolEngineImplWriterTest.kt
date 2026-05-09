@@ -111,6 +111,7 @@ class ProtocolEngineImplWriterTest {
 			tlsRequired = false,
 			noResponders = true,
 			echo = false,
+			supportUtf8Subjects = false,
 			operationBufferCapacity = 32,
 			writeBufferLimitBytes = writeBufferLimitBytes,
 			writeFlushIntervalMs = 10_000,

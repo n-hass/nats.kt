@@ -58,6 +58,7 @@ internal class ProtocolEngineImpl(
 	private val tlsRequired: Boolean,
 	private val noResponders: Boolean,
 	private val echo: Boolean,
+	private val supportUtf8Subjects: Boolean,
 	private val operationBufferCapacity: Int,
 	private val writeBufferLimitBytes: Int,
 	private val writeFlushIntervalMs: Long,
@@ -96,6 +97,7 @@ internal class ProtocolEngineImpl(
 			noResponders = noResponders,
 			headers = true,
 			nkey = auth.nkey,
+			utf8Only = if (supportUtf8Subjects) true else null,
 		)
 	}
 

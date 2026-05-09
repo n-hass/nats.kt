@@ -276,6 +276,7 @@ class WriterJobTest {
 			tlsRequired = false,
 			noResponders = true,
 			echo = false,
+			supportUtf8Subjects = false,
 			operationBufferCapacity = operationBufferCapacity,
 			writeBufferLimitBytes = writeBufferLimitBytes,
 			writeFlushIntervalMs = writeFlushIntervalMs,

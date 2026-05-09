@@ -23,6 +23,7 @@ internal data class ClientConfiguration(
 	val maxParallelRequests: Int?,
 	val noResponders: Boolean,
 	val echo: Boolean,
+	val supportUtf8Subjects: Boolean,
 	val nuid: NUID,
 	val scope: CoroutineScope,
 	val ownsScope: Boolean,

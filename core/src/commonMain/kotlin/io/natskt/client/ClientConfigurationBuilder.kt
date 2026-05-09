@@ -144,6 +144,16 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var echo: Boolean = false
 
 	/**
+	 * Opt in to publishing and subscribing to subjects that contain UTF-8 characters.
+	 *
+	 * Requires a NATS server (>= 2.10) that accepts `utf8_only` in the CONNECT payload.
+	 *
+	 * When enabled, the client tells the server it will use UTF-8 subjects.
+	 * Without this flag, behaviour is unchanged: subjects are treated as ASCII.
+	 */
+	public var supportUtf8Subjects: Boolean = false
+
+	/**
 	 * Tries to connect with TLS first, and forces the server to use TLS.
 	 */
 	public var tlsRequired: Boolean? = null
@@ -210,6 +220,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
 		echo = echo,
+		supportUtf8Subjects = supportUtf8Subjects,
 		nuid = NUID.Default,
 		scope = finalScope,
 		ownsScope = scope == null,
