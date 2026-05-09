@@ -12,7 +12,6 @@ internal const val REQUIRED_API_LEVEL_STATUS: Int = 412
 internal const val PIN_ID_MISMATCH_STATUS: Int = 423
 internal const val NO_RESPONDERS_STATUS: Int = 503
 
-/** nats.go canonical 409 description substring for "Message Size Exceeds MaxBytes". */
 internal const val DESC_EXCEEDS_MAXBYTES: String = "exceeds maxbytes"
 
 internal const val STALLED_HEADER: String = "Nats-Consumer-Stalled"

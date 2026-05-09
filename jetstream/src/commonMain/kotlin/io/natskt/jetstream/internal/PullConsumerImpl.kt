@@ -72,8 +72,7 @@ internal class PullConsumerImpl(
 					// Drop status messages addressed to a previous fetch's replyTo.
 					if (msg.status != null && msg.subject.raw != replyTo) return@takeWhile true
 
-					// Matches nats.go pull.go fetch (lines 943-955): only 408 Timeout/
-					// Interest Expired, 404 NoMessages, and 409 "exceeds maxbytes" are
+					// only 408 Timeout/Interest Expired, 404 NoMessages, and 409 "exceeds maxbytes" are
 					// silent terminations — every other status surfaces as an error.
 					when (val status = msg.status) {
 						null -> {
