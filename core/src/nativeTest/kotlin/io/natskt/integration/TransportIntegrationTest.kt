@@ -8,6 +8,7 @@ import io.natskt.api.NatsClient
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.client.transport.TcpTransport
 import io.natskt.client.transport.WebSocketTransport
+import io.natskt.tls.internal.TlsException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -110,5 +112,6 @@ class TransportIntegrationTest {
 				}
 			val result = client.connect()
 			assertTrue(result.isFailure, "Expected connection to fail with self-signed cert, but it succeeded")
+			assertIs<TlsException>(result.exceptionOrNull())
 		}
 }
