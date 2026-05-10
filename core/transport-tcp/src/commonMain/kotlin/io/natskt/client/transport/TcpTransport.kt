@@ -25,14 +25,17 @@ public class TcpTransport internal constructor(
 			context: CoroutineContext,
 		): Transport {
 			val selectorManager = SelectorManager(context)
-			return TcpTransport(
-				selectorManager,
-				aSocket(selectorManager)
-					.tcp()
-					.connect(address.url.host, address.url.port) { }
-					.connection(),
-				context,
-			)
+			return try {
+				val connection =
+					aSocket(selectorManager)
+						.tcp()
+						.connect(address.url.host, address.url.port) { }
+						.connection()
+				TcpTransport(selectorManager, connection, context)
+			} catch (e: Throwable) {
+				selectorManager.close()
+				throw e
+			}
 		}
 	}
 
@@ -40,9 +43,12 @@ public class TcpTransport internal constructor(
 	override val incoming: ByteReadChannel by inner::input
 
 	override suspend fun close() {
-		inner.socket.close()
-		inner.socket.awaitClosed()
-		selectorManager.close()
+		try {
+			inner.socket.close()
+			inner.socket.awaitClosed()
+		} finally {
+			selectorManager.close()
+		}
 	}
 
 	override suspend fun upgradeTLS(): TcpTransport = TcpTransport(selectorManager, inner.tls(context).connection(), context)
