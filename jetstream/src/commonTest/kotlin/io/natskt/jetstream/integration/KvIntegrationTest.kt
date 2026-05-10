@@ -2,6 +2,8 @@ package io.natskt.jetstream.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.KvKeyNotFoundException
 import io.natskt.jetstream.api.kv.KeyValueEntry
@@ -10,11 +12,13 @@ import io.natskt.jetstream.api.kv.KeyValuePurgeOptions
 import io.natskt.jetstream.api.kv.KeyValueWatchConfig
 import io.natskt.jetstream.api.kv.KeyValueWatchOption
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -717,11 +721,19 @@ class KvIntegrationTest {
 				assertEquals("burns", bucket.get("ephemeral").value.decodeToString())
 
 				// After the TTL plus a margin, the entry should no longer appear in keys().
-				kotlinx.coroutines.delay(1500.milliseconds)
-				assertTrue(
-					"ephemeral" !in bucket.keys(),
-					"ephemeral should age out after the per-key TTL elapses",
-				)
+				withContext(Dispatchers.Default) {
+					eventually(
+						eventuallyConfig {
+							initialDelay = 300.milliseconds
+							duration = 2.seconds
+						},
+					) {
+						assertTrue(
+							"ephemeral" !in bucket.keys(),
+							"ephemeral should age out after the per-key TTL elapses",
+						)
+					}
+				}
 			}
 		}
 
