@@ -13,7 +13,7 @@ private class RecordingTransportFactory : TransportFactory {
 	override suspend fun connect(
 		address: NatsServerAddress,
 		context: CoroutineContext,
-		tlsVerify: Boolean,
+		tlsConfig: TlsConfig,
 	): Transport {
 		error("not used in tests")
 	}

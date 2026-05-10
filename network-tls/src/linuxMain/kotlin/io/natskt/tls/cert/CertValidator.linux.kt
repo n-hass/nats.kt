@@ -12,6 +12,7 @@ import io.natskt.tls.openssl.X509_STORE_CTX_free
 import io.natskt.tls.openssl.X509_STORE_CTX_get_error
 import io.natskt.tls.openssl.X509_STORE_CTX_init
 import io.natskt.tls.openssl.X509_STORE_CTX_new
+import io.natskt.tls.openssl.X509_STORE_add_cert
 import io.natskt.tls.openssl.X509_STORE_free
 import io.natskt.tls.openssl.X509_STORE_new
 import io.natskt.tls.openssl.X509_STORE_set_default_paths
@@ -34,8 +35,28 @@ import kotlinx.cinterop.value
 internal actual fun validateCertificateChain(
 	certs: List<ByteArray>,
 	hostname: String?,
+	trustAnchorsDer: List<ByteArray>,
 ) {
-	validateWithStore(certs, hostname, store = null)
+	if (trustAnchorsDer.isEmpty()) {
+		validateWithStore(certs, hostname, store = null)
+		return
+	}
+
+	val store = X509_STORE_new() ?: throw TlsException("X509_STORE_new failed")
+	val anchorPtrs = mutableListOf<CPointer<X509>>()
+	try {
+		for (anchorDer in trustAnchorsDer) {
+			val anchor = parseDerCert(anchorDer)
+			anchorPtrs += anchor
+			if (X509_STORE_add_cert(store, anchor) != 1) {
+				throw TlsException("Failed to add CA anchor to X509_STORE")
+			}
+		}
+		validateWithStore(certs, hostname, store)
+	} finally {
+		anchorPtrs.forEach { X509_free(it) }
+		X509_STORE_free(store)
+	}
 }
 
 /**

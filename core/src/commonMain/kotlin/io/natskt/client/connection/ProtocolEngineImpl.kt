@@ -16,6 +16,7 @@ import io.natskt.api.internal.OperationSerializer
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.api.toPublicApi
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.TlsConfig
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.ClientOperation
@@ -56,7 +57,7 @@ internal class ProtocolEngineImpl(
 	private val credentials: Credentials?,
 	private val name: String?,
 	private val tlsRequired: Boolean,
-	private val tlsVerify: Boolean,
+	private val tlsConfig: TlsConfig,
 	private val noResponders: Boolean,
 	private val echo: Boolean,
 	private val supportUtf8Subjects: Boolean,
@@ -160,13 +161,27 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connecting }
 		transport =
 			runCatching {
-				transportFactory.connect(address, scope.coroutineContext, tlsVerify)
+				transportFactory.connect(address, scope.coroutineContext, tlsConfig)
 			}.getOrElse {
 				logger.error(it) { "failed to open transport to ${address.url}" }
 				state.update { phase = ConnectionPhase.Failed }
 				closed.complete(CloseReason.IoError(it))
 				return
 			}
+
+		if (tlsConfig.tlsFirst) {
+			logger.trace { "tlsFirst: upgrading connection to TLS before INFO" }
+			transport =
+				runCatching {
+					transport!!.upgradeTLS()
+				}.getOrElse {
+					logger.error(it) { "TLS-first upgrade failed for ${address.url}" }
+					state.update { phase = ConnectionPhase.Failed }
+					runCatching { transport?.close() }
+					closed.complete(CloseReason.IoError(it))
+					return
+				}
+		}
 
 		val info =
 			when (val parsed = parser.parse(transport!!.incoming)) {
@@ -184,7 +199,7 @@ internal class ProtocolEngineImpl(
 			return
 		}
 
-		if ((info.tlsRequired == true) || tlsRequired) {
+		if (!tlsConfig.tlsFirst && ((info.tlsRequired == true) || tlsRequired)) {
 			logger.trace { "upgrading connection to TLS" }
 			transport =
 				runCatching {

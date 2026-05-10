@@ -9,7 +9,15 @@ public suspend fun Connection.nativeTls(
 	block: NativeTlsConfigBuilder.() -> Unit = {},
 ): NativeTlsConnection {
 	val config = NativeTlsConfigBuilder().apply(block)
-	val handshake = TlsHandshake(input, output, config.serverName, coroutineContext, config.verifyCertificates)
+	val handshake =
+		TlsHandshake(
+			rawInput = input,
+			rawOutput = output,
+			serverName = config.serverName,
+			coroutineContext = coroutineContext,
+			verifyCertificates = config.verifyCertificates,
+			trustAnchorsDer = config.trustAnchorsDer,
+		)
 	return try {
 		handshake.negotiate()
 		NativeTlsConnection(handshake)

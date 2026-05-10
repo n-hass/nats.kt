@@ -90,7 +90,7 @@ class TransportIntegrationTest {
 				NatsClient {
 					this.server = server.tlsUri!!
 					transport = TcpTransport
-					tlsVerify = false
+					tls { acceptAnyServerCertificate = true }
 					maxReconnects = 3
 				}.also {
 					it.connect()

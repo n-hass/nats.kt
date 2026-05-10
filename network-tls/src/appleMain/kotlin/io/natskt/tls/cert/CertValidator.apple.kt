@@ -26,12 +26,15 @@ import platform.Security.SecPolicyCreateSSL
 import platform.Security.SecTrustCreateWithCertificates
 import platform.Security.SecTrustEvaluateWithError
 import platform.Security.SecTrustRefVar
+import platform.Security.SecTrustSetAnchorCertificates
+import platform.Security.SecTrustSetAnchorCertificatesOnly
 import platform.Security.errSecSuccess
 import platform.posix.uint8_tVar
 
 internal actual fun validateCertificateChain(
 	certs: List<ByteArray>,
 	hostname: String?,
+	trustAnchorsDer: List<ByteArray>,
 ) {
 	if (certs.isEmpty()) throw TlsException("No certificates to validate")
 
@@ -41,23 +44,28 @@ internal actual fun validateCertificateChain(
 				?: throw TlsException("Failed to create mutable array")
 		val secCerts = mutableListOf<SecCertificateRef>()
 
+		val anchorArray =
+			if (trustAnchorsDer.isEmpty()) {
+				null
+			} else {
+				CFArrayCreateMutable(kCFAllocatorDefault, trustAnchorsDer.size.toLong(), null)
+					?: throw TlsException("Failed to create anchor array")
+			}
+		val anchorCerts = mutableListOf<SecCertificateRef>()
+
 		try {
 			for (certDer in certs) {
-				val pinned = certDer.pin()
-				val cfData =
-					CFDataCreate(
-						kCFAllocatorDefault,
-						pinned.addressOf(0).reinterpret<uint8_tVar>(),
-						certDer.size.toLong(),
-					)
-				pinned.unpin()
-
-				if (cfData == null) throw TlsException("Failed to create CFData")
-				val secCert = SecCertificateCreateWithData(kCFAllocatorDefault, cfData)
-				CFRelease(cfData)
-				if (secCert == null) throw TlsException("Invalid X.509 certificate")
+				val secCert = derToSecCertificate(certDer)
 				secCerts.add(secCert)
 				CFArrayAppendValue(certArray, secCert)
+			}
+
+			if (anchorArray != null) {
+				for (anchorDer in trustAnchorsDer) {
+					val secCert = derToSecCertificate(anchorDer)
+					anchorCerts.add(secCert)
+					CFArrayAppendValue(anchorArray, secCert)
+				}
 			}
 
 			val cfHostname: CFStringRef? =
@@ -78,6 +86,19 @@ internal actual fun validateCertificateChain(
 
 			val trust = trustRef.value ?: throw TlsException("SecTrust is null")
 
+			if (anchorArray != null) {
+				val anchorStatus = SecTrustSetAnchorCertificates(trust, anchorArray)
+				if (anchorStatus != errSecSuccess) {
+					CFRelease(trust)
+					throw TlsException("SecTrustSetAnchorCertificates failed: $anchorStatus")
+				}
+				val onlyStatus = SecTrustSetAnchorCertificatesOnly(trust, true)
+				if (onlyStatus != errSecSuccess) {
+					CFRelease(trust)
+					throw TlsException("SecTrustSetAnchorCertificatesOnly failed: $onlyStatus")
+				}
+			}
+
 			val trusted = SecTrustEvaluateWithError(trust, null)
 			CFRelease(trust)
 
@@ -86,7 +107,25 @@ internal actual fun validateCertificateChain(
 			}
 		} finally {
 			secCerts.forEach { CFRelease(it) }
+			anchorCerts.forEach { CFRelease(it) }
 			CFRelease(certArray)
+			anchorArray?.let { CFRelease(it) }
 		}
 	}
+}
+
+private fun derToSecCertificate(certDer: ByteArray): SecCertificateRef {
+	val pinned = certDer.pin()
+	val cfData =
+		CFDataCreate(
+			kCFAllocatorDefault,
+			pinned.addressOf(0).reinterpret<uint8_tVar>(),
+			certDer.size.toLong(),
+		)
+	pinned.unpin()
+
+	if (cfData == null) throw TlsException("Failed to create CFData")
+	val secCert = SecCertificateCreateWithData(kCFAllocatorDefault, cfData)
+	CFRelease(cfData)
+	return secCert ?: throw TlsException("Invalid X.509 certificate")
 }

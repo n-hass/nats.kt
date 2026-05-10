@@ -46,6 +46,7 @@ internal class TlsHandshake(
 	private val serverName: String?,
 	override val coroutineContext: CoroutineContext,
 	private val verifyCertificates: Boolean = true,
+	private val trustAnchorsDer: List<ByteArray> = emptyList(),
 ) : CoroutineScope {
 	private var digest = TlsDigest()
 	private val clientRandom: ByteArray = generateClientRandom()
@@ -410,7 +411,7 @@ internal class TlsHandshake(
 					TlsHandshakeType.Certificate -> {
 						digest.addHandshakeMessage(msg)
 						val certChain = parseTls13CertificateChain(msg.data)
-						if (verifyCertificates) validateCertificateChain(certChain, serverName)
+						if (verifyCertificates) validateCertificateChain(certChain, serverName, trustAnchorsDer)
 						serverPublicKey = extractPublicKeyFromCertificate(certChain.first())
 					}
 					TlsHandshakeType.CertificateRequest -> {
@@ -586,7 +587,7 @@ internal class TlsHandshake(
 				TlsHandshakeType.Certificate -> {
 					val certs = parseCertificatesDer(msg.data)
 					if (certs.isEmpty()) throw TlsException("No certificate")
-					if (verifyCertificates) validateCertificateChain(certs, serverName)
+					if (verifyCertificates) validateCertificateChain(certs, serverName, trustAnchorsDer)
 					serverPublicKey = extractPublicKeyFromCertificate(certs.first())
 				}
 				TlsHandshakeType.ServerKeyExchange -> {

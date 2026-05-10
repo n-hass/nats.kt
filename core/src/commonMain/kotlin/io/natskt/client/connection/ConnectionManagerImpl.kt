@@ -71,7 +71,7 @@ internal class ConnectionManagerImpl(
 							credentials = config.credentials,
 							name = config.name,
 							tlsRequired = config.tlsRequired,
-							tlsVerify = config.tlsVerify,
+							tlsConfig = config.tlsConfig,
 							noResponders = config.noResponders,
 							echo = config.echo,
 							supportUtf8Subjects = config.supportUtf8Subjects,

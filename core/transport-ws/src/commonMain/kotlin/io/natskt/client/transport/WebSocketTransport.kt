@@ -20,6 +20,7 @@ import io.ktor.utils.io.writer
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.TlsConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.isActive
@@ -48,15 +49,23 @@ public data class WebSocketTransport internal constructor(
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
-			tlsVerify: Boolean,
-		): Transport =
-			WebSocketTransport(
+			tlsConfig: TlsConfig,
+		): Transport {
+			if (tlsConfig.hasCustomTrust || tlsConfig.acceptAnyServerCertificate || tlsConfig.hasClientCertificate) {
+				logger.warn {
+					"WebSocket transport: tls { caCertificates / clientCertificate / acceptAnyServerCertificate } " +
+						"is not applied automatically. Configure TLS on the underlying Ktor HttpClient and pass it to " +
+						"WebSocketTransport.Factory(httpClient)."
+				}
+			}
+			return WebSocketTransport(
 				httpClient,
 				address,
 				httpClient.webSocketSession {
 					url(address.url)
 				},
 			)
+		}
 	}
 
 	private val outgoing =

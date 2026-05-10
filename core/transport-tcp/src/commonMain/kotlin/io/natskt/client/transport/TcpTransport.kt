@@ -9,6 +9,7 @@ import io.ktor.network.sockets.isClosed
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.TlsConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 
@@ -17,14 +18,14 @@ public class TcpTransport internal constructor(
 	internal val context: CoroutineContext,
 	private val selectorManager: SelectorManager,
 	internal val serverName: String? = null,
-	internal val verifyCertificates: Boolean = true,
+	internal val tlsConfig: TlsConfig = TlsConfig.Default,
 ) : Transport,
 	CoroutineScope by inner.socket {
 	public companion object : TransportFactory {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
-			tlsVerify: Boolean,
+			tlsConfig: TlsConfig,
 		): Transport {
 			val selectorManager = SelectorManager(context)
 			return try {
@@ -33,7 +34,13 @@ public class TcpTransport internal constructor(
 						.tcp()
 						.connect(address.url.host, address.url.port) { }
 						.connection()
-				TcpTransport(connection, context, selectorManager, address.url.host, tlsVerify)
+				TcpTransport(
+					connection,
+					context,
+					selectorManager,
+					address.url.host,
+					tlsConfig,
+				)
 			} catch (e: Throwable) {
 				selectorManager.close()
 				throw e
