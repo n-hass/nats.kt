@@ -17,7 +17,7 @@ internal class KeyValueManagerImpl(
 
 		val createdInfo = js.createStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
 
-		return KeyValueBucket(js, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
+		return KeyValueBucketImpl(js, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
 	}
 
 	override suspend fun update(configure: KeyValueConfigurationBuilder.() -> Unit): KeyValueStatus {
@@ -40,7 +40,7 @@ internal class KeyValueManagerImpl(
 
 		val bucketConfig = status.map { it.asKeyValueConfig() }.getOrThrow()
 
-		return KeyValueBucket(js, bucket, bucketStatus, bucketConfig)
+		return KeyValueBucketImpl(js, bucket, bucketStatus, bucketConfig)
 	}
 
 	override suspend fun getStatus(bucket: String): KeyValueStatus = js.getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + bucket).getOrThrow().asKeyValueStatus()

@@ -26,6 +26,7 @@ import io.natskt.jetstream.api.os.ObjectStoreBucket
 import io.natskt.jetstream.api.os.ObjectStoreManager
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.internal.JetStreamContext
+import io.natskt.jetstream.internal.KeyValueBucketImpl
 import io.natskt.jetstream.internal.KeyValueManagerImpl
 import io.natskt.jetstream.internal.ObjectStoreManagerImpl
 import io.natskt.jetstream.internal.PersistentRequestSubscription
@@ -193,7 +194,7 @@ internal class JetStreamClientImpl(
 			null,
 		).also { it.updateStreamInfo() }
 
-	override suspend fun keyValue(bucket: String): KeyValueBucket = KeyValueBucket(this, bucket, null, null)
+	override suspend fun keyValue(bucket: String): KeyValueBucket = KeyValueBucketImpl(this, bucket, null, null)
 
 	override suspend fun objectStore(bucket: String): ObjectStoreBucket = ObjectStoreBucket(this, bucket, null, null)
 

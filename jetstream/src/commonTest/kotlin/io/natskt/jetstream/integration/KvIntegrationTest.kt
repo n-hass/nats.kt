@@ -9,6 +9,8 @@ import io.natskt.jetstream.api.kv.KeyValuePurgeOptions
 import io.natskt.jetstream.api.kv.KeyValueWatchConfig
 import io.natskt.jetstream.api.kv.KeyValueWatchOption
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -38,11 +40,41 @@ class KvIntegrationTest {
 						name = bucketName
 					}
 
-				assertEquals(bucketName, bucket.config!!.bucket)
-				assertEquals(1u, bucket.config!!.history)
-				assertEquals(Duration.ZERO, bucket.config!!.ttl)
-				assertEquals(-1, bucket.config!!.maxValueSize)
-				assertEquals(-1, bucket.config!!.maxBytes)
+				assertEquals(
+					bucketName,
+					bucket.config
+						.filterNotNull()
+						.first()
+						.bucket,
+				)
+				assertEquals(
+					1u,
+					bucket.config
+						.filterNotNull()
+						.first()
+						.history,
+				)
+				assertEquals(
+					Duration.ZERO,
+					bucket.config
+						.filterNotNull()
+						.first()
+						.ttl,
+				)
+				assertEquals(
+					-1,
+					bucket.config
+						.filterNotNull()
+						.first()
+						.maxValueSize,
+				)
+				assertEquals(
+					-1,
+					bucket.config
+						.filterNotNull()
+						.first()
+						.maxBytes,
+				)
 			}
 		}
 
@@ -58,7 +90,7 @@ class KvIntegrationTest {
 
 				val getResult = js.keyValueManager.get(bucketName)
 
-				assertEquals(createResult.config, getResult.config)
+				assertEquals(createResult.config.value, getResult.config.value)
 			}
 		}
 
@@ -374,14 +406,17 @@ class KvIntegrationTest {
 				bucket.put("a", "1".encodeToByteArray())
 				bucket.put("b", "2".encodeToByteArray())
 
+				// Construct the watcher up front so the consumer is created against the current
+				// snapshot. Subsequent puts arrive as live events, not as part of the snapshot.
+				val flow = bucket.watchAll()
+
 				val updates = mutableListOf<KeyValueEntry>()
 				val job =
 					launch {
 						withTimeout(3.seconds) {
-							bucket.watchAll().take(4).collect { updates.add(it) }
+							flow.take(4).collect { updates.add(it) }
 						}
 					}
-				job.start()
 
 				bucket.put("c", "3".encodeToByteArray())
 				bucket.put("a", "1b".encodeToByteArray())
@@ -403,19 +438,20 @@ class KvIntegrationTest {
 						name = bucketName
 					}
 
+				// Set the watcher up before any puts so all events arrive as live updates.
+				val flow = bucket.watch(listOf("a", "c"))
+
 				val seen = mutableListOf<String>()
 				val collector =
 					launch {
 						withTimeout(3.seconds) {
-							bucket.watch(listOf("a", "c")).take(2).collect { seen.add(it.key) }
+							flow.take(2).collect { seen.add(it.key) }
 						}
 					}
-				collector.start()
 
 				bucket.put("a", "1".encodeToByteArray())
 				bucket.put("b", "2".encodeToByteArray()) // should not be observed
 				bucket.put("c", "3".encodeToByteArray())
-				// Drain anything else briefly to ensure no extra events leak in.
 
 				collector.join()
 				assertEquals(setOf("a", "c"), seen.toSet())
@@ -633,7 +669,14 @@ class KvIntegrationTest {
 
 				// And no tombstones remain on the underlying stream — values count is zero.
 				bucket.updateBucketStatus().getOrThrow()
-				assertEquals(0uL, bucket.status!!.values, "underlying stream should hold no messages")
+				assertEquals(
+					0uL,
+					bucket.status
+						.filterNotNull()
+						.first()
+						.values,
+					"underlying stream should hold no messages",
+				)
 			}
 		}
 
