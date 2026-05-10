@@ -18,6 +18,15 @@ public class RemoteNatsServer internal constructor(
 	public val uri: String
 		get() = uriFor(platformHarnessTransport)
 
+	public val tlsServerCertPem: String?
+		get() = info.tlsServerCertPem
+
+	public val tlsClientCertPem: String?
+		get() = info.tlsClientCertPem
+
+	public val tlsClientKeyPem: String?
+		get() = info.tlsClientKeyPem
+
 	public fun uriFor(transport: RemoteNatsServerTransport): String =
 		when (transport) {
 			RemoteNatsServerTransport.Tcp -> tcpUri

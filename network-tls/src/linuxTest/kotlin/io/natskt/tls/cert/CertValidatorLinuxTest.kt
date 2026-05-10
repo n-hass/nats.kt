@@ -2,7 +2,7 @@
 
 package io.natskt.tls.cert
 
-import io.natskt.tls.internal.TlsException
+import io.ktor.network.tls.TlsException
 import io.natskt.tls.openssl.X509_STORE_add_cert
 import io.natskt.tls.openssl.X509_STORE_free
 import io.natskt.tls.openssl.X509_STORE_new

@@ -1,6 +1,6 @@
 package io.natskt.tls
 
-import io.natskt.tls.internal.TlsException
+import io.ktor.network.tls.TlsException
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull

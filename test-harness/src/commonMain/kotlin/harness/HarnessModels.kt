@@ -9,6 +9,10 @@ public data class RemoteNatsServerRequest(
 	val enableJetStream: Boolean = true,
 	@SerialName("enable_tls")
 	val enableTls: Boolean = false,
+	@SerialName("tls_handshake_first")
+	val tlsHandshakeFirst: Boolean = false,
+	@SerialName("tls_require_client_cert")
+	val tlsRequireClientCert: Boolean = false,
 )
 
 @Serializable
@@ -20,6 +24,15 @@ public data class RemoteNatsServerInfo(
 	val websocketUri: String,
 	@SerialName("tls_uri")
 	val tlsUri: String? = null,
+	/** PEM-encoded server leaf certificate. Suitable for use as a trust anchor in tests. */
+	@SerialName("tls_server_cert_pem")
+	val tlsServerCertPem: String? = null,
+	/** PEM-encoded client certificate signed by the harness's client CA. Present when [RemoteNatsServerRequest.tlsRequireClientCert] is true. */
+	@SerialName("tls_client_cert_pem")
+	val tlsClientCertPem: String? = null,
+	/** PKCS#8 PEM-encoded client private key matching [tlsClientCertPem]. */
+	@SerialName("tls_client_key_pem")
+	val tlsClientKeyPem: String? = null,
 )
 
 @Serializable

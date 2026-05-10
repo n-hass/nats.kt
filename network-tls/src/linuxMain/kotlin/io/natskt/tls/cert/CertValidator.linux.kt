@@ -2,7 +2,7 @@
 
 package io.natskt.tls.cert
 
-import io.natskt.tls.internal.TlsException
+import io.ktor.network.tls.TlsException
 import io.natskt.tls.openssl.OPENSSL_sk_free
 import io.natskt.tls.openssl.OPENSSL_sk_new_null
 import io.natskt.tls.openssl.OPENSSL_sk_push

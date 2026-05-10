@@ -24,6 +24,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
@@ -41,7 +42,7 @@ fun main() {
 
 	embeddedServer(Netty, port = port, host = host) {
 		install(ContentNegotiation) {
-			json()
+			json(Json { ignoreUnknownKeys = true })
 		}
 		install(CallLogging)
 		install(CORS) {
@@ -66,7 +67,13 @@ private fun Application.harnessRoutes(manager: NatsHarnessManager) {
 		}
 		put("/servers") {
 			val request = call.receive<RemoteNatsServerRequest>()
-			val handle = manager.create(request.enableJetStream, request.enableTls)
+			val handle =
+				manager.create(
+					enableJetStream = request.enableJetStream,
+					enableTls = request.enableTls,
+					tlsHandshakeFirst = request.tlsHandshakeFirst,
+					tlsRequireClientCert = request.tlsRequireClientCert,
+				)
 			log.info("Created ${handle.id}")
 			call.respond(handle)
 		}
@@ -123,6 +130,8 @@ private class NatsHarnessManager(
 	suspend fun create(
 		enableJetStream: Boolean,
 		enableTls: Boolean = false,
+		tlsHandshakeFirst: Boolean = false,
+		tlsRequireClientCert: Boolean = false,
 	): RemoteNatsServerInfo {
 		val id = Uuid.random().toHexDashString()
 		var lastError: Throwable? = null
@@ -137,6 +146,8 @@ private class NatsHarnessManager(
 					NatsServerHarness(
 						enableJetStream = enableJetStream,
 						enableTls = enableTls,
+						tlsHandshakeFirst = tlsHandshakeFirst,
+						tlsRequireClientCert = tlsRequireClientCert,
 						logId = if (attempt == 0) id else "$id-retry$attempt",
 					)
 				}.getOrElse {
@@ -158,6 +169,9 @@ private class NatsHarnessManager(
 				tcpUri = harness.uri,
 				websocketUri = harness.websocketUri,
 				tlsUri = harness.tlsUri,
+				tlsServerCertPem = harness.serverCertificatePem,
+				tlsClientCertPem = harness.clientCertificatePem,
+				tlsClientKeyPem = harness.clientKeyPemPkcs8,
 			)
 		}
 
