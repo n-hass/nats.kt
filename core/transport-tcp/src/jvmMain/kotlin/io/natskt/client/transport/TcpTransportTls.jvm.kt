@@ -51,6 +51,7 @@ internal actual suspend fun performTlsUpgrade(transport: TcpTransport): Transpor
 	return TcpTransport(
 		tlsSocket.connection(),
 		transport.context,
+		transport.selectorManager,
 		transport.serverName,
 		cfg,
 	)

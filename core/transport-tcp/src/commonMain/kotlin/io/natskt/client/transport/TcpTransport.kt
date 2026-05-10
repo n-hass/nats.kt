@@ -16,7 +16,7 @@ import kotlin.coroutines.CoroutineContext
 public class TcpTransport internal constructor(
 	internal val inner: Connection,
 	internal val context: CoroutineContext,
-	private val selectorManager: SelectorManager,
+	internal val selectorManager: SelectorManager,
 	internal val serverName: String? = null,
 	internal val tlsConfig: TlsConfig = TlsConfig.Default,
 ) : Transport,
