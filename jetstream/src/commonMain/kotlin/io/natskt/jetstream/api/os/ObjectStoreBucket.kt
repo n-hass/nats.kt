@@ -37,7 +37,6 @@ import io.natskt.jetstream.internal.updateStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -641,60 +640,66 @@ public class ObjectStoreBucket internal constructor(
 		return consumer to consumerName
 	}
 
-	private suspend fun watchMetaInternal(
+	private fun watchMetaInternal(
 		filterSubject: String,
 		deliverPolicy: DeliverPolicy,
 		waitForSnapshotDone: Boolean,
-	): Flow<ObjectInfo?> {
-		val consumerName = NUID.nextSequence()
-		val deliverySubscription = PushConsumerImpl.newSubscription(js.client, null, eager = false)
-		val consumer =
-			PushConsumerImpl(
-				name = consumerName,
-				streamName = streamName,
-				js = js,
-				subscription = deliverySubscription,
-				initialInfo = null,
-			)
-		val consumerConfig =
-			ConsumerConfig(
-				deliverPolicy = deliverPolicy,
-				ackPolicy = AckPolicy.None,
-				maxDeliver = 1,
-				filterSubject = filterSubject,
-				replayPolicy = ReplayPolicy.Instant,
-				flowControl = true,
-				idleHeartbeat = WATCH_IDLE_HEARTBEAT,
-				deliverSubject = deliverySubscription.subject.raw,
-				numReplicas = 1,
-				memoryStorage = true,
-			)
-		val info =
-			js
-				.createFilteredConsumer(streamName, consumerName, filterSubject, consumerConfig)
-				.getOrThrow()
-		consumer.info.value = info
+	): Flow<ObjectInfo?> =
+		flow {
+			val consumerName = NUID.nextSequence()
+			val deliverySubscription = PushConsumerImpl.newSubscription(js.client, null, eager = false)
+			val consumer =
+				PushConsumerImpl(
+					name = consumerName,
+					streamName = streamName,
+					js = js,
+					subscription = deliverySubscription,
+					initialInfo = null,
+				)
+			val consumerConfig =
+				ConsumerConfig(
+					deliverPolicy = deliverPolicy,
+					ackPolicy = AckPolicy.None,
+					maxDeliver = 1,
+					filterSubject = filterSubject,
+					replayPolicy = ReplayPolicy.Instant,
+					flowControl = true,
+					idleHeartbeat = WATCH_IDLE_HEARTBEAT,
+					deliverSubject = deliverySubscription.subject.raw,
+					numReplicas = 1,
+					memoryStorage = true,
+				)
+			try {
+				val info =
+					js
+						.createFilteredConsumer(streamName, consumerName, filterSubject, consumerConfig)
+						.getOrThrow()
+				consumer.info.value = info
 
-		val initialPending: ULong = info.numPending.toULong()
-		var received: ULong = 0u
-		var snapshotDone = !waitForSnapshotDone || initialPending == 0uL
+				val initialPending: ULong = info.numPending.toULong()
+				var received: ULong = 0u
+				var snapshotDone = !waitForSnapshotDone || initialPending == 0uL
 
-		return consumer.messages
-			.transform { msg ->
-				val decoded = decodeMetaMessage(msg)
-				emit(decoded)
-				if (!snapshotDone) {
-					received++
-					val pending = parseAckMetadata(msg.replyTo)?.pending ?: 0u
-					if (received >= initialPending || pending == 0uL) {
-						snapshotDone = true
-						emit(null)
+				if (waitForSnapshotDone && initialPending == 0uL) {
+					emit(null)
+				}
+
+				consumer.messages.collect { msg ->
+					val decoded = decodeMetaMessage(msg)
+					emit(decoded)
+					if (!snapshotDone) {
+						received++
+						val pending = parseAckMetadata(msg.replyTo)?.pending ?: 0u
+						if (received >= initialPending || pending == 0uL) {
+							snapshotDone = true
+							emit(null)
+						}
 					}
 				}
-			}.onCompletion {
+			} finally {
 				consumer.close()
 			}
-	}
+		}
 
 	private fun decodeMetaMessage(msg: Message): ObjectInfo? {
 		val data = msg.data ?: return null
