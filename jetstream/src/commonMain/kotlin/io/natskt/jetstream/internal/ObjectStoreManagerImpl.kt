@@ -19,7 +19,7 @@ internal class ObjectStoreManagerImpl(
 
 		val createdInfo = js.createStream(config.asStreamConfig()).getOrThrow()
 
-		return ObjectStoreBucket(
+		return ObjectStoreBucketImpl(
 			js = js,
 			name = config.bucket,
 			initialStatus = createdInfo.asObjectStoreStatus(),
@@ -47,7 +47,7 @@ internal class ObjectStoreManagerImpl(
 
 		val updatedInfo = js.updateStream(merged.asStreamConfig()).getOrThrow()
 
-		return ObjectStoreBucket(
+		return ObjectStoreBucketImpl(
 			js = js,
 			name = merged.bucket,
 			initialStatus = updatedInfo.asObjectStoreStatus(),
@@ -58,7 +58,7 @@ internal class ObjectStoreManagerImpl(
 	override suspend fun get(bucket: String): ObjectStoreBucket {
 		bucket.throwOnInvalidToken()
 		val streamInfo = js.getStreamInfo(toObjectStoreStreamName(bucket)).getOrThrow()
-		return ObjectStoreBucket(
+		return ObjectStoreBucketImpl(
 			js = js,
 			name = bucket,
 			initialStatus = streamInfo.asObjectStoreStatus(),
