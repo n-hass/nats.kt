@@ -19,6 +19,7 @@ import io.natskt.jetstream.api.PublishOptions
 import io.natskt.jetstream.api.consumer.Consumer
 import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.api.internal.decode
+import io.natskt.jetstream.api.internal.toGoDurationString
 import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.kv.KeyValueManager
 import io.natskt.jetstream.api.os.ObjectStoreBucket
@@ -78,7 +79,7 @@ internal class JetStreamClientImpl(
 				publishOptions.expectedStream?.let { put(EXPECTED_STREAM_HEADER, it) }
 				publishOptions.expectedLastSequence?.let { put(EXPECTED_LAST_SEQUENCE_HEADER, it.toString()) }
 				publishOptions.expectedLastSubjectSequence?.let { put(EXPECTED_LAST_SUBJECT_SEQUENCE_HEADER, it.toString()) }
-				publishOptions.ttl?.let { put(MSG_TTL_HEADER, it.toString()) }
+				publishOptions.ttl?.let { put(MSG_TTL_HEADER, it.toGoDurationString()) }
 			}.let {
 				if (headers != null) it + headers else it
 			}
