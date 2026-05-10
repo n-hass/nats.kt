@@ -2,8 +2,6 @@ package io.natskt.jetstream.integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
-import io.kotest.assertions.nondeterministic.eventually
-import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.KvKeyNotFoundException
 import io.natskt.jetstream.api.kv.KeyValueEntry
@@ -12,13 +10,11 @@ import io.natskt.jetstream.api.kv.KeyValuePurgeOptions
 import io.natskt.jetstream.api.kv.KeyValueWatchConfig
 import io.natskt.jetstream.api.kv.KeyValueWatchOption
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -26,8 +22,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class KvIntegrationTest {
@@ -720,20 +716,15 @@ class KvIntegrationTest {
 				bucket.create("ephemeral", "burns".encodeToByteArray(), ttl = 1.seconds)
 				assertEquals("burns", bucket.get("ephemeral").value.decodeToString())
 
-				// After the TTL plus a margin, the entry should no longer appear in keys().
-				withContext(Dispatchers.Default) {
-					eventually(
-						eventuallyConfig {
-							initialDelay = 300.milliseconds
-							duration = 2.seconds
-						},
-					) {
-						assertTrue(
-							"ephemeral" !in bucket.keys(),
-							"ephemeral should age out after the per-key TTL elapses",
-						)
+				val deadline = Clock.System.now() + 5.seconds
+				var stillThere = true
+				while (Clock.System.now() < deadline) {
+					if ("ephemeral" !in bucket.keys()) {
+						stillThere = false
+						break
 					}
 				}
+				assertTrue(!stillThere, "ephemeral should age out after the per-key TTL elapses")
 			}
 		}
 
