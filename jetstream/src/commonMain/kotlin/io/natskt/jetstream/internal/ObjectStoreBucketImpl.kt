@@ -44,7 +44,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transform
-import kotlinx.serialization.encodeToString
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -218,12 +217,12 @@ internal class ObjectStoreBucketImpl(
 
 		val data: ByteArray
 		val digester = Sha256Digester()
-		when {
-			info.chunks == 0L -> {
+		when (info.chunks) {
+			0L -> {
 				data = ByteArray(0)
 				// Empty data still feeds the digester so the empty digest matches.
 			}
-			info.chunks == 1L -> {
+			1L -> {
 				val nuid = info.nuid ?: throw IllegalStateException("info missing nuid")
 				val msg =
 					req()
@@ -246,9 +245,9 @@ internal class ObjectStoreBucketImpl(
 	override suspend fun getStream(name: String): ObjectStreamResult {
 		val info = resolveForRead(name)
 		val flow: Flow<ByteArray> =
-			when {
-				info.chunks == 0L -> flow { /* empty */ }
-				info.chunks == 1L ->
+			when (info.chunks) {
+				0L -> flow { /* empty */ }
+				1L ->
 					flow {
 						val nuid = info.nuid ?: throw IllegalStateException("info missing nuid")
 						val msg =
@@ -263,6 +262,7 @@ internal class ObjectStoreBucketImpl(
 						validatePayload(info, data.size.toLong(), digester.finishDigestEntry())
 						if (data.isNotEmpty()) emit(data)
 					}
+
 				else -> chunksFlow(info)
 			}
 		return ObjectStreamResult(info, flow)
@@ -378,9 +378,9 @@ internal class ObjectStoreBucketImpl(
 		val published = publishMeta(updated)
 
 		if (nameChanged) {
-			runCatching {
-				js.purgeStream(streamName, PurgeOptions(subject = metaSubjectFor(this.name, name)))
-			}
+			js
+				.purgeStream(streamName, PurgeOptions(subject = metaSubjectFor(this.name, name)))
+				.getOrThrow()
 		}
 		return published
 	}
@@ -540,6 +540,9 @@ internal class ObjectStoreBucketImpl(
 	): ByteArray {
 		val nuid = info.nuid ?: throw IllegalStateException("info missing nuid")
 		val expected = info.chunks
+		if (info.size > Int.MAX_VALUE.toLong() || expected > Int.MAX_VALUE) {
+			throw IllegalArgumentException("Object '${info.name}' is too large for get(); use getStream() instead")
+		}
 		val total = info.size.toInt()
 		val data = ByteArray(total)
 		var offset = 0
@@ -566,7 +569,7 @@ internal class ObjectStoreBucketImpl(
 		return data
 	}
 
-	private suspend fun chunksFlow(info: ObjectInfo): Flow<ByteArray> =
+	private fun chunksFlow(info: ObjectInfo): Flow<ByteArray> =
 		flow {
 			val nuid = info.nuid ?: throw IllegalStateException("info missing nuid")
 			val expected = info.chunks
