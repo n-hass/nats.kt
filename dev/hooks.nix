@@ -43,19 +43,42 @@ fi
 
     pre-commit.settings.hooks.conventional-commits = let
       script = pkgs.writeShellScript "" ''
+#!/usr/bin/env bash
+
+###
+# Git Commit Message Hook - Conventional Commits + Ticket Number Injection
+#
+# This commit-msg hook enforces Conventional Commits formatting on commit messages
+# and appends the associated ticket number into the commit body.
+#
+# Key Features:
+# - Enforces commit message format: "<type>(<scope>): <message>"
+#   Valid types include: build, docs, feat, fix, perf, refactor, style, test, chore.
+# - Resolves ticket number in a prioritized manner:
+#   1. Reads cached ticket from `.git/ticket-numbers/<branch>`.
+#   2. Guesses ticket number from branch name (e.g., "PROJ-1234" from "feature/PROJ-1234").
+#   3. Falls back to interactive prompt via `PromptInput.java` helper.
+#      - If user cancels (exit code 233), branch is marked ignored.
+# - Inserts the ticket number into the commit body as the first content line (e.g., "(#PROJ-1234)").
+# - Provides helpful error messages and usage examples if commit message is malformed.
+#
+#
+# Adapted from: https://github.com/tapsellorg/conventional-commits-git-hook
+###
+
 set -euo pipefail
 
 types=('build' 'docs' 'feat' 'fix' 'perf' 'refactor' 'style' 'test' 'chore')
 
 function build_regex() {
     regexp="^[.0-9]+$|"
-    regexp="''${regexp}^([Rr]evert|[Mm]erge):? .*$|^("
+    regexp="''${regexp}^([Rr]evert|[Mm]erge):? .*$|^(amend! |fixup! |squash! )?("
 
     for type in "''${types[@]}"; do
         regexp="''${regexp}$type|"
     done
 
-    regexp="''${regexp%|})(\(.+\)): "
+    regexp="''${regexp%|})(\(.+\))(!)?: "
 }
 
 # Print out a standard error message if commit is malformed
