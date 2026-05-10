@@ -5,6 +5,9 @@ import harness.runBlocking
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.kv.KeyValueEntry
 import io.natskt.jetstream.api.kv.KeyValueOperation
+import io.natskt.jetstream.api.kv.KeyValuePurgeOptions
+import io.natskt.jetstream.api.kv.KeyValueWatchConfig
+import io.natskt.jetstream.api.kv.KeyValueWatchOption
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -14,8 +17,10 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class KvIntegrationTest {
@@ -326,6 +331,332 @@ class KvIntegrationTest {
 				assertFailsWith<JetStreamApiException> {
 					bucket.delete("alpha", lastRevision = initial)
 				}
+			}
+		}
+
+	@Test
+	fun `history returns retained revisions oldest first`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("HISTORY")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+						history = 5
+					}
+
+				repeat(7) { i ->
+					bucket.put("k", "v${i + 1}".encodeToByteArray())
+				}
+
+				val entries = bucket.history("k")
+				assertEquals(5, entries.size)
+
+				val seen = entries.map { it.value.decodeToString() }
+				// Oldest of the retained 5 is v3 (v1 and v2 fell out of history=5)
+				assertEquals(listOf("v3", "v4", "v5", "v6", "v7"), seen)
+
+				val revisions = entries.map { it.revision }
+				assertEquals(revisions.sorted(), revisions, "history must be ordered by revision")
+			}
+		}
+
+	@Test
+	fun `watchAll observes updates across keys`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WATCHALL")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				bucket.put("a", "1".encodeToByteArray())
+				bucket.put("b", "2".encodeToByteArray())
+
+				val updates = mutableListOf<KeyValueEntry>()
+				val job =
+					launch {
+						withTimeout(3.seconds) {
+							bucket.watchAll().take(4).collect { updates.add(it) }
+						}
+					}
+				job.start()
+
+				bucket.put("c", "3".encodeToByteArray())
+				bucket.put("a", "1b".encodeToByteArray())
+
+				job.join()
+
+				val keysSeen = updates.map { it.key }.toSet()
+				assertEquals(setOf("a", "b", "c"), keysSeen)
+			}
+		}
+
+	@Test
+	fun `multi-key watch only reports requested keys`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WATCH_MULTI")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				val seen = mutableListOf<String>()
+				val collector =
+					launch {
+						withTimeout(3.seconds) {
+							bucket.watch(listOf("a", "c")).take(2).collect { seen.add(it.key) }
+						}
+					}
+				collector.start()
+
+				bucket.put("a", "1".encodeToByteArray())
+				bucket.put("b", "2".encodeToByteArray()) // should not be observed
+				bucket.put("c", "3".encodeToByteArray())
+				// Drain anything else briefly to ensure no extra events leak in.
+
+				collector.join()
+				assertEquals(setOf("a", "c"), seen.toSet())
+			}
+		}
+
+	@Test
+	fun `watch IgnoreDelete drops tombstones`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WATCH_IGD")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				bucket.put("k", "v".encodeToByteArray())
+
+				val firstSeen = CompletableDeferred<Unit>()
+				val seen = mutableListOf<KeyValueEntry>()
+				val job =
+					launch {
+						withTimeout(3.seconds) {
+							bucket
+								.watch(
+									"k",
+									KeyValueWatchConfig(options = setOf(KeyValueWatchOption.IgnoreDelete)),
+								).take(2)
+								.collect {
+									seen.add(it)
+									if (seen.size == 1) firstSeen.complete(Unit)
+								}
+						}
+					}
+				firstSeen.await() // ensure watcher has the initial snapshot before we mutate
+
+				bucket.delete("k")
+				bucket.put("k", "v2".encodeToByteArray())
+
+				job.join()
+				assertTrue(seen.none { it.operation == KeyValueOperation.Delete })
+				assertEquals(2, seen.size)
+				assertEquals(listOf("v", "v2"), seen.map { it.value.decodeToString() })
+			}
+		}
+
+	@Test
+	fun `watch UpdatesOnly skips initial snapshot`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WATCH_UO")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				bucket.put("k", "old".encodeToByteArray())
+
+				// Construct the watch flow before publishing — the suspend returns once the consumer is
+				// created, so subsequent publishes are guaranteed to fall in the watcher's window.
+				val flow =
+					bucket.watch(
+						"k",
+						KeyValueWatchConfig(options = setOf(KeyValueWatchOption.UpdatesOnly)),
+					)
+				val seen = mutableListOf<KeyValueEntry>()
+				val job =
+					launch {
+						withTimeout(3.seconds) {
+							flow.take(1).collect { seen.add(it) }
+						}
+					}
+
+				bucket.put("k", "new".encodeToByteArray())
+				job.join()
+
+				assertEquals(1, seen.size)
+				assertEquals("new", seen.first().value.decodeToString())
+			}
+		}
+
+	@Test
+	fun `watch IncludeHistory replays prior revisions`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WATCH_HIST")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+						history = 5
+					}
+
+				bucket.put("k", "1".encodeToByteArray())
+				bucket.put("k", "2".encodeToByteArray())
+				bucket.put("k", "3".encodeToByteArray())
+
+				val seen = mutableListOf<KeyValueEntry>()
+				val job =
+					launch {
+						withTimeout(3.seconds) {
+							bucket
+								.watch("k", KeyValueWatchConfig(options = setOf(KeyValueWatchOption.IncludeHistory)))
+								.take(3)
+								.collect { seen.add(it) }
+						}
+					}
+				job.join()
+
+				assertEquals(listOf("1", "2", "3"), seen.map { it.value.decodeToString() })
+			}
+		}
+
+	@Test
+	fun `watch fromRevision starts from the given sequence`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WATCH_FROM")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+						history = 10
+					}
+
+				val seqs = (1..5).map { bucket.put("k", "v$it".encodeToByteArray()) }
+				val startRev = seqs[2] // start from third revision
+
+				val seen = mutableListOf<KeyValueEntry>()
+				val job =
+					launch {
+						withTimeout(3.seconds) {
+							bucket
+								.watch("k", KeyValueWatchConfig(fromRevision = startRev))
+								.take(3)
+								.collect { seen.add(it) }
+						}
+					}
+				job.join()
+
+				assertEquals(listOf("v3", "v4", "v5"), seen.map { it.value.decodeToString() })
+				assertEquals(startRev, seen.first().revision)
+			}
+		}
+
+	@Test
+	fun `watch MetaOnly returns empty values`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WATCH_META")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				bucket.put("k", "loud".encodeToByteArray())
+
+				val first = CompletableDeferred<KeyValueEntry>()
+				val job =
+					launch {
+						withTimeout(3.seconds) {
+							bucket
+								.watch("k", KeyValueWatchConfig(options = setOf(KeyValueWatchOption.MetaOnly)))
+								.take(1)
+								.collect { first.complete(it) }
+						}
+					}
+				job.join()
+
+				val entry = first.await()
+				assertEquals(0, entry.value.size, "MetaOnly must not deliver payload bytes")
+				assertNotNull(entry.revision)
+			}
+		}
+
+	@Test
+	fun `consumeKeys streams without buffering and ignores tombstones`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("STREAM_KEYS")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				bucket.put("a", "1".encodeToByteArray())
+				bucket.put("b", "2".encodeToByteArray())
+				bucket.put("c", "3".encodeToByteArray())
+				bucket.delete("b")
+
+				val streamed = bucket.consumeKeys().toList().toSet()
+				assertEquals(setOf("a", "c"), streamed)
+			}
+		}
+
+	@Test
+	fun `purgeDeletes removes tombstones`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("PURGE_DEL")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				bucket.put("a", "1".encodeToByteArray())
+				bucket.put("b", "2".encodeToByteArray())
+				bucket.put("c", "3".encodeToByteArray())
+				bucket.delete("a")
+				bucket.delete("b")
+				bucket.purge("c")
+
+				bucket.purgeDeletes(KeyValuePurgeOptions(noThreshold = true))
+
+				// keys() drops tombstones so it is the cleanest way to confirm the bucket is empty.
+				assertEquals(emptySet(), bucket.keys().toSet())
+
+				// And no tombstones remain on the underlying stream — values count is zero.
+				bucket.updateBucketStatus().getOrThrow()
+				assertEquals(0uL, bucket.status!!.values, "underlying stream should hold no messages")
+			}
+		}
+
+	@Test
+	fun `per-key TTL on create expires the entry`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("TTL_CREATE")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+						limitMarkerTtl = 1.seconds
+					}
+
+				bucket.create("ephemeral", "burns".encodeToByteArray(), ttl = 1.seconds)
+				assertEquals("burns", bucket.get("ephemeral").value.decodeToString())
+
+				// After the TTL plus a margin, the entry should no longer appear in keys().
+				kotlinx.coroutines.delay(1500.milliseconds)
+				assertTrue(
+					"ephemeral" !in bucket.keys(),
+					"ephemeral should age out after the per-key TTL elapses",
+				)
 			}
 		}
 

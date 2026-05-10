@@ -9,6 +9,7 @@ import io.natskt.jetstream.api.internal.DurationNanosSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 @Serializable
@@ -81,4 +82,56 @@ public enum class KeyValueOperation {
 	Put,
 	Delete,
 	Purge,
+}
+
+/**
+ * Modifiers that change how a key-value watch behaves.
+ *
+ * Combine multiple options on [KeyValueWatchConfig.options]; [IncludeHistory] and
+ * [UpdatesOnly] are mutually exclusive.
+ */
+public enum class KeyValueWatchOption {
+	/** Drop tombstone entries (`Delete` and `Purge`) from the emitted flow. */
+	IgnoreDelete,
+
+	/** Ask the server for headers only (no payload bytes), saving bandwidth on large values. */
+	MetaOnly,
+
+	/** Replay every retained revision instead of just the latest per key. */
+	IncludeHistory,
+
+	/** Skip the initial snapshot — only emit revisions written after the watch was started. */
+	UpdatesOnly,
+}
+
+/**
+ * Bag of [KeyValueWatchOption] flags plus an optional [fromRevision] start point for a watcher.
+ *
+ * When [fromRevision] is set, the consumer starts at that stream sequence and any conflicting
+ * deliver-policy implied by the options is overridden.
+ */
+public data class KeyValueWatchConfig(
+	public val options: Set<KeyValueWatchOption> = emptySet(),
+	public val fromRevision: ULong? = null,
+) {
+	public companion object {
+		public val Default: KeyValueWatchConfig = KeyValueWatchConfig()
+	}
+}
+
+/**
+ * Configures [KeyValueBucket.purgeDeletes].
+ *
+ * - When [noThreshold] is `true`, all delete and purge markers are removed regardless of age.
+ * - Otherwise [deleteMarkersThreshold] controls the cutoff; markers older than the threshold
+ *   are removed entirely while markers within the window have their history truncated but the
+ *   marker itself is retained. Defaults to 30 minutes, matching the Go and Java clients.
+ */
+public data class KeyValuePurgeOptions(
+	public val deleteMarkersThreshold: Duration = 30.minutes,
+	public val noThreshold: Boolean = false,
+) {
+	public companion object {
+		public val Default: KeyValuePurgeOptions = KeyValuePurgeOptions()
+	}
 }
