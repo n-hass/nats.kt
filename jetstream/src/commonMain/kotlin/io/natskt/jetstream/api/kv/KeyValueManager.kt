@@ -14,8 +14,10 @@ public interface KeyValueManager {
 	public suspend fun create(configure: KeyValueConfigurationBuilder.() -> Unit): KeyValueBucket
 
 	/**
-	 * Update the configuration of an existing bucket. The bucket name is required in the
-	 * builder block.
+	 * Update the configuration of an existing bucket.
+	 *
+	 * @param bucket name of the bucket to update
+	 * @param configure configuration to alter
 	 */
 	public suspend fun update(
 		bucket: String,
