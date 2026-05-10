@@ -17,7 +17,10 @@ public interface KeyValueManager {
 	 * Update the configuration of an existing bucket. The bucket name is required in the
 	 * builder block.
 	 */
-	public suspend fun update(configure: KeyValueConfigurationBuilder.() -> Unit): KeyValueStatus
+	public suspend fun update(
+		bucket: String,
+		configure: KeyValueConfigurationBuilder.() -> Unit,
+	): KeyValueStatus
 
 	/**
 	 * Delete the bucket and its underlying stream.

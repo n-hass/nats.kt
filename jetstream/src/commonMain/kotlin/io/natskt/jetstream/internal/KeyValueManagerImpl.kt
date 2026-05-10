@@ -1,5 +1,6 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.KeyValueStatus
 import io.natskt.jetstream.api.kv.KeyValueBucket
@@ -20,7 +21,11 @@ internal class KeyValueManagerImpl(
 		return KeyValueBucketImpl(js, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
 	}
 
-	override suspend fun update(configure: KeyValueConfigurationBuilder.() -> Unit): KeyValueStatus {
+	override suspend fun update(
+		bucket: String,
+		configure: KeyValueConfigurationBuilder.() -> Unit,
+	): KeyValueStatus {
+		bucket.throwOnInvalidToken()
 		val config = KeyValueConfigurationBuilder().apply(configure).build()
 		val accountInfo = js.getAccountInfo().getOrThrow()
 		val updatedInfo = js.updateStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
