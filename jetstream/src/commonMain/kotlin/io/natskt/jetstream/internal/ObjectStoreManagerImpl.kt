@@ -1,5 +1,6 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.os.ObjectStoreBucket
 import io.natskt.jetstream.api.os.ObjectStoreConfigurationBuilder
@@ -30,7 +31,7 @@ internal class ObjectStoreManagerImpl(
 		bucket: String,
 		configure: ObjectStoreConfigurationBuilder.() -> Unit,
 	): ObjectStoreBucket {
-		if (bucket.isBlank()) error("bucket name must be set")
+		bucket.throwOnInvalidToken()
 
 		val existing =
 			js
@@ -38,7 +39,11 @@ internal class ObjectStoreManagerImpl(
 				.getOrThrow()
 				.asObjectStoreConfig()
 
-		val merged = ObjectStoreConfigurationBuilder(existing).apply(configure).build()
+		val merged =
+			ObjectStoreConfigurationBuilder(existing)
+				.apply(configure)
+				.apply { name = bucket }
+				.build()
 
 		val updatedInfo = js.updateStream(merged.asStreamConfig()).getOrThrow()
 
@@ -51,6 +56,7 @@ internal class ObjectStoreManagerImpl(
 	}
 
 	override suspend fun get(bucket: String): ObjectStoreBucket {
+		bucket.throwOnInvalidToken()
 		val streamInfo = js.getStreamInfo(toObjectStoreStreamName(bucket)).getOrThrow()
 		return ObjectStoreBucket(
 			js = js,
@@ -60,7 +66,10 @@ internal class ObjectStoreManagerImpl(
 		)
 	}
 
-	override suspend fun delete(bucket: String): Boolean = js.deleteStream(toObjectStoreStreamName(bucket)).getOrThrow()
+	override suspend fun delete(bucket: String): Boolean {
+		bucket.throwOnInvalidToken()
+		return js.deleteStream(toObjectStoreStreamName(bucket)).getOrThrow()
+	}
 
 	override suspend fun names(): List<String> =
 		js

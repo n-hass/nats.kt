@@ -284,6 +284,8 @@ class JetStreamManagerTest {
 					}
 
 				assertEquals("Updated description", updatedInfo.config.description)
+				assertEquals(consumerInfo.config.ackPolicy, updatedInfo.config.ackPolicy)
+				assertEquals(consumerInfo.config.filterSubject, updatedInfo.config.filterSubject)
 
 				// Clean up
 				js.manager.deleteConsumer("test_consumer_stream", "test_consumer")

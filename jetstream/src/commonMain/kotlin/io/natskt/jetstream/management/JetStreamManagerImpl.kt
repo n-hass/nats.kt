@@ -73,7 +73,11 @@ internal class JetStreamManagerImpl(
 		configure: StreamConfigurationBuilder.() -> Unit,
 	): StreamInfo {
 		val existing = js.getStreamInfo(streamName).getOrThrow().config
-		val configuration = StreamConfigurationBuilder(existing).apply(configure).build()
+		val configuration =
+			StreamConfigurationBuilder(existing)
+				.apply(configure)
+				.apply { name = streamName }
+				.build()
 		return js.updateStream(configuration).getOrThrow()
 	}
 
@@ -122,7 +126,10 @@ internal class JetStreamManagerImpl(
 		consumerName.throwOnInvalidToken()
 
 		val existing = js.getConsumerInfo(streamName, consumerName).getOrThrow().config
-		val configuration = ConsumerConfigurationBuilder(existing).apply(configure).build()
+		val configuration =
+			ConsumerConfigurationBuilder(existing)
+				.apply(configure)
+				.build()
 
 		return js.updateConsumer(streamName, configuration).getOrThrow()
 	}
