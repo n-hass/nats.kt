@@ -27,13 +27,35 @@ internal class ObjectStoreManagerImpl(
 	}
 
 	override suspend fun update(configure: ObjectStoreConfigurationBuilder.() -> Unit): ObjectStoreBucket {
-		val config = ObjectStoreConfigurationBuilder().apply(configure).build()
+		val bucketName = ObjectStoreConfigurationBuilder().apply(configure).name
+		if (bucketName.isBlank()) error("bucket name must be set")
 
-		val updatedInfo = js.updateStream(config.asStreamConfig()).getOrThrow()
+		val existing =
+			js
+				.getStreamInfo(toObjectStoreStreamName(bucketName))
+				.getOrThrow()
+				.asObjectStoreConfig()
+
+		val merged =
+			ObjectStoreConfigurationBuilder()
+				.apply {
+					name = existing.bucket
+					description = existing.description
+					maxBytes = existing.maxBytes
+					ttl = existing.ttl
+					storage = existing.storage
+					replicas = existing.replicas
+					placement = existing.placement
+					compression = existing.compression
+					metadata = existing.metadata
+				}.apply(configure)
+				.build()
+
+		val updatedInfo = js.updateStream(merged.asStreamConfig()).getOrThrow()
 
 		return ObjectStoreBucket(
 			js = js,
-			name = config.bucket,
+			name = merged.bucket,
 			initialStatus = updatedInfo.asObjectStoreStatus(),
 			initialConfig = updatedInfo.asObjectStoreConfig(),
 		)
