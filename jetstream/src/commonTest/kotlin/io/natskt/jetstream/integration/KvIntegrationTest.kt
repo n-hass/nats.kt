@@ -3,6 +3,7 @@ package io.natskt.jetstream.integration
 import harness.RemoteNatsHarness
 import harness.runBlocking
 import io.natskt.jetstream.api.JetStreamApiException
+import io.natskt.jetstream.api.KvKeyNotFoundException
 import io.natskt.jetstream.api.kv.KeyValueEntry
 import io.natskt.jetstream.api.kv.KeyValueOperation
 import io.natskt.jetstream.api.kv.KeyValuePurgeOptions
@@ -107,6 +108,27 @@ class KvIntegrationTest {
 
 				bucket.put("a.b", "test".encodeToByteArray())
 				bucket.close()
+			}
+		}
+
+	@Test
+	fun `get by revision rejects sequences belonging to a different key`() =
+		RemoteNatsHarness.runBlocking { server ->
+			withJetStreamClient(server) { _, js ->
+				val bucketName = bucketName("WRONG_KEY_REV")
+				val bucket =
+					js.keyValueManager.create {
+						name = bucketName
+					}
+
+				val alphaRev = bucket.put("alpha", "a-value".encodeToByteArray())
+				bucket.put("beta", "b-value".encodeToByteArray())
+
+				// alphaRev is alpha's sequence; asking for it under "beta" must not surface
+				// alpha's payload — the server returns by sequence regardless of subject.
+				assertFailsWith<KvKeyNotFoundException> {
+					bucket.get("beta", revision = alphaRev)
+				}
 			}
 		}
 

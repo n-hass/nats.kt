@@ -16,6 +16,8 @@ public class JetStreamUnknownResponseException(
 	public val response: ApiResponse,
 ) : NatsClientException("An unknown response was received: $response")
 
+public class KvKeyNotFoundException : JetStreamException()
+
 /**
  * Sealed parent for non-200 status responses received on a pull-consume reply
  * subject. The server may send 404/408 (which the client treats as benign

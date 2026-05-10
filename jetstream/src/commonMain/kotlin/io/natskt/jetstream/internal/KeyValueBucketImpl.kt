@@ -14,6 +14,7 @@ import io.natskt.jetstream.api.DeliverPolicy
 import io.natskt.jetstream.api.JetStreamApiException
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.KeyValueStatus
+import io.natskt.jetstream.api.KvKeyNotFoundException
 import io.natskt.jetstream.api.MessageGetRequest
 import io.natskt.jetstream.api.PublishOptions
 import io.natskt.jetstream.api.PurgeOptions
@@ -32,6 +33,7 @@ import io.natskt.jetstream.client.MSG_TTL_HEADER
 import io.natskt.jetstream.client.ROLLUP_HEADER
 import io.natskt.jetstream.client.ROLLUP_SUBJECT_VALUE
 import io.natskt.jetstream.client.SEQUENCE_HEADER
+import io.natskt.jetstream.client.SUBJECT_HEADER
 import io.natskt.jetstream.client.TIME_STAMP_HEADER
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -154,18 +156,29 @@ internal class KeyValueBucketImpl(
 	): KeyValueEntry {
 		val key = Subject.fullyQualified(key)
 
-		val lastFor = subjectForKey(key)
+		val keySubject = subjectForKey(key)
 
 		val req =
 			if (revision != null) {
 				MessageGetRequest(seq = revision)
 			} else {
-				MessageGetRequest(lastFor = lastFor)
+				MessageGetRequest(lastFor = keySubject)
 			}
 
-		val message = req().getMessage(KV_BUCKET_STREAM_NAME_PREFIX + name, req)
+		val message = req().getMessage(KV_BUCKET_STREAM_NAME_PREFIX + name, req).getOrThrow()
 
-		return message.getOrThrow().toKeyValueEntry(name)
+		// `MessageGetRequest(seq = ...)` returns whatever sits at that sequence regardless of
+		// subject — guard against the caller passing a sequence that belongs to a different key.
+		// For direct-get the response message's `subject` is the inbox the reply was delivered
+		// to, not the stored subject; the stored subject lives in the `Nats-Subject` header.
+		if (revision != null) {
+			val storedSubject = message.headers?.get(SUBJECT_HEADER)?.firstOrNull() ?: message.subject.raw
+			if (storedSubject != keySubject) {
+				throw KvKeyNotFoundException()
+			}
+		}
+
+		return message.toKeyValueEntry(name)
 	}
 
 	override suspend fun watch(
