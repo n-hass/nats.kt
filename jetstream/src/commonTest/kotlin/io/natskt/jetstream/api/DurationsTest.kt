@@ -36,4 +36,13 @@ class DurationsTest {
 	fun `zero is rendered as 0s`() {
 		assertEquals("0s", Duration.ZERO.toGoDurationString())
 	}
+
+	@Test
+	fun `fractional seconds use the sub-second remainder, not totalNs`() {
+		// Earlier versions used totalNs (whole + frac) to build the decimal part, which produced
+		// "1.15s" for 1.5 seconds because trimEnd('0') chewed into the seconds digit.
+		assertEquals("1.5s", (1.seconds + 500.milliseconds).toGoDurationString())
+		assertEquals("2.25s", (2.seconds + 250.milliseconds).toGoDurationString())
+		assertEquals("1.000005s", (1.seconds + 5.microseconds).toGoDurationString())
+	}
 }
