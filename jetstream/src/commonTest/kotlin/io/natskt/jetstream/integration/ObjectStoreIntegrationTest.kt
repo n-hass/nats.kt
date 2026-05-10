@@ -408,8 +408,7 @@ class ObjectStoreIntegrationTest {
 					}.close()
 
 				val updated =
-					js.objectStoreManager.update {
-						name = bucket
+					js.objectStoreManager.update(bucket) {
 						description = "after"
 						maxBytes = 2_000_000
 					}
@@ -424,9 +423,7 @@ class ObjectStoreIntegrationTest {
 		RemoteNatsHarness.runBlocking { server ->
 			withJetStreamClient(server) { _, js ->
 				assertFailsWith<JetStreamApiException> {
-					js.objectStoreManager.update {
-						name = bucketName("OSUpdateMissing")
-					}
+					js.objectStoreManager.update(bucketName("OSUpdateMissing")) {}
 				}
 			}
 		}

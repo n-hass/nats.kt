@@ -19,6 +19,18 @@ public class ObjectStoreConfigurationBuilder internal constructor() {
 	public var placement: StreamPlacement? = null
 	public var compression: StreamCompression? = null
 	public var metadata: Map<String, String>? = null
+
+	internal constructor(existing: ObjectStoreConfig) : this() {
+		name = existing.bucket
+		description = existing.description
+		maxBytes = existing.maxBytes
+		ttl = existing.ttl
+		storage = existing.storage
+		replicas = existing.replicas
+		placement = existing.placement
+		compression = existing.compression
+		metadata = existing.metadata
+	}
 }
 
 internal fun ObjectStoreConfigurationBuilder.build(): ObjectStoreConfig {

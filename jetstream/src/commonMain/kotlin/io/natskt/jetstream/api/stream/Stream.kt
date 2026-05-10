@@ -34,10 +34,14 @@ public interface Stream {
 
 	/**
 	 * Updates an existing consumer. Must already exist.
+	 * @param consumerName the consumer to update
 	 * @param configure configuration builder for the consumer
 	 * @return consumer information
 	 */
-	public suspend fun updateConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): ConsumerInfo
+	public suspend fun updateConsumer(
+		consumerName: String,
+		configure: ConsumerConfigurationBuilder.() -> Unit,
+	): ConsumerInfo
 
 	/**
 	 * Get info for a consumer on this stream

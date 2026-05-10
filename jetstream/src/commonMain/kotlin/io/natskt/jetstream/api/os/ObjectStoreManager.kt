@@ -17,7 +17,10 @@ public interface ObjectStoreManager {
 	 * ttl, replicas, placement, compression, metadata). Fails if the bucket
 	 * does not exist.
 	 */
-	public suspend fun update(configure: ObjectStoreConfigurationBuilder.() -> Unit): ObjectStoreBucket
+	public suspend fun update(
+		bucket: String,
+		configure: ObjectStoreConfigurationBuilder.() -> Unit,
+	): ObjectStoreBucket
 
 	/**
 	 * Delete a bucket and all of its contents. Returns true on success.
