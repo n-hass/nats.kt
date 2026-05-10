@@ -33,6 +33,24 @@ public class KeyValueConfigurationBuilder internal constructor() {
 	public var mirror: StreamSource? = null
 	public var sources: MutableList<StreamSource>? = null
 
+	internal constructor(existing: KeyValueConfig) : this() {
+		name = existing.bucket
+		description = existing.description
+		history = existing.history?.toInt() ?: 1
+		maxValueSize = existing.maxValueSize
+		maxBytes = existing.maxBytes
+		ttl = existing.ttl
+		storage = existing.storage
+		replicas = existing.replicas
+		compression = existing.compression
+		limitMarkerTtl = existing.limitMarkerTtl
+		metadata = existing.metadata?.toMutableMap()
+		placement = existing.placement
+		republish = existing.republish
+		mirror = existing.mirror
+		sources = existing.sources?.toMutableList()
+	}
+
 	public fun placement(builder: StreamPlacementBuilder.() -> Unit) {
 		placement = StreamPlacementBuilder().apply(builder).build()
 	}

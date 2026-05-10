@@ -1,5 +1,6 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.internal.suspendLazy
 import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.KeyValueStatus
@@ -11,13 +12,14 @@ import io.natskt.jetstream.api.kv.build
 internal class KeyValueManagerImpl(
 	private val js: JetStreamClient,
 ) : KeyValueManager {
+	val accountInfo =
+		suspendLazy {
+			js.getAccountInfo().getOrNull()
+		}
+
 	override suspend fun create(configure: KeyValueConfigurationBuilder.() -> Unit): KeyValueBucket {
 		val config = KeyValueConfigurationBuilder().apply(configure).build()
-
-		val accountInfo = js.getAccountInfo().getOrThrow()
-
-		val createdInfo = js.createStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
-
+		val createdInfo = js.createStream(config.asStreamConfig(accountInfo()?.api?.level ?: 0)).getOrThrow()
 		return KeyValueBucketImpl(js, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
 	}
 
@@ -26,9 +28,17 @@ internal class KeyValueManagerImpl(
 		configure: KeyValueConfigurationBuilder.() -> Unit,
 	): KeyValueStatus {
 		bucket.throwOnInvalidToken()
-		val config = KeyValueConfigurationBuilder().apply(configure).build()
-		val accountInfo = js.getAccountInfo().getOrThrow()
-		val updatedInfo = js.updateStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
+		val existing =
+			js
+				.getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + bucket)
+				.getOrThrow()
+				.asKeyValueConfig()
+		val config =
+			KeyValueConfigurationBuilder(existing)
+				.apply(configure)
+				.apply { name = bucket }
+				.build()
+		val updatedInfo = js.updateStream(config.asStreamConfig(accountInfo()?.api?.level ?: 0)).getOrThrow()
 		return updatedInfo.asKeyValueStatus()
 	}
 
