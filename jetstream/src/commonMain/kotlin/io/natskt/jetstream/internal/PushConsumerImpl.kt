@@ -131,6 +131,12 @@ internal class PushConsumerImpl(
 			eager: Boolean = false,
 		): Subscription {
 			val subject = subject ?: client.nextInbox()
+			// Default eager = false is intentional: SUB is sent on first collector attach. Push
+			// consumers configure the server with flow_control=true, so the server holds messages
+			// until the client acks the flow-control handshake — which can't happen until SUB
+			// reaches the server. Sending SUB eagerly here would let the server start pushing into
+			// the bus SharedFlow before the collector attaches, and replay=1 would discard all but
+			// the latest message.
 			return client.subscribe(
 				subject = subject,
 				queueGroup = null,

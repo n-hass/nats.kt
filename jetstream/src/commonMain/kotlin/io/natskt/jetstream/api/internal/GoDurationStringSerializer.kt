@@ -22,7 +22,7 @@ internal object GoDurationStringSerializer : KSerializer<Duration> {
 		encoder: Encoder,
 		value: Duration,
 	) {
-		encoder.encodeString(formatGoStyle(value))
+		encoder.encodeString(value.toGoDurationString())
 	}
 
 	override fun deserialize(decoder: Decoder): Duration {
@@ -131,53 +131,54 @@ internal object GoDurationStringSerializer : KSerializer<Duration> {
 		val signed = if (negative) -totalNs else totalNs
 		return signed.nanoseconds
 	}
+}
 
-	// ---- Formatting ----
+/**
+ * Render a [Duration] in the same Go-style mixed-unit format that [GoDurationStringSerializer]
+ * produces — `1h2m3s`, `500ms`, `250ns`, etc. The output is parseable by Go's
+ * `time.ParseDuration`, which is what the NATS server uses for headers like `Nats-TTL`.
+ */
+internal fun Duration.toGoDurationString(): String {
+	if (isInfinite()) error("cannot encode infinite Duration")
+	var ns = inWholeNanoseconds
+	if (ns == 0L) return "0s"
 
-	private fun formatGoStyle(d: Duration): String {
-		if (d.isInfinite()) error("cannot encode infinite Duration")
-		var ns = d.inWholeNanoseconds
-		if (ns == 0L) return "0s"
+	val neg = ns < 0
+	if (neg) ns = -ns
 
-		val neg = ns < 0
-		if (neg) ns = -ns
+	val sb = StringBuilder()
+	if (neg) sb.append('-')
 
-		val sb = StringBuilder()
-		if (neg) sb.append('-')
+	// Units: h, m, s, ms, µs, ns (smallest nonzero unit wins)
+	val hours = ns / 3_600_000_000_000L
+	ns %= 3_600_000_000_000L
+	val mins = ns / 60_000_000_000L
+	ns %= 60_000_000_000L
+	val secs = ns / 1_000_000_000L
+	ns %= 1_000_000_000L
+	val ms = ns / 1_000_000L
+	ns %= 1_000_000L
+	val us = ns / 1_000L
+	ns %= 1_000L
+	val nsec = ns
 
-		// Units: h, m, s, ms, µs, ns (smallest nonzero unit wins)
-		val hours = ns / 3_600_000_000_000L
-		ns %= 3_600_000_000_000L
-		val mins = ns / 60_000_000_000L
-		ns %= 60_000_000_000L
-		val secs = ns / 1_000_000_000L
-		ns %= 1_000_000_000L
-		val ms = ns / 1_000_000L
-		ns %= 1_000_000L
-		val us = ns / 1_000L
-		ns %= 1_000L
-		val nsec = ns
+	if (hours != 0L) sb.append(hours).append('h')
+	if (mins != 0L) sb.append(mins).append('m')
 
-		if (hours != 0L) sb.append(hours).append('h')
-		if (mins != 0L) sb.append(mins).append('m')
-
-		when {
-			// prefer fractional seconds if sub-second but >1s precision
-			(secs != 0L && (ms != 0L || us != 0L || nsec != 0L)) -> {
-				val totalNs = (
-					secs * 1_000_000_000L +
-						ms * 1_000_000L +
-						us * 1_000L + nsec
-				)
-				val frac = totalNs.toString().padStart(9, '0').trimEnd('0')
-				sb.append("$secs.${frac}s")
-			}
-			secs != 0L -> sb.append(secs).append('s')
-			ms != 0L -> sb.append(ms).append("ms")
-			us != 0L -> sb.append(us).append("us")
-			nsec != 0L -> sb.append(nsec).append("ns")
+	when {
+		// prefer fractional seconds if sub-second but >1s precision
+		(secs != 0L && (ms != 0L || us != 0L || nsec != 0L)) -> {
+			// frac is built from the sub-second remainder only — using totalNs would shift the
+			// whole-seconds digits into the fractional part (e.g. 1.5s emitting as "1.15s").
+			val subNs = ms * 1_000_000L + us * 1_000L + nsec
+			val frac = subNs.toString().padStart(9, '0').trimEnd('0')
+			sb.append("$secs.${frac}s")
 		}
-
-		return sb.toString()
+		secs != 0L -> sb.append(secs).append('s')
+		ms != 0L -> sb.append(ms).append("ms")
+		us != 0L -> sb.append(us).append("us")
+		nsec != 0L -> sb.append(nsec).append("ns")
 	}
+
+	return sb.toString()
 }

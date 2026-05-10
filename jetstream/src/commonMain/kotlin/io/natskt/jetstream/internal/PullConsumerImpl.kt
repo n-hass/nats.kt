@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -86,7 +86,10 @@ internal class PullConsumerImpl(
 
 		withTimeoutOrNull(timeoutMillis) {
 			inboxMessages
-				.onStart { publishMsgNext(streamName, name, body, replyTo) }
+				// Publish only after the SharedFlow subscriber is registered to avoid a race
+				// where the server's first messages arrive before this collector attaches and
+				// are dropped by the (replay = 0) shared flow.
+				.onSubscription { publishMsgNext(streamName, name, body, replyTo) }
 				.takeWhile { msg ->
 					// Drop status messages addressed to a previous fetch's replyTo.
 					if (msg.status != null && msg.subject.raw != replyTo) return@takeWhile true
@@ -163,8 +166,6 @@ internal class PullConsumerImpl(
 				launch { issuePull(refill) }
 			}
 
-			issuePull(options.batch)
-
 			// If no inbound activity within 2× heartbeat, reissue the pull rather
 			// than terminating; the previous pull is treated as dead.
 			val watchdog =
@@ -183,6 +184,10 @@ internal class PullConsumerImpl(
 
 			try {
 				inboxMessages
+					// Issue the initial pull only after the SharedFlow subscriber is registered;
+					// otherwise the server's response can race ahead of the collector attaching
+					// and the (replay = 0) shared flow drops those messages on the floor.
+					.onSubscription { issuePull(options.batch) }
 					.filter { msg -> msg.status == null || msg.subject.raw == replyTo }
 					.collect { msg ->
 						lastActivity = Clock.System.now()

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -45,10 +45,13 @@ internal open class PersistentRequestSubscription(
 		val replyTo = nextRequestSubject()
 		return withTimeout(timeoutMs) {
 			inboxMessages
-				.filter { incoming -> incoming.subject.raw == replyTo }
-				.onStart {
+				// Publish only after the SharedFlow subscriber is registered. Using onStart races:
+				// the publish runs before subscription, so the server's reply can be dropped by
+				// the (replay = 0) shared flow before this collector ever attaches.
+				.onSubscription {
 					js.client.publish(subject, message?.encodeToByteArray(), headers, replyTo = replyTo)
-				}.first()
+				}.filter { incoming -> incoming.subject.raw == replyTo }
+				.first()
 		}
 	}
 

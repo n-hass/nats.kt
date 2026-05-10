@@ -19,13 +19,16 @@ import io.natskt.jetstream.api.PublishOptions
 import io.natskt.jetstream.api.consumer.Consumer
 import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.api.internal.decode
+import io.natskt.jetstream.api.internal.toGoDurationString
 import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.kv.KeyValueManager
 import io.natskt.jetstream.api.os.ObjectStoreBucket
 import io.natskt.jetstream.api.os.ObjectStoreManager
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.internal.JetStreamContext
+import io.natskt.jetstream.internal.KeyValueBucketImpl
 import io.natskt.jetstream.internal.KeyValueManagerImpl
+import io.natskt.jetstream.internal.ObjectStoreBucketImpl
 import io.natskt.jetstream.internal.ObjectStoreManagerImpl
 import io.natskt.jetstream.internal.PersistentRequestSubscription
 import io.natskt.jetstream.internal.PullConsumerImpl
@@ -78,7 +81,7 @@ internal class JetStreamClientImpl(
 				publishOptions.expectedStream?.let { put(EXPECTED_STREAM_HEADER, it) }
 				publishOptions.expectedLastSequence?.let { put(EXPECTED_LAST_SEQUENCE_HEADER, it.toString()) }
 				publishOptions.expectedLastSubjectSequence?.let { put(EXPECTED_LAST_SUBJECT_SEQUENCE_HEADER, it.toString()) }
-				publishOptions.ttl?.let { put(MSG_TTL_HEADER, it.toString()) }
+				publishOptions.ttl?.let { put(MSG_TTL_HEADER, it.toGoDurationString()) }
 			}.let {
 				if (headers != null) it + headers else it
 			}
@@ -192,9 +195,9 @@ internal class JetStreamClientImpl(
 			null,
 		).also { it.updateStreamInfo() }
 
-	override suspend fun keyValue(bucket: String): KeyValueBucket = KeyValueBucket(this, bucket, null, null)
+	override suspend fun keyValue(bucket: String): KeyValueBucket = KeyValueBucketImpl(this, bucket, null, null)
 
-	override suspend fun objectStore(bucket: String): ObjectStoreBucket = ObjectStoreBucket(this, bucket, null, null)
+	override suspend fun objectStore(bucket: String): ObjectStoreBucket = ObjectStoreBucketImpl(this, bucket, null, null)
 
 	override suspend fun request(
 		subject: String,

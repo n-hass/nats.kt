@@ -1,5 +1,7 @@
 package io.natskt.jetstream.internal
 
+import io.natskt.internal.suspendLazy
+import io.natskt.internal.throwOnInvalidToken
 import io.natskt.jetstream.api.JetStreamClient
 import io.natskt.jetstream.api.KeyValueStatus
 import io.natskt.jetstream.api.kv.KeyValueBucket
@@ -10,20 +12,33 @@ import io.natskt.jetstream.api.kv.build
 internal class KeyValueManagerImpl(
 	private val js: JetStreamClient,
 ) : KeyValueManager {
+	val accountInfo =
+		suspendLazy {
+			js.getAccountInfo().getOrNull()
+		}
+
 	override suspend fun create(configure: KeyValueConfigurationBuilder.() -> Unit): KeyValueBucket {
 		val config = KeyValueConfigurationBuilder().apply(configure).build()
-
-		val accountInfo = js.getAccountInfo().getOrThrow()
-
-		val createdInfo = js.createStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
-
-		return KeyValueBucket(js, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
+		val createdInfo = js.createStream(config.asStreamConfig(accountInfo()?.api?.level ?: 0)).getOrThrow()
+		return KeyValueBucketImpl(js, config.bucket, createdInfo.asKeyValueStatus(), createdInfo.asKeyValueConfig())
 	}
 
-	override suspend fun update(configure: KeyValueConfigurationBuilder.() -> Unit): KeyValueStatus {
-		val config = KeyValueConfigurationBuilder().apply(configure).build()
-		val accountInfo = js.getAccountInfo().getOrThrow()
-		val updatedInfo = js.updateStream(config.asStreamConfig(accountInfo.api?.level ?: 0)).getOrThrow()
+	override suspend fun update(
+		bucket: String,
+		configure: KeyValueConfigurationBuilder.() -> Unit,
+	): KeyValueStatus {
+		bucket.throwOnInvalidToken()
+		val existing =
+			js
+				.getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + bucket)
+				.getOrThrow()
+				.asKeyValueConfig()
+		val config =
+			KeyValueConfigurationBuilder(existing)
+				.apply(configure)
+				.apply { name = bucket }
+				.build()
+		val updatedInfo = js.updateStream(config.asStreamConfig(accountInfo()?.api?.level ?: 0)).getOrThrow()
 		return updatedInfo.asKeyValueStatus()
 	}
 
@@ -40,7 +55,7 @@ internal class KeyValueManagerImpl(
 
 		val bucketConfig = status.map { it.asKeyValueConfig() }.getOrThrow()
 
-		return KeyValueBucket(js, bucket, bucketStatus, bucketConfig)
+		return KeyValueBucketImpl(js, bucket, bucketStatus, bucketConfig)
 	}
 
 	override suspend fun getStatus(bucket: String): KeyValueStatus = js.getStreamInfo(KV_BUCKET_STREAM_NAME_PREFIX + bucket).getOrThrow().asKeyValueStatus()

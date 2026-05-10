@@ -100,7 +100,7 @@ internal suspend fun CanRequest.createOrUpdateConsumer(
 internal suspend fun CanRequest.createFilteredConsumer(
 	streamName: String,
 	consumerName: String,
-	filterSubject: String,
+	filterSubject: String?,
 	configuration: ConsumerConfig,
 ): Result<ConsumerInfo> {
 	val subject =
@@ -110,8 +110,10 @@ internal suspend fun CanRequest.createFilteredConsumer(
 			append(streamName)
 			append(".")
 			append(consumerName)
-			append(".")
-			append(filterSubject)
+			if (filterSubject != null) {
+				append(".")
+				append(filterSubject)
+			}
 		}
 
 	val payload =
