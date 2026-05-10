@@ -21,9 +21,12 @@ import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.api.internal.decode
 import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.kv.KeyValueManager
+import io.natskt.jetstream.api.os.ObjectStoreBucket
+import io.natskt.jetstream.api.os.ObjectStoreManager
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.internal.JetStreamContext
 import io.natskt.jetstream.internal.KeyValueManagerImpl
+import io.natskt.jetstream.internal.ObjectStoreManagerImpl
 import io.natskt.jetstream.internal.PersistentRequestSubscription
 import io.natskt.jetstream.internal.PullConsumerImpl
 import io.natskt.jetstream.internal.PushConsumerImpl
@@ -46,6 +49,10 @@ internal class JetStreamClientImpl(
 
 	override val keyValueManager: KeyValueManager by lazy {
 		KeyValueManagerImpl(this)
+	}
+
+	override val objectStoreManager: ObjectStoreManager by lazy {
+		ObjectStoreManagerImpl(this)
 	}
 
 	override suspend fun publish(
@@ -186,6 +193,8 @@ internal class JetStreamClientImpl(
 		).also { it.updateStreamInfo() }
 
 	override suspend fun keyValue(bucket: String): KeyValueBucket = KeyValueBucket(this, bucket, null, null)
+
+	override suspend fun objectStore(bucket: String): ObjectStoreBucket = ObjectStoreBucket(this, bucket, null, null)
 
 	override suspend fun request(
 		subject: String,

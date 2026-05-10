@@ -7,6 +7,8 @@ import io.natskt.jetstream.api.consumer.Consumer
 import io.natskt.jetstream.api.consumer.SubscribeOptions
 import io.natskt.jetstream.api.kv.KeyValueBucket
 import io.natskt.jetstream.api.kv.KeyValueManager
+import io.natskt.jetstream.api.os.ObjectStoreBucket
+import io.natskt.jetstream.api.os.ObjectStoreManager
 import io.natskt.jetstream.api.stream.Stream
 import io.natskt.jetstream.client.JetStreamClientImpl
 import io.natskt.jetstream.client.JetStreamConfiguration
@@ -17,6 +19,7 @@ public interface JetStreamClient : CanRequest {
 
 	public val manager: JetStreamManager
 	public val keyValueManager: KeyValueManager
+	public val objectStoreManager: ObjectStoreManager
 
 	public suspend fun publish(
 		subject: String,
@@ -66,6 +69,13 @@ public interface JetStreamClient : CanRequest {
 	 * or you can wrap its usage with [AutoCloseable.use]
 	 */
 	public suspend fun keyValue(bucket: String): KeyValueBucket
+
+	/**
+	 * Create an Object Store bucket binding.
+	 * **Creates a request subscription** that must be closed when you are finished,
+	 * or you can wrap its usage with [AutoCloseable.use]
+	 */
+	public suspend fun objectStore(bucket: String): ObjectStoreBucket
 
 	public companion object {
 		internal operator fun invoke(

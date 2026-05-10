@@ -52,7 +52,7 @@ class JetStreamManagerTest {
 				val updatedInfo =
 					js.manager.updateStream("test_update_stream") {
 						maxMessages = 2000
-						subject("test.2.>")
+						subjects = mutableListOf("test.2.>")
 					}
 
 				assertEquals(2000L, updatedInfo.config.maxMessages)
@@ -279,14 +279,13 @@ class JetStreamManagerTest {
 
 				// Update consumer (only mutable fields like description)
 				val updatedInfo =
-					js.manager.updateConsumer("test_consumer_stream") {
-						durableName = "test_consumer"
-						ackPolicy = AckPolicy.Explicit
-						filterSubject = "test.consumer.>"
+					js.manager.updateConsumer("test_consumer_stream", "test_consumer") {
 						description = "Updated description"
 					}
 
 				assertEquals("Updated description", updatedInfo.config.description)
+				assertEquals(consumerInfo.config.ackPolicy, updatedInfo.config.ackPolicy)
+				assertEquals(consumerInfo.config.filterSubject, updatedInfo.config.filterSubject)
 
 				// Clean up
 				js.manager.deleteConsumer("test_consumer_stream", "test_consumer")

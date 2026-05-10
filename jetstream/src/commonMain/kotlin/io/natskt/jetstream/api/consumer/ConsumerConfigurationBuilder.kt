@@ -72,6 +72,48 @@ public class ConsumerConfigurationBuilder internal constructor() {
 		}
 		priorityGroups!!.add(group)
 	}
+
+	internal constructor(existing: ConsumerConfig) : this() {
+		durableName = existing.durableName
+		name = existing.name
+		description = existing.description
+		deliverSubject = existing.deliverSubject
+		deliverGroup = existing.deliverGroup
+		deliverPolicy = existing.deliverPolicy
+		optStartSequence = existing.optStartSequence
+		optStartTime = existing.optStartTime
+		ackPolicy = existing.ackPolicy
+		ackWait = existing.ackWait
+		maxDeliver = existing.maxDeliver
+		backoff = existing.backoff?.toMutableList()
+		filterSubject = existing.filterSubject
+		filterSubjects = existing.filterSubjects?.toMutableList()
+		replayPolicy = existing.replayPolicy
+		sampleFrequency = existing.sampleFrequency
+		rateLimitBps = existing.rateLimitBps
+		maxAckPending = existing.maxAckPending
+		maxWaiting = existing.maxWaiting
+		maxBatch = existing.maxBatch
+		maxExpires = existing.maxExpires
+		maxBytes = existing.maxBytes
+		inactiveThreshold = existing.inactiveThreshold
+		numReplicas = existing.numReplicas
+		memoryStorage = existing.memoryStorage
+		metadata = existing.metadata?.toMutableMap()
+		headersOnly = existing.headersOnly
+		idleHeartbeat = existing.idleHeartbeat
+		flowControl = existing.flowControl
+		direct = existing.direct
+		maxPullWaiting = existing.maxPullWaiting
+		maxRequestBatch = existing.maxRequestBatch
+		maxRequestExpires = existing.maxRequestExpires
+		maxRequestMaxBytes = existing.maxRequestMaxBytes
+		deliverMetrics = existing.deliverMetrics
+		pauseUntil = existing.pauseUntil
+		priorityPolicy = existing.priorityPolicy
+		priorityGroups = existing.priorityGroups?.toMutableList()
+		priorityTimeout = existing.priorityTimeout
+	}
 }
 
 internal fun ConsumerConfigurationBuilder.build(): ConsumerConfig {

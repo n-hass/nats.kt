@@ -219,6 +219,48 @@ public class StreamConfigurationBuilder internal constructor() {
 		republish = StreamRepublishBuilder().apply(builder).build()
 	}
 
+	internal constructor(existing: StreamConfig) : this() {
+		name = existing.name
+		description = existing.description
+		subjects = existing.subjects?.toMutableList()
+		retention = existing.retention
+		maxConsumers = existing.maxConsumers
+		maxMessages = existing.maxMessages
+		maxMessagesPerSubject = existing.maxMessagesPerSubject
+		maxBytes = existing.maxBytes
+		maxAge = existing.maxAge
+		maxMessageSize = existing.maxMessageSize
+		storage = existing.storage
+		discard = existing.discard
+		discardNewPerSubject = existing.discardNewPerSubject
+		replicas = existing.replicas
+		noAck = existing.noAck
+		templateOwner = existing.templateOwner
+		duplicateWindow = existing.duplicateWindow
+		placement = existing.placement
+		mirror = existing.mirror
+		sources = existing.sources?.toMutableList()
+		allowRollupHeaders = existing.allowRollup
+		denyDelete = existing.denyDelete
+		denyPurge = existing.denyPurge
+		allowDirect = existing.allowDirect
+		mirrorDirect = existing.mirrorDirect
+		republish = existing.republish
+		sealed = existing.sealed
+		compression = existing.compression
+		metadata = existing.metadata?.toMutableMap()
+		firstSequence = existing.firstSequence
+		allowMessageTtl = existing.allowMessageTtl
+		subjectDeleteMarkerTtl = existing.subjectDeleteMarkerTtl
+		allowAtomicPublish = existing.allowAtomicPublish
+		allowMessageSchedules = existing.allowMessageSchedules
+		allowMessageCounter = existing.allowMessageCounter
+		allowBatched = existing.allowBatched
+		persistMode = existing.persistMode
+		consumerLimits = existing.consumerLimits
+		subjectTransforms = existing.subjectTransforms?.toMutableList()
+	}
+
 	public fun consumerLimits(builder: StreamConsumerLimitsBuilder.() -> Unit) {
 		consumerLimits = StreamConsumerLimitsBuilder().apply(builder).build()
 	}

@@ -108,11 +108,13 @@ public interface JetStreamManager {
 	/**
 	 * Updates an existing consumer. Must already exist.
 	 * @param streamName the stream name
+	 * @param consumerName the consumer to update
 	 * @param configure configuration builder for the consumer
 	 * @return consumer information
 	 */
 	public suspend fun updateConsumer(
 		streamName: String,
+		consumerName: String,
 		configure: ConsumerConfigurationBuilder.() -> Unit,
 	): ConsumerInfo
 

@@ -72,12 +72,12 @@ internal class JetStreamManagerImpl(
 		streamName: String,
 		configure: StreamConfigurationBuilder.() -> Unit,
 	): StreamInfo {
+		val existing = js.getStreamInfo(streamName).getOrThrow().config
 		val configuration =
-			StreamConfigurationBuilder()
-				.apply {
-					name = streamName
-					configure()
-				}.build()
+			StreamConfigurationBuilder(existing)
+				.apply(configure)
+				.apply { name = streamName }
+				.build()
 		return js.updateStream(configuration).getOrThrow()
 	}
 
@@ -119,10 +119,18 @@ internal class JetStreamManagerImpl(
 
 	override suspend fun updateConsumer(
 		streamName: String,
+		consumerName: String,
 		configure: ConsumerConfigurationBuilder.() -> Unit,
 	): ConsumerInfo {
 		streamName.throwOnInvalidToken()
-		val configuration = ConsumerConfigurationBuilder().apply(configure).build()
+		consumerName.throwOnInvalidToken()
+
+		val existing = js.getConsumerInfo(streamName, consumerName).getOrThrow().config
+		val configuration =
+			ConsumerConfigurationBuilder(existing)
+				.apply(configure)
+				.build()
+
 		return js.updateConsumer(streamName, configuration).getOrThrow()
 	}
 

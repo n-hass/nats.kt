@@ -66,7 +66,10 @@ internal class StreamImpl(
 			}.getOrThrow()
 	}
 
-	override suspend fun updateConsumer(configure: ConsumerConfigurationBuilder.() -> Unit): ConsumerInfo = js.manager.updateConsumer(this.name, configure)
+	override suspend fun updateConsumer(
+		consumerName: String,
+		configure: ConsumerConfigurationBuilder.() -> Unit,
+	): ConsumerInfo = js.manager.updateConsumer(this.name, consumerName, configure)
 
 	override suspend fun getConsumerInfo(name: String): ConsumerInfo = js.manager.getConsumerInfo(this.name, name)
 

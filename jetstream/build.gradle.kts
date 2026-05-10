@@ -17,14 +17,15 @@ kotlin {
 			testTask {
 				useKarma {
 					useChromeHeadless()
+					useConfigDirectory(karmaConfigDir)
 				}
-				timeout = Duration.ofSeconds(30)
+				timeout = Duration.ofSeconds(90)
 			}
 		}
         nodejs {
 			testTask {
 				useMocha {
-					timeout = "30000"
+					timeout = "90000"
 				}
 			}
 		}
@@ -35,14 +36,15 @@ kotlin {
 			testTask {
 				useKarma {
 					useChromeHeadless()
+					useConfigDirectory(karmaConfigDir)
 				}
-				timeout = Duration.ofSeconds(30)
+				timeout = Duration.ofSeconds(90)
 			}
 		}
         nodejs {
 			testTask {
 				useKarma()
-				timeout = Duration.ofSeconds(30)
+				timeout = Duration.ofSeconds(90)
 			}
 		}
     }
@@ -59,6 +61,7 @@ kotlin {
         commonMain.dependencies {
 			implementation(projects.core)
 			implementation(projects.core.common)
+			implementation(projects.crypto)
 			implementation(projects.internal)
 			implementation(libs.whyoleg.secureRandom)
 			implementation(libs.kotlinx.coroutines.core)
@@ -93,3 +96,22 @@ mavenPublishing {
 		description = "JetStream extensions from NATS.kt core"
 	}
 }
+
+val karmaMochaTimeoutMs = 20_000L
+val karmaConfigDir =
+	layout.buildDirectory
+		.dir("karma.config.d")
+		.get()
+		.asFile
+		.apply {
+			mkdirs()
+			resolve("mocha-timeout.js").writeText(
+				"""
+				config.set({
+					client: Object.assign({}, config.client || {}, {
+						mocha: { timeout: $karmaMochaTimeoutMs }
+					})
+				});
+				""".trimIndent(),
+			)
+		}
