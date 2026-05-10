@@ -7,6 +7,7 @@ import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.algorithms.AES
 import dev.whyoleg.cryptography.algorithms.ChaCha20Poly1305
 import dev.whyoleg.cryptography.operations.IvAuthenticatedCipher
+import io.ktor.network.tls.TlsException
 
 /**
  * TLS 1.3 record encryption/decryption.

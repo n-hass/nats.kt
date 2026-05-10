@@ -1,5 +1,7 @@
 package io.natskt.tls.internal
 
+import io.ktor.network.tls.TlsException
+
 internal class DerReader(
 	private val data: ByteArray,
 	private var pos: Int = 0,

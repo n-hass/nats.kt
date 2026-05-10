@@ -1,14 +1,14 @@
-package io.natskt.integration
+package integration
 
 import harness.RemoteNatsHarness
 import harness.runBlocking
 import io.ktor.client.engine.cio.CIO
+import io.ktor.network.tls.TlsException
 import io.natskt.NatsClient
 import io.natskt.api.NatsClient
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.client.transport.TcpTransport
 import io.natskt.client.transport.WebSocketTransport
-import io.natskt.tls.internal.TlsException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay

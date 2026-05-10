@@ -13,6 +13,7 @@ import dev.whyoleg.cryptography.algorithms.ECDSA
 import dev.whyoleg.cryptography.algorithms.RSA
 import dev.whyoleg.cryptography.algorithms.SHA256
 import dev.whyoleg.cryptography.random.CryptographyRandom
+import io.ktor.network.tls.TlsException
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel

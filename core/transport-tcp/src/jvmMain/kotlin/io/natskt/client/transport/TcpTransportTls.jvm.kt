@@ -1,9 +1,11 @@
 package io.natskt.client.transport
 
 import io.ktor.network.sockets.connection
+import io.ktor.network.tls.TlsException
 import io.ktor.network.tls.addCertificateChain
 import io.ktor.network.tls.tls
 import io.natskt.client.TlsPrivateKeyAlgorithm
+import kotlinx.coroutines.CancellationException
 import java.io.ByteArrayInputStream
 import java.security.KeyFactory
 import java.security.KeyStore
@@ -15,9 +17,9 @@ import javax.net.ssl.X509TrustManager
 
 internal actual suspend fun performTlsUpgrade(transport: TcpTransport): Transport {
 	val cfg = transport.tlsConfig
-	return TcpTransport(
-		transport.inner
-			.tls(transport.context) {
+	val tlsSocket =
+		try {
+			transport.inner.tls(transport.context) {
 				serverName = transport.serverName
 
 				when {
@@ -35,7 +37,19 @@ internal actual suspend fun performTlsUpgrade(transport: TcpTransport): Transpor
 					val key = parseClientPrivateKey(cfg.clientPrivateKeyDer!!, cfg.clientPrivateKeyAlgorithm)
 					addCertificateChain(chain, key)
 				}
-			}.connection(),
+			}
+		} catch (cause: CancellationException) {
+			throw cause
+		} catch (cause: TlsException) {
+			throw cause
+		} catch (cause: Throwable) {
+			// JSSE-thrown exceptions (e.g. sun.security.validator.ValidatorException, SSLException)
+			// surface raw through Ktor's handshake. Wrap them so callers can match a single
+			// cross-platform type.
+			throw TlsException(cause.message ?: "TLS handshake failed", cause)
+		}
+	return TcpTransport(
+		tlsSocket.connection(),
 		transport.context,
 		transport.serverName,
 		cfg,

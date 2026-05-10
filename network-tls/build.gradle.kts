@@ -22,6 +22,7 @@ kotlin {
 		nativeMain.dependencies {
 			implementation(libs.ktor.io)
 			implementation(libs.ktor.network)
+			implementation(libs.ktor.network.tls)
 			implementation(libs.kotlinx.coroutines.core)
 			implementation(libs.whyoleg.cryptography.core)
 			implementation(libs.whyoleg.cryptography.provider.openssl3.api)

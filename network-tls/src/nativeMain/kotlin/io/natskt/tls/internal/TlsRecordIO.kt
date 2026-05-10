@@ -1,5 +1,6 @@
 package io.natskt.tls.internal
 
+import io.ktor.network.tls.TlsException
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByte

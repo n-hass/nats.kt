@@ -5,7 +5,7 @@
 
 package io.natskt.tls.cert
 
-import io.natskt.tls.internal.TlsException
+import io.ktor.network.tls.TlsException
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
@@ -16,10 +16,14 @@ import kotlinx.cinterop.value
 import platform.CoreFoundation.CFArrayAppendValue
 import platform.CoreFoundation.CFArrayCreateMutable
 import platform.CoreFoundation.CFDataCreate
+import platform.CoreFoundation.CFErrorCopyDescription
+import platform.CoreFoundation.CFErrorRefVar
 import platform.CoreFoundation.CFRelease
 import platform.CoreFoundation.CFStringRef
 import platform.CoreFoundation.kCFAllocatorDefault
+import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
+import platform.Foundation.NSString
 import platform.Security.SecCertificateCreateWithData
 import platform.Security.SecCertificateRef
 import platform.Security.SecPolicyCreateSSL
@@ -99,11 +103,19 @@ internal actual fun validateCertificateChain(
 				}
 			}
 
-			val trusted = SecTrustEvaluateWithError(trust, null)
+			val errorVar = alloc<CFErrorRefVar>()
+			val trusted = SecTrustEvaluateWithError(trust, errorVar.ptr)
 			CFRelease(trust)
 
 			if (!trusted) {
-				throw TlsException("Certificate chain validation failed (untrusted by system)")
+				val detail =
+					errorVar.value?.let { err ->
+						val descRef = CFErrorCopyDescription(err)
+						val desc = (CFBridgingRelease(descRef) as? NSString)?.toString() ?: "unknown"
+						CFRelease(err)
+						desc
+					} ?: "unknown"
+				throw TlsException("Certificate chain validation failed (untrusted by system): $detail")
 			}
 		} finally {
 			secCerts.forEach { CFRelease(it) }

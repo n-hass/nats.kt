@@ -1,9 +1,6 @@
 package io.natskt.tls.internal
 
-public class TlsException(
-	message: String,
-	cause: Throwable? = null,
-) : Exception(message, cause)
+import io.ktor.network.tls.TlsException
 
 internal enum class TlsRecordType(
 	val code: Int,

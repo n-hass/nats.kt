@@ -4,6 +4,7 @@ import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.algorithms.Digest
 import dev.whyoleg.cryptography.algorithms.SHA256
 import dev.whyoleg.cryptography.algorithms.SHA384
+import io.ktor.network.tls.TlsException
 
 internal class TlsDigest : AutoCloseable {
 	private val accumulated = mutableListOf<ByteArray>()
