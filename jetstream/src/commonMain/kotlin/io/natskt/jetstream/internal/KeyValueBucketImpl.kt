@@ -41,7 +41,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlin.time.Clock
@@ -337,13 +336,18 @@ internal class KeyValueBucketImpl(
 			)
 
 		val consumerInfo =
-			js
-				.createFilteredConsumer(
-					streamName = streamName,
-					consumerName = consumerName,
-					filterSubject = singleFilter,
-					configuration = consumerConfig,
-				).getOrThrow()
+			try {
+				js
+					.createFilteredConsumer(
+						streamName = streamName,
+						consumerName = consumerName,
+						filterSubject = singleFilter,
+						configuration = consumerConfig,
+					).getOrThrow()
+			} catch (e: Throwable) {
+				consumer.close()
+				throw e
+			}
 
 		consumer.info.value = consumerInfo
 
@@ -352,28 +356,30 @@ internal class KeyValueBucketImpl(
 		val emptySnapshot = !updatesOnly && initPending == 0uL
 
 		return flow {
-			if (emptySnapshot) {
-				// Server reported zero pending on consumer creation — synthesize the snapshot-done
-				// marker so bounded callers like keys()/history() complete without waiting for traffic.
-				emit(null)
-			}
+			try {
+				if (emptySnapshot) {
+					// Server reported zero pending on consumer creation — synthesize the snapshot-done
+					// marker so bounded callers like keys()/history() complete without waiting for traffic.
+					emit(null)
+				}
 
-			var received: ULong = 0u
-			var snapshotDone = updatesOnly || emptySnapshot
+				var received: ULong = 0u
+				var snapshotDone = updatesOnly || emptySnapshot
 
-			consumer.messages.collect { msg ->
-				emit(msg)
-				if (!snapshotDone) {
-					val pending = parseAckMetadata(msg.replyTo)?.pending ?: 0u
-					received++
-					if (received >= initPending || pending == 0uL) {
-						snapshotDone = true
-						emit(null)
+				consumer.messages.collect { msg ->
+					emit(msg)
+					if (!snapshotDone) {
+						val pending = parseAckMetadata(msg.replyTo)?.pending ?: 0u
+						received++
+						if (received >= initPending || pending == 0uL) {
+							snapshotDone = true
+							emit(null)
+						}
 					}
 				}
+			} finally {
+				consumer.close()
 			}
-		}.onCompletion {
-			consumer.close()
 		}
 	}
 
