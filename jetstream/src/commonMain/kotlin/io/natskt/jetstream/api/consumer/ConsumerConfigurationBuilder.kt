@@ -111,7 +111,7 @@ public class ConsumerConfigurationBuilder internal constructor() {
 		deliverMetrics = existing.deliverMetrics
 		pauseUntil = existing.pauseUntil
 		priorityPolicy = existing.priorityPolicy
-		priorityGroups = existing.priorityGroups
+		priorityGroups = existing.priorityGroups?.toMutableList()
 		priorityTimeout = existing.priorityTimeout
 	}
 }

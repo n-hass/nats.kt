@@ -258,7 +258,7 @@ public class StreamConfigurationBuilder internal constructor() {
 		allowBatched = existing.allowBatched
 		persistMode = existing.persistMode
 		consumerLimits = existing.consumerLimits
-		subjectTransforms = existing.subjectTransforms
+		subjectTransforms = existing.subjectTransforms?.toMutableList()
 	}
 
 	public fun consumerLimits(builder: StreamConsumerLimitsBuilder.() -> Unit) {
