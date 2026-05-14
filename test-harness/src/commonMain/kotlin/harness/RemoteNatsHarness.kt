@@ -40,7 +40,17 @@ public object RemoteNatsHarness {
 }
 
 private val exceptionHandler =
-	CoroutineExceptionHandler { context, error ->
+	CoroutineExceptionHandler { _, error ->
+		// Failed TLS handshakes (e.g. mTLS rejection by the server) leave Ktor's TLS output
+		// coroutine writing to a half-closed socket; the resulting "Broken pipe" surfaces
+		// as a stray ClosedWriteChannelException after the test has already observed the
+		// connect failure. Treat these IO-tail exceptions as non-fatal so test scenarios
+		// that intentionally trigger handshake failures don't fail spuriously.
+		val message = error.message.orEmpty()
+		val isTeardownIoTail =
+			error::class.simpleName == "ClosedWriteChannelException" ||
+				message.contains("Broken pipe")
+		if (isTeardownIoTail) return@CoroutineExceptionHandler
 		throw RuntimeException("unhandled exception", error)
 	}
 

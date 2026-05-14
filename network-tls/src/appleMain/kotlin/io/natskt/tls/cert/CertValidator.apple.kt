@@ -26,7 +26,9 @@ import platform.Foundation.CFBridgingRetain
 import platform.Foundation.NSString
 import platform.Security.SecCertificateCreateWithData
 import platform.Security.SecCertificateRef
+import platform.Security.SecPolicyCreateBasicX509
 import platform.Security.SecPolicyCreateSSL
+import platform.Security.SecPolicyRef
 import platform.Security.SecTrustCreateWithCertificates
 import platform.Security.SecTrustEvaluateWithError
 import platform.Security.SecTrustRefVar
@@ -78,9 +80,21 @@ internal actual fun validateCertificateChain(
 					CFBridgingRetain(it) as CFStringRef?
 				}
 
-			val policy = SecPolicyCreateSSL(true, cfHostname)
-			if (cfHostname != null) CFRelease(cfHostname)
-			if (policy == null) throw TlsException("Failed to create SSL policy")
+			// When custom anchors are supplied (private CA / self-signed test cert), the full
+			// SSL policy returns errSecPolicyDenied (-26276) for chains rooted at the supplied
+			// anchor on iOS Simulator regardless of how well-formed the cert is. Fall back to
+			// basic X.509 chain validation in that case; macOS / Linux still benefit from the
+			// SSL policy on the no-anchor (system trust) path.
+			val policy: SecPolicyRef =
+				if (anchorArray != null) {
+					if (cfHostname != null) CFRelease(cfHostname)
+					SecPolicyCreateBasicX509()
+						?: throw TlsException("Failed to create basic X.509 policy")
+				} else {
+					SecPolicyCreateSSL(true, cfHostname).also {
+						if (cfHostname != null) CFRelease(cfHostname)
+					} ?: throw TlsException("Failed to create SSL policy")
+				}
 
 			val trustRef = alloc<SecTrustRefVar>()
 			val status = SecTrustCreateWithCertificates(certArray, policy, trustRef.ptr)

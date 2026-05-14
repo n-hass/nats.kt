@@ -51,8 +51,10 @@ public class NatsServerHarness private constructor(
 	public val uri: String
 		get() = "nats://127.0.0.1:$port"
 
+	// Connect via DNS rather than IP. iOS Simulator's SecTrust SSL policy is stricter about
+	// IP-based hostnames in cert SANs and rejects what macOS accepts.
 	public val tlsUri: String?
-		get() = if (enableTls) "tls://127.0.0.1:$port" else null
+		get() = if (enableTls) "tls://localhost:$port" else null
 
 	public val websocketUri: String
 		get() = "ws://127.0.0.1:$websocketPort"
@@ -137,8 +139,24 @@ public class NatsServerHarness private constructor(
 	}
 
 	private fun generateServerCert() {
-		val certFile = tmpDir.resolve("server-cert.pem")
+		// Generate a CA and a server cert signed by it, rather than a self-signed leaf.
+		// iOS's SecTrust SSL policy rejects self-signed-leaf-as-anchor configurations
+		// with errSecPolicyDenied (-26276), even when the leaf is added via
+		// SecTrustSetAnchorCertificates. A proper CA → leaf chain validates everywhere.
+		val caKey = tmpDir.resolve("server-ca-key.pem")
+		val caCert = tmpDir.resolve("server-ca-cert.pem")
 		val keyFile = tmpDir.resolve("server-key.pem")
+		val csrFile = tmpDir.resolve("server.csr")
+		val certFile = tmpDir.resolve("server-cert.pem")
+		val extFile = tmpDir.resolve("server-cert.ext")
+
+		Files.writeString(
+			extFile,
+			"basicConstraints=critical,CA:FALSE\n" +
+				"keyUsage=critical,digitalSignature,keyEncipherment,keyAgreement\n" +
+				"subjectAltName=DNS:localhost,IP:127.0.0.1\n" +
+				"extendedKeyUsage=serverAuth\n",
+		)
 
 		runOpenssl(
 			"req",
@@ -148,23 +166,52 @@ public class NatsServerHarness private constructor(
 			"-pkeyopt",
 			"ec_paramgen_curve:prime256v1",
 			"-keyout",
-			keyFile.toAbsolutePath().toString(),
+			caKey.toAbsolutePath().toString(),
 			"-out",
-			certFile.toAbsolutePath().toString(),
+			caCert.toAbsolutePath().toString(),
 			"-days",
 			"1",
 			"-nodes",
 			"-subj",
-			"/CN=localhost",
-			"-addext",
-			"subjectAltName=DNS:localhost,IP:127.0.0.1",
-			// Apple's SecTrust SSL policy rejects certs without serverAuth EKU
-			// when the cert is also acting as the trust anchor.
-			"-addext",
-			"extendedKeyUsage=serverAuth",
+			"/CN=natskt Test Server CA",
 		)
 
-		serverCertPem = Files.readString(certFile)
+		runOpenssl(
+			"req",
+			"-new",
+			"-newkey",
+			"ec",
+			"-pkeyopt",
+			"ec_paramgen_curve:prime256v1",
+			"-keyout",
+			keyFile.toAbsolutePath().toString(),
+			"-out",
+			csrFile.toAbsolutePath().toString(),
+			"-nodes",
+			"-subj",
+			"/CN=localhost",
+		)
+
+		runOpenssl(
+			"x509",
+			"-req",
+			"-in",
+			csrFile.toAbsolutePath().toString(),
+			"-CA",
+			caCert.toAbsolutePath().toString(),
+			"-CAkey",
+			caKey.toAbsolutePath().toString(),
+			"-CAcreateserial",
+			"-out",
+			certFile.toAbsolutePath().toString(),
+			"-days",
+			"1",
+			"-extfile",
+			extFile.toAbsolutePath().toString(),
+		)
+
+		// Expose the CA so tests can trust the chain by trusting the root.
+		serverCertPem = Files.readString(caCert)
 	}
 
 	private fun generateClientCa(): Path {

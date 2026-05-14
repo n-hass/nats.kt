@@ -4,8 +4,10 @@ import io.ktor.network.sockets.connection
 import io.ktor.network.tls.TlsException
 import io.ktor.network.tls.addCertificateChain
 import io.ktor.network.tls.tls
+import io.ktor.utils.io.ClosedWriteChannelException
 import io.natskt.client.TlsPrivateKeyAlgorithm
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import java.io.ByteArrayInputStream
 import java.security.KeyFactory
 import java.security.KeyStore
@@ -17,9 +19,16 @@ import javax.net.ssl.X509TrustManager
 
 internal actual suspend fun performTlsUpgrade(transport: TcpTransport): Transport {
 	val cfg = transport.tlsConfig
+	// Ktor's TLS pipeline launches its own input/output coroutines on the supplied context.
+	// When a handshake fails (e.g. mTLS server rejecting a missing client cert), the output
+	// side may try one more write after the socket is half-closed and emit
+	// ClosedWriteChannelException("Broken pipe") into the parent scope's exception handler.
+	// The real failure has already surfaced via the handshake's TlsException, so swallow
+	// only that specific teardown noise here.
+	val handshakeContext = transport.context + tlsTeardownNoiseFilter
 	val tlsSocket =
 		try {
-			transport.inner.tls(transport.context) {
+			transport.inner.tls(handshakeContext) {
 				serverName = transport.serverName
 
 				when {
@@ -56,6 +65,20 @@ internal actual suspend fun performTlsUpgrade(transport: TcpTransport): Transpor
 		cfg,
 	)
 }
+
+private val tlsTeardownNoiseFilter =
+	CoroutineExceptionHandler { _, error ->
+		if (error is ClosedWriteChannelException) return@CoroutineExceptionHandler
+		if (error.message?.contains("Broken pipe") == true) return@CoroutineExceptionHandler
+		// Anything else: rethrow on a fresh thread so the platform default handler still
+		// observes it. Throwing in-place would just be silently swallowed by the dispatcher.
+		Thread {
+			throw error
+		}.apply {
+			isDaemon = true
+			name = "natskt-tls-rethrow"
+		}.start()
+	}
 
 private fun trustManagerFromDer(caDer: List<ByteArray>): X509TrustManager {
 	val factory = CertificateFactory.getInstance("X.509")
