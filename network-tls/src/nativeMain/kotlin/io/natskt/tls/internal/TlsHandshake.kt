@@ -10,8 +10,6 @@ import dev.whyoleg.cryptography.algorithms.Digest
 import dev.whyoleg.cryptography.algorithms.EC
 import dev.whyoleg.cryptography.algorithms.ECDH
 import dev.whyoleg.cryptography.algorithms.ECDSA
-import dev.whyoleg.cryptography.algorithms.RSA
-import dev.whyoleg.cryptography.algorithms.SHA256
 import dev.whyoleg.cryptography.random.CryptographyRandom
 import io.ktor.network.tls.TlsException
 import io.ktor.utils.io.ByteChannel
@@ -78,6 +76,8 @@ internal class TlsHandshake(
 
 	private var inputJob: kotlinx.coroutines.Job? = null
 	private var outputJob: kotlinx.coroutines.Job? = null
+
+	private var serverLeafCertDer: ByteArray? = null
 
 	// --- Handshake: all I/O is synchronous (no coroutine producers) ---
 
@@ -413,6 +413,7 @@ internal class TlsHandshake(
 						digest.addHandshakeMessage(msg)
 						val certChain = parseTls13CertificateChain(msg.data)
 						if (verifyCertificates) validateCertificateChain(certChain, serverName, trustAnchorsDer)
+						serverLeafCertDer = certChain.first()
 						serverPublicKey = extractPublicKeyFromCertificate(certChain.first())
 					}
 					TlsHandshakeType.CertificateRequest -> {
@@ -547,16 +548,15 @@ internal class TlsHandshake(
 			}
 			is CertPublicKey.Rsa -> {
 				// RFC 8446 §4.4.3: only RSA-PSS schemes permitted for TLS 1.3 CertificateVerify
-				val d =
+				val hash =
 					when (scheme) {
-						0x0804 -> dev.whyoleg.cryptography.algorithms.SHA256
-						0x0805 -> dev.whyoleg.cryptography.algorithms.SHA384
-						0x0806 -> dev.whyoleg.cryptography.algorithms.SHA512
+						0x0804 -> RsaHash.Sha256
+						0x0805 -> RsaHash.Sha384
+						0x0806 -> RsaHash.Sha512
 						else -> throw TlsException("TLS 1.3: unsupported RSA-PSS CertificateVerify scheme: 0x${scheme.toString(16)}")
 					}
-				val rsa = CryptographyProvider.Default.get(RSA.PSS)
-				val pk = rsa.publicKeyDecoder(d).decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, serverPubKey.spkiDer)
-				if (!pk.signatureVerifier().tryVerifySignatureBlocking(content, sig)) {
+				val cert = serverLeafCertDer ?: throw TlsException("Server leaf certificate required for RSA-PSS verification")
+				if (!verifyRsaPssSignature(cert, hash, content, sig)) {
 					throw TlsException("TLS 1.3: CertificateVerify RSA-PSS verification failed")
 				}
 			}
@@ -589,6 +589,7 @@ internal class TlsHandshake(
 					val certs = parseCertificatesDer(msg.data)
 					if (certs.isEmpty()) throw TlsException("No certificate")
 					if (verifyCertificates) validateCertificateChain(certs, serverName, trustAnchorsDer)
+					serverLeafCertDer = certs.first()
 					serverPublicKey = extractPublicKeyFromCertificate(certs.first())
 				}
 				TlsHandshakeType.ServerKeyExchange -> {
@@ -643,11 +644,8 @@ internal class TlsHandshake(
 				CryptographyRandom.nextBytes(preSecret)
 				preSecret[0] = 3
 				preSecret[1] = 3
-				val rsaKey = serverPublicKey as CertPublicKey.Rsa
-				val rsa = CryptographyProvider.Default.get(RSA.PKCS1)
-				// Digest parameter is required by the API but unused for RSAES-PKCS1-v1_5 encryption
-				val pk = rsa.publicKeyDecoder(SHA256).decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, rsaKey.spkiDer)
-				val enc = pk.encryptor().encryptBlocking(preSecret)
+				val cert = serverLeafCertDer ?: throw TlsException("Server certificate required for RSA key exchange")
+				val enc = encryptRsaPkcs1(cert, preSecret)
 				sendHandshakeRecord(TlsHandshakeType.ClientKeyExchange) {
 					writeShort(enc.size.toShort())
 					write(enc)
@@ -738,28 +736,22 @@ internal class TlsHandshake(
 		signature: ByteArray,
 		hashAndSign: HashAndSignInfo,
 	) {
-		// RSA-PSS uses hash code 8 ("Intrinsic") — handle before digestAlgorithmForHash
+		// RSA-PSS uses hash code 8 ("Intrinsic") — actual digest is encoded in signCode.
 		if (serverPubKey is CertPublicKey.Rsa && hashAndSign.hashCode == 8) {
-			// RSA-PSS: actual digest is encoded in signCode (4=SHA256, 5=SHA384, 6=SHA512)
-			val pssDigest =
+			val pssHash =
 				when (hashAndSign.signCode) {
-					4 -> dev.whyoleg.cryptography.algorithms.SHA256
-					5 -> dev.whyoleg.cryptography.algorithms.SHA384
-					6 -> dev.whyoleg.cryptography.algorithms.SHA512
+					4 -> RsaHash.Sha256
+					5 -> RsaHash.Sha384
+					6 -> RsaHash.Sha512
 					else -> throw TlsException("Unsupported RSA-PSS scheme: 0x08${hashAndSign.signCode.toString(16).padStart(2, '0')}")
 				}
-			val pk =
-				CryptographyProvider.Default
-					.get(RSA.PSS)
-					.publicKeyDecoder(pssDigest)
-					.decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, serverPubKey.spkiDer)
-			if (!pk.signatureVerifier().tryVerifySignatureBlocking(signedData, signature)) {
+			val cert = serverLeafCertDer ?: throw TlsException("Server leaf certificate required for RSA-PSS verification")
+			if (!verifyRsaPssSignature(cert, pssHash, signedData, signature)) {
 				throw TlsException("RSA-PSS sig failed")
 			}
 			return
 		}
 
-		val digestAlg = digestAlgorithmForHash(hashAndSign.hashCode)
 		when (serverPubKey) {
 			is CertPublicKey.Ec -> {
 				val curve =
@@ -769,6 +761,7 @@ internal class TlsHandshake(
 						OID_SECP521R1 -> EC.Curve.P521
 						else -> throw TlsException("Unknown curve")
 					}
+				val digestAlg = digestAlgorithmForHash(hashAndSign.hashCode)
 				val pk =
 					CryptographyProvider.Default
 						.get(ECDSA)
@@ -779,17 +772,22 @@ internal class TlsHandshake(
 				}
 			}
 			is CertPublicKey.Rsa -> {
-				val pk =
-					CryptographyProvider.Default
-						.get(RSA.PKCS1)
-						.publicKeyDecoder(digestAlg)
-						.decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, serverPubKey.spkiDer)
-				if (!pk.signatureVerifier().tryVerifySignatureBlocking(signedData, signature)) {
+				val pkcs1Hash = rsaHashForTlsHashCode(hashAndSign.hashCode)
+				val cert = serverLeafCertDer ?: throw TlsException("Server leaf certificate required for RSA-PKCS#1 verification")
+				if (!verifyRsaPkcs1Signature(cert, pkcs1Hash, signedData, signature)) {
 					throw TlsException("RSA sig failed")
 				}
 			}
 		}
 	}
+
+	private fun rsaHashForTlsHashCode(code: Int): RsaHash =
+		when (code) {
+			4 -> RsaHash.Sha256
+			5 -> RsaHash.Sha384
+			6 -> RsaHash.Sha512
+			else -> throw TlsException("Unsupported TLS hash algorithm for RSA-PKCS#1: $code")
+		}
 
 	companion object {
 		// RFC 8446 §4.1.4: HelloRetryRequest is a ServerHello with this specific random value

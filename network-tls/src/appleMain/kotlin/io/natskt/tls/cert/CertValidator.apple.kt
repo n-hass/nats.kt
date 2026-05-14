@@ -6,30 +6,22 @@
 package io.natskt.tls.cert
 
 import io.ktor.network.tls.TlsException
-import kotlinx.cinterop.addressOf
+import io.natskt.tls.internal.asCFData
+import io.natskt.tls.internal.derToSecCertificate
+import io.natskt.tls.internal.describe
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.pin
 import kotlinx.cinterop.ptr
-import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.value
 import platform.CoreFoundation.CFArrayAppendValue
 import platform.CoreFoundation.CFArrayCreateMutable
-import platform.CoreFoundation.CFDataCreate
-import platform.CoreFoundation.CFErrorCopyDescription
 import platform.CoreFoundation.CFErrorRefVar
 import platform.CoreFoundation.CFRelease
 import platform.CoreFoundation.CFStringRef
 import platform.CoreFoundation.kCFAllocatorDefault
-import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
-import platform.Foundation.NSString
-import platform.Security.SecCertificateCopyKey
-import platform.Security.SecCertificateCreateWithData
 import platform.Security.SecCertificateRef
 import platform.Security.SecKeyAlgorithm
-import platform.Security.SecKeyRef
-import platform.Security.SecKeyVerifySignature
 import platform.Security.SecPolicyCreateSSL
 import platform.Security.SecPolicyRef
 import platform.Security.SecTrustCreateWithCertificates
@@ -42,7 +34,6 @@ import platform.Security.kSecKeyAlgorithmECDSASignatureMessageX962SHA512
 import platform.Security.kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA256
 import platform.Security.kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA384
 import platform.Security.kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA512
-import platform.posix.uint8_tVar
 import kotlin.time.Clock
 
 internal actual fun validateCertificateChain(
@@ -111,26 +102,27 @@ private fun verifyCertSignature(
 		child.signatureAlgorithm?.toSecKeyAlgorithm()
 			?: throw TlsException("Unsupported certificate signature algorithm: ${child.signatureAlgOid}")
 
-	memScoped {
-		val issuerSecCert = derToSecCertificate(issuerDer)
+	val cert = derToSecCertificate(issuerDer)
+	try {
+		val key =
+			platform.Security.SecCertificateCopyKey(cert)
+				?: throw TlsException("Unable to extract issuer public key")
 		try {
-			val key: SecKeyRef =
-				SecCertificateCopyKey(issuerSecCert)
-					?: throw TlsException("Unable to extract issuer public key")
-			try {
-				child.tbsBytes.asCFData { tbsCfData ->
-					child.signatureBytes.asCFData { sigCfData ->
-						val errorVar = alloc<CFErrorRefVar>()
-						val ok = SecKeyVerifySignature(key, algorithm, tbsCfData, sigCfData, errorVar.ptr)
-						if (!ok) throw TlsException("Certificate signature verification failed: ${errorVar.describe()}")
+			memScoped {
+				val errorVar = alloc<CFErrorRefVar>()
+				val ok =
+					child.tbsBytes.asCFData { tbs ->
+						child.signatureBytes.asCFData { sig ->
+							platform.Security.SecKeyVerifySignature(key, algorithm, tbs, sig, errorVar.ptr)
+						}
 					}
-				}
-			} finally {
-				CFRelease(key)
+				if (!ok) throw TlsException("Certificate signature verification failed: ${errorVar.describe()}")
 			}
 		} finally {
-			CFRelease(issuerSecCert)
+			CFRelease(key)
 		}
+	} finally {
+		CFRelease(cert)
 	}
 }
 
@@ -186,39 +178,5 @@ private fun validateAgainstSystemTrust(
 			CFRelease(certArray)
 			if (cfHostname != null) CFRelease(cfHostname)
 		}
-	}
-}
-
-private fun CFErrorRefVar.describe(): String =
-	value?.let { err ->
-		val descRef = CFErrorCopyDescription(err)
-		val desc = (CFBridgingRelease(descRef) as? NSString)?.toString() ?: "unknown"
-		CFRelease(err)
-		desc
-	} ?: "unknown"
-
-private inline fun <R> ByteArray.asCFData(block: (platform.CoreFoundation.CFDataRef) -> R): R {
-	val pinned = pin()
-	val cfData =
-		CFDataCreate(
-			kCFAllocatorDefault,
-			pinned.addressOf(0).reinterpret<uint8_tVar>(),
-			size.toLong(),
-		) ?: run {
-			pinned.unpin()
-			throw TlsException("Failed to create CFData")
-		}
-	pinned.unpin()
-	try {
-		return block(cfData)
-	} finally {
-		CFRelease(cfData)
-	}
-}
-
-private fun derToSecCertificate(certDer: ByteArray): SecCertificateRef {
-	certDer.asCFData { cfData ->
-		return SecCertificateCreateWithData(kCFAllocatorDefault, cfData)
-			?: throw TlsException("Invalid X.509 certificate")
 	}
 }

@@ -29,12 +29,11 @@ kotlin {
 		}
 
 		appleMain.dependencies {
-			// CryptoKit covers ECDSA/AES-GCM/HKDF efficiently, but doesn't expose RSA-PSS,
-			// which is required by TLS 1.2 ECDHE_RSA and TLS 1.3 CertificateVerify on RSA
-			// certs. Pair it with the OpenSSL3 prebuilt provider so RSA-PSS is available.
+			// CryptoKit covers what we use from the cryptography lib (ECDSA, ECDH, AES-GCM,
+			// ChaCha20-Poly1305, HKDF, SHA). RSA-PSS / RSA-PKCS#1 sign-verify and RSA-PKCS#1
+			// encryption are routed through the Security framework (SecKey) — see
+			// RsaCrypto.apple.kt
 			implementation(libs.whyoleg.cryptography.provider.cryptokit)
-			implementation(libs.whyoleg.cryptography.provider.openssl3.api)
-			implementation(libs.whyoleg.cryptography.provider.openssl3.prebuilt.nativebuilds)
 		}
 
 		linuxMain.dependencies {
