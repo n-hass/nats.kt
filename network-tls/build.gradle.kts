@@ -28,9 +28,14 @@ kotlin {
 			implementation(libs.whyoleg.secureRandom)
 		}
 
-    appleMain.dependencies {
-      implementation(libs.whyoleg.cryptography.provider.cryptokit)
-    }
+		appleMain.dependencies {
+			// CryptoKit covers ECDSA/AES-GCM/HKDF efficiently, but doesn't expose RSA-PSS,
+			// which is required by TLS 1.2 ECDHE_RSA and TLS 1.3 CertificateVerify on RSA
+			// certs. Pair it with the OpenSSL3 prebuilt provider so RSA-PSS is available.
+			implementation(libs.whyoleg.cryptography.provider.cryptokit)
+			implementation(libs.whyoleg.cryptography.provider.openssl3.api)
+			implementation(libs.whyoleg.cryptography.provider.openssl3.prebuilt.nativebuilds)
+		}
 
 		linuxMain.dependencies {
 			implementation(libs.whyoleg.cryptography.provider.optimal)
@@ -66,10 +71,3 @@ mavenPublishing {
 	}
 }
 
-// The TLS test suite reads its server ports from a TLS_TEST_PORTS_FILE env var. iOS Simulator
-// runs tests in a sandboxed simctl process that does not inherit Gradle's environment, so the
-// pointer to the shared test server doesn't reach the simulator. Skip the test suite there;
-// macOS and Linux still provide native coverage for the same handshake code.
-tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest>()
-	.matching { it.name == "iosSimulatorArm64Test" }
-	.configureEach { enabled = false }

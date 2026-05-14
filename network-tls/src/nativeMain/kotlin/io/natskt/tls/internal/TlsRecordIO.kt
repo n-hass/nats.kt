@@ -26,6 +26,8 @@ internal suspend fun ByteReadChannel.readTlsRecord(): TlsRecord {
 		return TlsRecord(type, data = data)
 	} catch (e: io.ktor.utils.io.ClosedByteChannelException) {
 		throw TlsException("Connection reset while reading TLS record", e)
+	} catch (e: kotlinx.io.EOFException) {
+		throw TlsException("Connection closed mid-record while reading TLS record", e)
 	}
 }
 

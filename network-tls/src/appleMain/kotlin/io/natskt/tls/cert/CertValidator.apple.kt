@@ -24,18 +24,26 @@ import platform.CoreFoundation.kCFAllocatorDefault
 import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
 import platform.Foundation.NSString
+import platform.Security.SecCertificateCopyKey
 import platform.Security.SecCertificateCreateWithData
 import platform.Security.SecCertificateRef
-import platform.Security.SecPolicyCreateBasicX509
+import platform.Security.SecKeyAlgorithm
+import platform.Security.SecKeyRef
+import platform.Security.SecKeyVerifySignature
 import platform.Security.SecPolicyCreateSSL
 import platform.Security.SecPolicyRef
 import platform.Security.SecTrustCreateWithCertificates
 import platform.Security.SecTrustEvaluateWithError
 import platform.Security.SecTrustRefVar
-import platform.Security.SecTrustSetAnchorCertificates
-import platform.Security.SecTrustSetAnchorCertificatesOnly
 import platform.Security.errSecSuccess
+import platform.Security.kSecKeyAlgorithmECDSASignatureMessageX962SHA256
+import platform.Security.kSecKeyAlgorithmECDSASignatureMessageX962SHA384
+import platform.Security.kSecKeyAlgorithmECDSASignatureMessageX962SHA512
+import platform.Security.kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA256
+import platform.Security.kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA384
+import platform.Security.kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA512
 import platform.posix.uint8_tVar
+import kotlin.time.Clock
 
 internal actual fun validateCertificateChain(
 	certs: List<ByteArray>,
@@ -44,20 +52,112 @@ internal actual fun validateCertificateChain(
 ) {
 	if (certs.isEmpty()) throw TlsException("No certificates to validate")
 
+	if (trustAnchorsDer.isEmpty()) {
+		// System trust: SecTrust + SSL policy works correctly using built-in roots.
+		validateAgainstSystemTrust(certs, hostname)
+	} else {
+		// SecTrust's policy machinery on iOS Simulator refuses to chain leaf → anchor via
+		// SecTrustSetAnchorCertificates (returns errSecPolicyDenied even when the signature
+		// is valid), so for custom anchors we walk the chain ourselves with SecKey.
+		validateAgainstCustomAnchors(certs, hostname, trustAnchorsDer)
+	}
+}
+
+private fun validateAgainstCustomAnchors(
+	certs: List<ByteArray>,
+	hostname: String?,
+	trustAnchorsDer: List<ByteArray>,
+) {
+	val chain = certs.map { parseCertInfo(it) }
+	val anchors = trustAnchorsDer.map { parseCertInfo(it) }
+	val nowMillis = Clock.System.now().toEpochMilliseconds()
+
+	val intermediates = chain.drop(1).toMutableList()
+	var current = chain[0]
+
+	while (true) {
+		checkValidity(current, nowMillis)
+
+		val anchor = anchors.firstOrNull { it.subjectDer.contentEquals(current.issuerDer) }
+		if (anchor != null) {
+			verifyCertSignature(current, anchor.der)
+			checkValidity(anchor, nowMillis)
+			break
+		}
+
+		val nextIdx = intermediates.indexOfFirst { it.subjectDer.contentEquals(current.issuerDer) }
+		if (nextIdx < 0) throw TlsException("Certificate chain validation failed: no trusted issuer")
+		val next = intermediates.removeAt(nextIdx)
+		verifyCertSignature(current, next.der)
+		current = next
+	}
+
+	if (hostname != null) verifyHostname(hostname, chain[0].sans)
+}
+
+private fun checkValidity(
+	info: CertInfo,
+	nowMillis: Long,
+) {
+	if (nowMillis < info.notBeforeMillis) throw TlsException("Certificate not yet valid")
+	if (nowMillis > info.notAfterMillis) throw TlsException("Certificate expired")
+}
+
+private fun verifyCertSignature(
+	child: CertInfo,
+	issuerDer: ByteArray,
+) {
+	val algorithm =
+		child.signatureAlgorithm?.toSecKeyAlgorithm()
+			?: throw TlsException("Unsupported certificate signature algorithm: ${child.signatureAlgOid}")
+
+	memScoped {
+		val issuerSecCert = derToSecCertificate(issuerDer)
+		try {
+			val key: SecKeyRef =
+				SecCertificateCopyKey(issuerSecCert)
+					?: throw TlsException("Unable to extract issuer public key")
+			try {
+				child.tbsBytes.asCFData { tbsCfData ->
+					child.signatureBytes.asCFData { sigCfData ->
+						val errorVar = alloc<CFErrorRefVar>()
+						val ok = SecKeyVerifySignature(key, algorithm, tbsCfData, sigCfData, errorVar.ptr)
+						if (!ok) throw TlsException("Certificate signature verification failed: ${errorVar.describe()}")
+					}
+				}
+			} finally {
+				CFRelease(key)
+			}
+		} finally {
+			CFRelease(issuerSecCert)
+		}
+	}
+}
+
+private fun SignatureAlgorithm.toSecKeyAlgorithm(): SecKeyAlgorithm =
+	when (this) {
+		SignatureAlgorithm.EcdsaSha256 -> kSecKeyAlgorithmECDSASignatureMessageX962SHA256
+		SignatureAlgorithm.EcdsaSha384 -> kSecKeyAlgorithmECDSASignatureMessageX962SHA384
+		SignatureAlgorithm.EcdsaSha512 -> kSecKeyAlgorithmECDSASignatureMessageX962SHA512
+		SignatureAlgorithm.RsaSha256 -> kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA256
+		SignatureAlgorithm.RsaSha384 -> kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA384
+		SignatureAlgorithm.RsaSha512 -> kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA512
+	} ?: throw TlsException("Security framework returned null for SecKeyAlgorithm $name")
+
+private fun validateAgainstSystemTrust(
+	certs: List<ByteArray>,
+	hostname: String?,
+) {
 	memScoped {
 		val certArray =
 			CFArrayCreateMutable(kCFAllocatorDefault, certs.size.toLong(), null)
 				?: throw TlsException("Failed to create mutable array")
 		val secCerts = mutableListOf<SecCertificateRef>()
-
-		val anchorArray =
-			if (trustAnchorsDer.isEmpty()) {
-				null
-			} else {
-				CFArrayCreateMutable(kCFAllocatorDefault, trustAnchorsDer.size.toLong(), null)
-					?: throw TlsException("Failed to create anchor array")
+		val cfHostname: CFStringRef? =
+			hostname?.let {
+				@Suppress("UNCHECKED_CAST")
+				CFBridgingRetain(it) as CFStringRef?
 			}
-		val anchorCerts = mutableListOf<SecCertificateRef>()
 
 		try {
 			for (certDer in certs) {
@@ -66,92 +166,59 @@ internal actual fun validateCertificateChain(
 				CFArrayAppendValue(certArray, secCert)
 			}
 
-			if (anchorArray != null) {
-				for (anchorDer in trustAnchorsDer) {
-					val secCert = derToSecCertificate(anchorDer)
-					anchorCerts.add(secCert)
-					CFArrayAppendValue(anchorArray, secCert)
-				}
-			}
-
-			val cfHostname: CFStringRef? =
-				hostname?.let {
-					@Suppress("UNCHECKED_CAST")
-					CFBridgingRetain(it) as CFStringRef?
-				}
-
-			// When custom anchors are supplied (private CA / self-signed test cert), the full
-			// SSL policy returns errSecPolicyDenied (-26276) for chains rooted at the supplied
-			// anchor on iOS Simulator regardless of how well-formed the cert is. Fall back to
-			// basic X.509 chain validation in that case; macOS / Linux still benefit from the
-			// SSL policy on the no-anchor (system trust) path.
 			val policy: SecPolicyRef =
-				if (anchorArray != null) {
-					if (cfHostname != null) CFRelease(cfHostname)
-					SecPolicyCreateBasicX509()
-						?: throw TlsException("Failed to create basic X.509 policy")
-				} else {
-					SecPolicyCreateSSL(true, cfHostname).also {
-						if (cfHostname != null) CFRelease(cfHostname)
-					} ?: throw TlsException("Failed to create SSL policy")
-				}
+				SecPolicyCreateSSL(true, cfHostname) ?: throw TlsException("Failed to create SSL policy")
 
 			val trustRef = alloc<SecTrustRefVar>()
 			val status = SecTrustCreateWithCertificates(certArray, policy, trustRef.ptr)
 			CFRelease(policy)
-
 			if (status != errSecSuccess) throw TlsException("SecTrustCreate failed: $status")
 
 			val trust = trustRef.value ?: throw TlsException("SecTrust is null")
-
-			if (anchorArray != null) {
-				val anchorStatus = SecTrustSetAnchorCertificates(trust, anchorArray)
-				if (anchorStatus != errSecSuccess) {
-					CFRelease(trust)
-					throw TlsException("SecTrustSetAnchorCertificates failed: $anchorStatus")
-				}
-				val onlyStatus = SecTrustSetAnchorCertificatesOnly(trust, true)
-				if (onlyStatus != errSecSuccess) {
-					CFRelease(trust)
-					throw TlsException("SecTrustSetAnchorCertificatesOnly failed: $onlyStatus")
-				}
-			}
-
 			val errorVar = alloc<CFErrorRefVar>()
 			val trusted = SecTrustEvaluateWithError(trust, errorVar.ptr)
 			CFRelease(trust)
-
 			if (!trusted) {
-				val detail =
-					errorVar.value?.let { err ->
-						val descRef = CFErrorCopyDescription(err)
-						val desc = (CFBridgingRelease(descRef) as? NSString)?.toString() ?: "unknown"
-						CFRelease(err)
-						desc
-					} ?: "unknown"
-				throw TlsException("Certificate chain validation failed (untrusted by system): $detail")
+				throw TlsException("Certificate chain validation failed (untrusted by system): ${errorVar.describe()}")
 			}
 		} finally {
 			secCerts.forEach { CFRelease(it) }
-			anchorCerts.forEach { CFRelease(it) }
 			CFRelease(certArray)
-			anchorArray?.let { CFRelease(it) }
+			if (cfHostname != null) CFRelease(cfHostname)
 		}
 	}
 }
 
-private fun derToSecCertificate(certDer: ByteArray): SecCertificateRef {
-	val pinned = certDer.pin()
+private fun CFErrorRefVar.describe(): String =
+	value?.let { err ->
+		val descRef = CFErrorCopyDescription(err)
+		val desc = (CFBridgingRelease(descRef) as? NSString)?.toString() ?: "unknown"
+		CFRelease(err)
+		desc
+	} ?: "unknown"
+
+private inline fun <R> ByteArray.asCFData(block: (platform.CoreFoundation.CFDataRef) -> R): R {
+	val pinned = pin()
 	val cfData =
 		CFDataCreate(
 			kCFAllocatorDefault,
 			pinned.addressOf(0).reinterpret<uint8_tVar>(),
-			certDer.size.toLong(),
-		)
+			size.toLong(),
+		) ?: run {
+			pinned.unpin()
+			throw TlsException("Failed to create CFData")
+		}
 	pinned.unpin()
+	try {
+		return block(cfData)
+	} finally {
+		CFRelease(cfData)
+	}
+}
 
-	if (cfData == null) throw TlsException("Failed to create CFData")
-	val secCert = SecCertificateCreateWithData(kCFAllocatorDefault, cfData)
-	CFRelease(cfData)
-	return secCert ?: throw TlsException("Invalid X.509 certificate")
+private fun derToSecCertificate(certDer: ByteArray): SecCertificateRef {
+	certDer.asCFData { cfData ->
+		return SecCertificateCreateWithData(kCFAllocatorDefault, cfData)
+			?: throw TlsException("Invalid X.509 certificate")
+	}
 }

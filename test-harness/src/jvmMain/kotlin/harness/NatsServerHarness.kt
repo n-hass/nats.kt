@@ -174,6 +174,13 @@ public class NatsServerHarness private constructor(
 			"-nodes",
 			"-subj",
 			"/CN=natskt Test Server CA",
+			// iOS's SecTrust policy requires a proper CA profile: explicit BasicConstraints CA:TRUE
+			// and keyUsage with keyCertSign. Without these extensions, iOS rejects the anchor with
+			// errSecPolicyDenied even though RFC 5280 permits CAs to omit keyUsage.
+			"-addext",
+			"basicConstraints=critical,CA:TRUE",
+			"-addext",
+			"keyUsage=critical,keyCertSign,cRLSign",
 		)
 
 		runOpenssl(

@@ -190,10 +190,14 @@ subprojects {
 			if (kotlinNativeTestClass?.isInstance(this) != true) return@configureEach
 			dependsOn(ensureTlsTestServer)
 			usesService(tlsTestServerService)
-			(this as? org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest)?.environment(
-				"TLS_TEST_PORTS_FILE",
-				rootProject.file("test-harness/tls-test-server/ports.properties").absolutePath,
-			)
+			val task = this as org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
+			val portsPath = rootProject.file("test-harness/tls-test-server/ports.properties").absolutePath
+			task.environment("TLS_TEST_PORTS_FILE", portsPath)
+			// iOS Simulator tests run via `xcrun simctl spawn`, which does not forward the
+			// launching process's environment into the simulated process. The simctl-honored
+			// way to propagate a var is to set it on the parent with a SIMCTL_CHILD_ prefix;
+			// the prefix is stripped when the child is launched.
+			task.environment("SIMCTL_CHILD_TLS_TEST_PORTS_FILE", portsPath)
 		}
 	}
 }

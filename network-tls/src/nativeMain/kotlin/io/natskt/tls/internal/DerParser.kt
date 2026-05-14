@@ -58,6 +58,13 @@ internal class DerReader(
 		return readBytes(length - 1)
 	}
 
+	fun readOctetString(): ByteArray {
+		val tag = readTag()
+		if (tag != 0x04) throw TlsException("DER: expected OCTET STRING (0x04), got 0x${tag.toString(16)}")
+		val length = readLength()
+		return readBytes(length)
+	}
+
 	fun skip() {
 		readTag()
 		val length = readLength()
@@ -75,6 +82,15 @@ internal class DerReader(
 
 	fun restorePosition(saved: Int) {
 		pos = saved
+	}
+
+	/** Reads the next element and returns its raw DER bytes (tag + length + content). */
+	fun readTlv(): ByteArray {
+		val start = pos
+		readTag()
+		val length = readLength()
+		readBytes(length)
+		return data.copyOfRange(start, pos)
 	}
 
 	private fun decodeOid(bytes: ByteArray): String {
