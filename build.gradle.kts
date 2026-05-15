@@ -80,7 +80,7 @@ private val tlsTestServerService =
 private val ensureTlsTestServer =
 	tasks.register<EnsureNatsHarnessTask>("ensureTlsTestServer") {
 		group = "verification"
-		description = "Ensures the TLS test server is running before network-tls tests execute"
+		description = "Ensures the TLS test server is running before native-tls tests execute"
 		dependsOn(tlsTestServerInstallTaskPath)
 		harnessService = tlsTestServerService
 		usesService(tlsTestServerService)
@@ -184,8 +184,8 @@ subprojects {
 		usesService(natsServerDaemonService)
 	}
 
-	// Wire network-tls native tests to the TLS test server
-	if (path == ":network-tls") {
+	// Wire native-tls native tests to the TLS test server
+	if (path == ":native-tls") {
 		tasks.configureEach {
 			if (kotlinNativeTestClass?.isInstance(this) != true) return@configureEach
 			dependsOn(ensureTlsTestServer)

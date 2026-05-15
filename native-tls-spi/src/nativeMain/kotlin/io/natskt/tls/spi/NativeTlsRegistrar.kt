@@ -9,10 +9,8 @@ import kotlin.coroutines.CoroutineContext
 /**
  * Plug-in registrar for native TLS upgrade.
  *
- * The `:network-tls` artifact, when present on the link line, registers its upgrader here via
- * `@EagerInitialization` before `main()` runs. Without `:network-tls`, [upgrader] stays null and
- * the native `performTlsUpgrade` in `:core:transport-tcp` throws with a hint to add the
- * dependency.
+ * The `:native-tls` artifact, when present on the link line, registers its upgrader here via
+ * `@EagerInitialization`
  */
 public object NativeTlsRegistrar {
 	@Volatile

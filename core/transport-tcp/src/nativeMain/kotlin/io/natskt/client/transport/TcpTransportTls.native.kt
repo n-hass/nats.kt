@@ -13,7 +13,7 @@ internal actual suspend fun performTlsUpgrade(transport: TcpTransport): Transpor
 	if (upgrade == null) {
 		logger.error {
 			"Defaulting to Ktor TLS, which is not yet supported on Kotlin/Native targets and will likely fail.\n" +
-				"To use an experimental TLS implementation for Kotlin/Native, add `implementation(\"io.github.n-hass:natskt-network-tls:\$version\")` to your build."
+				"To use an experimental TLS implementation for Kotlin/Native, add `implementation(\"io.github.n-hass:natskt-native-tls:\$version\")` to your build."
 		}
 
 		val tlsSocket =

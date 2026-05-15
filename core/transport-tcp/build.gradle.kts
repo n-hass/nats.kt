@@ -43,7 +43,7 @@ kotlin {
         }
 
         nativeMain.dependencies {
-            implementation(projects.networkTlsSpi)
+            implementation(projects.nativeTlsSpi)
         }
     }
 }

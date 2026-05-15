@@ -123,7 +123,7 @@ kotlin {
 		}
 
 		nativeTest.dependencies {
-			implementation(projects.networkTls)
+			implementation(projects.nativeTls)
 		}
     }
 }

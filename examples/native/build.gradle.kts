@@ -22,6 +22,7 @@ kotlin {
 				implementation(libs.ktor.client.core)
 				implementation(libs.ktor.client.engine.curl)
 				implementation(libs.ktor.client.websockets)
+        implementation("io.github.n-hass:native-tls")
 			}
 		}
 		compilations["test"].defaultSourceSet {

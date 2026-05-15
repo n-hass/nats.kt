@@ -25,11 +25,11 @@ kotlin {
 }
 
 mavenPublishing {
-	coordinates(artifactId = "natskt-network-tls-spi")
+	coordinates(artifactId = "natskt-native-tls-spi")
 	publishToMavenCentral()
 
 	pom {
 		name = "NATS Kotlin - Native TLS SPI"
-		description = "Registration contract between :core:transport-tcp and :network-tls"
+		description = "SPI registry for native-tls support"
 	}
 }

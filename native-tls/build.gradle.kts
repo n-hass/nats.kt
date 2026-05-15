@@ -20,7 +20,7 @@ kotlin {
 
 	sourceSets {
 		nativeMain.dependencies {
-			implementation(projects.networkTlsSpi)
+			implementation(projects.nativeTlsSpi)
 			implementation(libs.ktor.io)
 			implementation(libs.ktor.network)
 			implementation(libs.ktor.network.tls)
@@ -32,8 +32,7 @@ kotlin {
 		appleMain.dependencies {
 			// CryptoKit covers what we use from the cryptography lib (ECDSA, ECDH, AES-GCM,
 			// ChaCha20-Poly1305, HKDF, SHA). RSA-PSS / RSA-PKCS#1 sign-verify and RSA-PKCS#1
-			// encryption are routed through the Security framework (SecKey) — see
-			// RsaCrypto.apple.kt
+			// encryption are routed through the Security framework (SecKey)
 			implementation(libs.whyoleg.cryptography.provider.cryptokit)
 		}
 
@@ -62,7 +61,7 @@ kotlin {
 }
 
 mavenPublishing {
-	coordinates(artifactId = "natskt-network-tls")
+	coordinates(artifactId = "natskt-native-tls")
 	publishToMavenCentral()
 
 	pom {
