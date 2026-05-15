@@ -121,6 +121,10 @@ kotlin {
 		linuxTest.dependencies {
 			implementation(libs.ktor.client.engine.curl)
 		}
+
+		nativeTest.dependencies {
+			implementation(projects.networkTls)
+		}
     }
 }
 

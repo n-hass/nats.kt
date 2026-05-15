@@ -1,10 +1,11 @@
-package io.natskt.client.transport
+package io.natskt.tls.internal
 
 import io.ktor.network.sockets.Connection
 import io.ktor.network.sockets.awaitClosed
 import io.ktor.network.sockets.isClosed
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
+import io.natskt.client.transport.Transport
 import io.natskt.tls.NativeTlsConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext

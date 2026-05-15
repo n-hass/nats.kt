@@ -20,6 +20,7 @@ kotlin {
 
 	sourceSets {
 		nativeMain.dependencies {
+			implementation(projects.networkTlsSpi)
 			implementation(libs.ktor.io)
 			implementation(libs.ktor.network)
 			implementation(libs.ktor.network.tls)
