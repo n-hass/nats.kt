@@ -31,6 +31,13 @@ private const val EXT_KEY_SHARE = 51
 private const val EXT_COOKIE = 44
 private const val EXT_EXTENDED_MASTER_SECRET = 0x0017
 
+// RFC 8446 §5: the only legal middlebox-compat ChangeCipherSpec payload is the single byte {0x01}.
+private fun requireValidCcs(record: TlsRecord) {
+	if (record.length != 1 || record.data[record.offset].toInt() != 1) {
+		throw TlsException("Invalid ChangeCipherSpec record")
+	}
+}
+
 /**
  * TLS handshake and encrypted I/O.
  *
@@ -246,7 +253,10 @@ internal class TlsHandshake(
 
 			val record = rawInput.readTlsRecord()
 			when (record.type) {
-				TlsRecordType.ChangeCipherSpec -> continue
+				TlsRecordType.ChangeCipherSpec -> {
+					requireValidCcs(record)
+					continue
+				}
 				TlsRecordType.Alert -> {
 					val code = if (record.length >= 2) TlsAlertType.byCode(record.data[record.offset + 1].toInt() and 0xff) else TlsAlertType.InternalError
 					throw TlsException("Alert during handshake: $code")
@@ -266,7 +276,10 @@ internal class TlsHandshake(
 					while (true) {
 						val rawRecord = rawInput.readTlsRecord()
 						if (isTls13) {
-							if (rawRecord.type == TlsRecordType.ChangeCipherSpec) continue
+							if (rawRecord.type == TlsRecordType.ChangeCipherSpec) {
+								requireValidCcs(rawRecord)
+								continue
+							}
 							val decrypted = tls13Cipher.decrypt(rawRecord.data, rawRecord.offset, rawRecord.length)
 							when (decrypted.innerType) {
 								TlsRecordType.ApplicationData -> {
@@ -444,7 +457,10 @@ internal class TlsHandshake(
 			}
 
 			val rawRecord = rawInput.readTlsRecord()
-			if (rawRecord.type == TlsRecordType.ChangeCipherSpec) continue // middlebox compat
+			if (rawRecord.type == TlsRecordType.ChangeCipherSpec) {
+				requireValidCcs(rawRecord)
+				continue // middlebox compat
+			}
 			if (rawRecord.type != TlsRecordType.ApplicationData) {
 				throw TlsException("TLS 1.3: expected encrypted record, got ${rawRecord.type}")
 			}
@@ -728,7 +744,10 @@ internal class TlsHandshake(
 
 			val record = rawInput.readTlsRecord()
 			when (record.type) {
-				TlsRecordType.ChangeCipherSpec -> continue
+				TlsRecordType.ChangeCipherSpec -> {
+					requireValidCcs(record)
+					continue
+				}
 				TlsRecordType.Alert -> throw TlsException("Alert during handshake")
 				TlsRecordType.Handshake -> {
 					val pt = cipher.decrypt(record.data, record.offset, record.length, record.type)
