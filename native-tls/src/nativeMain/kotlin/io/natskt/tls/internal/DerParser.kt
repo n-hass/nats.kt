@@ -216,6 +216,7 @@ internal fun parseCertificatesDer(data: ByteArray): List<ByteArray> {
 	if (chainEnd > data.size) throw TlsException("Certificate chain length exceeds data")
 	val certs = mutableListOf<ByteArray>()
 	while (pos < chainEnd) {
+		if (chainEnd - pos < 3) throw TlsException("Truncated certificate length header in chain")
 		val certLength = (rd() shl 16) or (rd() shl 8) or rd()
 		if (pos + certLength > chainEnd) throw TlsException("Certificate length exceeds chain")
 		certs.add(data.copyOfRange(pos, pos + certLength))

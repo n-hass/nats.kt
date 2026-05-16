@@ -6,6 +6,7 @@ import dev.whyoleg.cryptography.BinarySize.Companion.bits
 import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.algorithms.AES
 import dev.whyoleg.cryptography.operations.IvAuthenticatedCipher
+import io.ktor.network.tls.TlsException
 
 internal class GcmTlsCipher(
 	private val suite: SuiteInfo,
@@ -85,6 +86,13 @@ internal class GcmTlsCipher(
 		length: Int,
 		recordType: TlsRecordType,
 	): ByteArray {
+		val minLength = 8 + suite.cipherTagBytes
+		if (length < minLength) {
+			throw TlsException("GCM record too short: length=$length, expected >= $minLength")
+		}
+		if (offset < 0 || offset + length > recordData.size) {
+			throw TlsException("GCM record extends past buffer: offset=$offset, length=$length, size=${recordData.size}")
+		}
 		val recordIv = bytesToLong(recordData, offset)
 
 		// Mutate nonce in place

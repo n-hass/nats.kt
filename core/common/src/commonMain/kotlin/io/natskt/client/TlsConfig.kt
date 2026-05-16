@@ -50,8 +50,9 @@ public enum class TlsPrivateKeyAlgorithm {
 /**
  * Parses a PEM-encoded bundle into a list of DER blobs, in the order they appear.
  *
- * Recognises any block whose header starts with `BEGIN` and ends with `CERTIFICATE`,
- * `PRIVATE KEY`, `RSA PRIVATE KEY`, or `EC PRIVATE KEY`. Unknown blocks are skipped.
+ * Returns every `-----BEGIN <label>-----`/`-----END <label>-----` block found, regardless
+ * of label. Filtering by label (e.g. `CERTIFICATE`, `PRIVATE KEY`) is the caller's
+ * responsibility — see `TlsConfigBuilder`.
  */
 public fun parsePemBundle(pem: String): List<PemBlock> = PemReader(pem).readAll()
 

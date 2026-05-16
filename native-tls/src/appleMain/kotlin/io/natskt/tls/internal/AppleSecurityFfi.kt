@@ -32,10 +32,11 @@ import platform.Security.SecKeyVerifySignature
 import platform.posix.uint8_tVar
 
 /**
- * Pin [this] for the duration of [block] and pass it as a CFData.
+ * Wrap [this] as a CFData and pass it to [block].
  *
- * CFDataCreate copies the bytes, so the pin only needs to span the create call —
- * we still hold the pin until [block] returns purely as a defensive measure.
+ * The pin only spans the [CFDataCreate] call: CFDataCreate copies the bytes into the
+ * CFDataRef, so we intentionally `unpin` as soon as it returns — before [block] runs.
+ * After [block] returns, `CFRelease` frees the CFDataRef.
  */
 internal inline fun <R> ByteArray.asCFData(block: (CFDataRef) -> R): R {
 	val pinned = pin()

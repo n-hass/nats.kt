@@ -92,9 +92,12 @@ internal fun validateWithStore(
 
 		val chain =
 			if (x509Certs.size > 1) {
-				val sk = OPENSSL_sk_new_null()
+				val sk = OPENSSL_sk_new_null() ?: throw TlsException("OPENSSL_sk_new_null failed")
 				for (i in 1 until x509Certs.size) {
-					OPENSSL_sk_push(sk, x509Certs[i])
+					if (OPENSSL_sk_push(sk, x509Certs[i]) == 0) {
+						OPENSSL_sk_free(sk)
+						throw TlsException("OPENSSL_sk_push failed at index $i")
+					}
 				}
 				sk
 			} else {

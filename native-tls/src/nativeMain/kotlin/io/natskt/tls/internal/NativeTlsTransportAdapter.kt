@@ -21,9 +21,12 @@ internal class NativeTlsTransportAdapter(
 	override val incoming: ByteReadChannel get() = tls.input
 
 	override suspend fun close() {
-		tls.close()
-		rawConnection.socket.close()
-		rawConnection.socket.awaitClosed()
+		try {
+			tls.close()
+		} finally {
+			rawConnection.socket.close()
+			rawConnection.socket.awaitClosed()
+		}
 	}
 
 	override suspend fun upgradeTLS(): Transport = this
