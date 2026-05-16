@@ -5,6 +5,7 @@ import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.connection
 import io.ktor.utils.io.readFully
 import io.ktor.utils.io.writeFully
+import io.natskt.tls.internal.TlsVersion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -59,11 +60,11 @@ suspend fun connectTls(
  * Connect to the TLS test server, send data, read the echo, and verify it matches.
  * Closes the connection after verification.
  */
-suspend fun assertTlsEcho(
+internal suspend fun assertTlsEcho(
 	port: Int,
 	message: String = "hello",
 	serverName: String? = "localhost",
-) {
+): TlsVersion {
 	val tls = connectTls(port, serverName)
 	try {
 		val data = message.encodeToByteArray()
@@ -73,6 +74,7 @@ suspend fun assertTlsEcho(
 		val echo = ByteArray(data.size)
 		tls.input.readFully(echo)
 		assertEquals(message, echo.decodeToString(), "Echo mismatch on port $port")
+		return tls.negotiatedVersion
 	} finally {
 		tls.close()
 	}

@@ -61,6 +61,9 @@ internal class TlsHandshake(
 	private var isTls13 = false
 	private var useExtendedMasterSecret = false
 
+	internal val negotiatedVersion: TlsVersion
+		get() = if (isTls13) TlsVersion.TLS13 else TlsVersion.TLS12
+
 	// Cipher used after handshake for app data
 	private lateinit var tls12Cipher: GcmTlsCipher
 	private lateinit var tls13Cipher: Tls13Cipher

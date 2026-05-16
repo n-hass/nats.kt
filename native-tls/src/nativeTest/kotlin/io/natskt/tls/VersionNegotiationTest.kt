@@ -1,6 +1,8 @@
 package io.natskt.tls
 
+import io.natskt.tls.internal.TlsVersion
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * RFC 8446 §4.2.1 — TLS version negotiation tests.
@@ -20,7 +22,8 @@ class VersionNegotiationTest {
 	@Test
 	fun `negotiates TLS 1_3 when server supports both versions`() =
 		tlsTest {
-			assertTlsEcho(TlsTestPorts.tlsDefault, message = "version-both")
+			val negotiated = assertTlsEcho(TlsTestPorts.tlsDefault, message = "version-both")
+			assertEquals(TlsVersion.TLS13, negotiated, "Expected TLS 1.3 against a dual-version server")
 		}
 
 	/**
@@ -33,7 +36,8 @@ class VersionNegotiationTest {
 	@Test
 	fun `falls back to TLS 1_2 when server only offers 1_2`() =
 		tlsTest {
-			assertTlsEcho(TlsTestPorts.tls12Only, message = "version-12only")
+			val negotiated = assertTlsEcho(TlsTestPorts.tls12Only, message = "version-12only")
+			assertEquals(TlsVersion.TLS12, negotiated, "Expected fallback to TLS 1.2 against a 1.2-only server")
 		}
 
 	/**
@@ -45,6 +49,7 @@ class VersionNegotiationTest {
 	@Test
 	fun `completes handshake with TLS 1_3 only server`() =
 		tlsTest {
-			assertTlsEcho(TlsTestPorts.tls13Only, message = "version-13only")
+			val negotiated = assertTlsEcho(TlsTestPorts.tls13Only, message = "version-13only")
+			assertEquals(TlsVersion.TLS13, negotiated, "Expected TLS 1.3 against a 1.3-only server")
 		}
 }
