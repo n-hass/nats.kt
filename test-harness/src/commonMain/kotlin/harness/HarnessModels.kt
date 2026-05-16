@@ -24,7 +24,7 @@ public data class RemoteNatsServerInfo(
 	val websocketUri: String,
 	@SerialName("tls_uri")
 	val tlsUri: String? = null,
-	/** PEM-encoded server leaf certificate. Suitable for use as a trust anchor in tests. */
+	/** PEM-encoded server CA certificate. Tests pin it as a trust anchor. */
 	@SerialName("tls_server_cert_pem")
 	val tlsServerCertPem: String? = null,
 	/** PEM-encoded client certificate signed by the harness's client CA. Present when [RemoteNatsServerRequest.tlsRequireClientCert] is true. */

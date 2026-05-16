@@ -62,7 +62,10 @@ public class NatsServerHarness private constructor(
 	public val logs: List<String>
 		get() = synchronized(outputLines) { outputLines.toList() }
 
-	/** PEM-encoded server leaf certificate. Non-null when [enableTls] is true. */
+	/**
+	 * PEM-encoded server CA certificate — the harness exposes the CA, not the leaf, so
+	 * tests can trust the chain by pinning the root. Non-null when [enableTls] is true.
+	 */
 	public val serverCertificatePem: String?
 		get() = serverCertPem
 
