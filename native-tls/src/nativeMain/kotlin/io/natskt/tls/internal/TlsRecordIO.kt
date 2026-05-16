@@ -137,10 +137,7 @@ internal fun parseServerHello(data: ByteArray): TlsServerHello {
 	val random = r.readBytes(32)
 	val sessionIdLength = r.readByte()
 	if (sessionIdLength > 32) throw TlsException("sessionId length limit exceeded: $sessionIdLength")
-	val sessionId = ByteArray(32)
-	if (sessionIdLength > 0) {
-		r.readBytes(sessionIdLength).copyInto(sessionId)
-	}
+	val sessionId = if (sessionIdLength > 0) r.readBytes(sessionIdLength) else ByteArray(0)
 	val suite = r.readShort().toShort()
 	val compressionMethod = r.readByte()
 	if (compressionMethod != 0) throw TlsException("Unsupported compression method: $compressionMethod")

@@ -141,6 +141,12 @@ internal class TlsHandshake(
 			if (version == TlsVersion.TLS13.code) isTls13 = true
 		}
 
+		// RFC 8446 §4.1.3 / §4.1.4: server MUST echo legacy_session_id exactly (TLS 1.3 / HRR).
+		// In TLS 1.2 the server may select a different session_id (resumption semantics).
+		if (isTls13 && !serverHello.sessionId.contentEquals(legacySessionId)) {
+			throw TlsException("legacy_session_id_echo does not match")
+		}
+
 		negotiatedSuite = findSuiteByCode(serverHello.cipherSuiteCode)
 			?: throw TlsException("Unsupported cipher suite: 0x${serverHello.cipherSuiteCode.toString(16)}")
 
