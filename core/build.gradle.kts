@@ -67,7 +67,7 @@ kotlin {
             api(projects.core.common)
             api(projects.core.transportWs)
             api(projects.nuid)
-			implementation(projects.internal)
+            implementation(projects.internal)
             implementation(projects.nkeys)
 
             implementation(libs.whyoleg.secureRandom)
@@ -120,6 +120,10 @@ kotlin {
 
 		linuxTest.dependencies {
 			implementation(libs.ktor.client.engine.curl)
+		}
+
+		nativeTest.dependencies {
+			implementation(projects.nativeTls)
 		}
     }
 }

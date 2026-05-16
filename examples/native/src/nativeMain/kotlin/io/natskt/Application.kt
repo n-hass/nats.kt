@@ -2,31 +2,29 @@ package io.natskt
 
 import io.ktor.utils.io.core.toByteArray
 import io.natskt.client.transport.TcpTransport
+import io.natskt.api.Credentials
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import io.github.oshai.kotlinlogging.DirectLoggerFactory
+import io.github.oshai.kotlinlogging.Level
+import io.github.oshai.kotlinlogging.KotlinLoggingConfiguration
 
 fun main(): Unit = runBlocking {
+	KotlinLoggingConfiguration.loggerFactory = DirectLoggerFactory
+	KotlinLoggingConfiguration.direct.logLevel = Level.Debug
 
     val c = NatsClient {
         server = "nats://localhost:4222"
         transport = TcpTransport
 		inboxPrefix = "_INBOX.me."
-    }.also {
-		it.connect()
-	}
+    }
 
-	for (i in 1..50000) {
-		launch {
-			val response = c.request("test.service.echo", "HI FROM KOTLIN $i".toByteArray())
-			println("-------- $i: ${response.data?.decodeToString()}")
-		}
-	}
+	c.connect().getOrThrow()
 
-	do {
-		delay(1000)
-		println("size is: ${c.subscriptions.size}")
-	} while(c.subscriptions.isNotEmpty())
+	val response = c.subscribe("test.hi").messages.collect {
+		println("got: ${it.data?.decodeToString()}")
+	}
 
 	println("complete")
 }

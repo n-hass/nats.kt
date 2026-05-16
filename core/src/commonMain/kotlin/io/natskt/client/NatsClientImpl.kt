@@ -5,11 +5,13 @@ package io.natskt.client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.ClosedWriteChannelException
+import io.natskt.api.CloseReason
 import io.natskt.api.ConnectionClosedException
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Message
 import io.natskt.api.NatsClient
+import io.natskt.api.NatsClientException
 import io.natskt.api.ServerInfo
 import io.natskt.api.Subject
 import io.natskt.api.Subscription
@@ -24,19 +26,22 @@ import io.natskt.internal.InternalSubscriptionHandler
 import io.natskt.internal.PendingRequest
 import io.natskt.internal.SubscriptionImpl
 import io.natskt.internal.throwOnInvalidSubject
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.ClosedSendChannelException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.Continuation
@@ -69,18 +74,47 @@ internal class NatsClientImpl(
 	@OptIn(ExperimentalAtomicApi::class)
 	private val sidAllocator = AtomicLong(1)
 
-	override suspend fun connect(): Result<Unit> {
-		connectionManager.start()
+	override suspend fun connect(): Result<Unit> =
+		coroutineScope {
+			connectionManager.start()
 
-		withTimeoutOrNull(configuration.connectTimeoutMs) {
-			connectionManager.connectionState
-				.filter {
-					it.phase == ConnectionPhase.Connected
-				}.first()
-		} ?: return Result.failure(Exception("timed out connecting to server"))
+			val outcome = CompletableDeferred<Result<Unit>>()
 
-		return Result.success(Unit)
-	}
+			val phaseJob =
+				launch {
+					connectionManager.connectionState
+						.filter { it.phase == ConnectionPhase.Connected }
+						.first()
+					outcome.complete(Result.success(Unit))
+				}
+
+			val abortJob =
+				launch {
+					connectionManager.reconnectJob?.join()
+					outcome.complete(Result.failure(connectionManager.lastCloseReason.toThrowable()))
+				}
+
+			val timeoutJob =
+				launch {
+					delay(configuration.connectTimeoutMs)
+					outcome.complete(Result.failure(NatsClientException("timed out connecting to server")))
+				}
+
+			val result = outcome.await()
+			phaseJob.cancel()
+			abortJob.cancel()
+			timeoutJob.cancel()
+			result
+		}
+
+	private fun CloseReason?.toThrowable(): Throwable =
+		when (this) {
+			is CloseReason.IoError -> cause
+			is CloseReason.HandshakeRejected -> Exception("server rejected handshake")
+			is CloseReason.ProtocolError -> Exception(message ?: "protocol error")
+			null -> Exception("connection failed")
+			else -> Exception("connection closed: $this")
+		}
 
 	@OptIn(ExperimentalAtomicApi::class)
 	override suspend fun subscribe(

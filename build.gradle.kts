@@ -54,6 +54,39 @@ private val ensureNatsHarness =
 	}
 private val natsHarnessInstallTaskPath = ":test-harness:nats-server-daemon:installDist"
 
+// --- TLS Test Server ---
+
+private val tlsTestServerExecutable =
+	layout.projectDirectory
+		.dir("test-harness/tls-test-server/build/install/tls-test-server/bin")
+		.file(if (isWindowsHost) "tls-test-server.bat" else "tls-test-server")
+
+private val tlsTestServerService =
+	gradle.sharedServices.registerIfAbsent("tlsTestServerService", NatsServerDaemonService::class) {
+		parameters.executable.set(tlsTestServerExecutable)
+		parameters.workingDirectory.set(project(projects.testHarness.tlsTestServer.path).layout.projectDirectory.asFile.toString())
+		parameters.args.set(emptyList())
+		parameters.readyCheckUrl.set("http://127.0.0.1:4501/health")
+		parameters.startupTimeoutSeconds.set(30)
+		parameters.environment.putAll(
+			mapOf(
+				"TLS_TEST_SERVER_HOST" to "127.0.0.1",
+				"TLS_TEST_SERVER_PORT" to "4501",
+			),
+		)
+		maxParallelUsages.set(1)
+	}
+
+private val ensureTlsTestServer =
+	tasks.register<EnsureNatsHarnessTask>("ensureTlsTestServer") {
+		group = "verification"
+		description = "Ensures the TLS test server is running before native-tls tests execute"
+		dependsOn(tlsTestServerInstallTaskPath)
+		harnessService = tlsTestServerService
+		usesService(tlsTestServerService)
+	}
+private val tlsTestServerInstallTaskPath = ":test-harness:tls-test-server:installDist"
+
 allprojects {
     apply(plugin = "com.diffplug.spotless")
     val spotless = extensions.getByName("spotless") as SpotlessExtension
@@ -149,6 +182,23 @@ subprojects {
 		}
 		dependsOn(ensureNatsHarness)
 		usesService(natsServerDaemonService)
+	}
+
+	// Wire native-tls native tests to the TLS test server
+	if (path == ":native-tls") {
+		tasks.configureEach {
+			if (kotlinNativeTestClass?.isInstance(this) != true) return@configureEach
+			dependsOn(ensureTlsTestServer)
+			usesService(tlsTestServerService)
+			val task = this as org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
+			val portsPath = rootProject.file("test-harness/tls-test-server/ports.properties").absolutePath
+			task.environment("TLS_TEST_PORTS_FILE", portsPath)
+			// iOS Simulator tests run via `xcrun simctl spawn`, which does not forward the
+			// launching process's environment into the simulated process. The simctl-honored
+			// way to propagate a var is to set it on the parent with a SIMCTL_CHILD_ prefix;
+			// the prefix is stripped when the child is launched.
+			task.environment("SIMCTL_CHILD_TLS_TEST_PORTS_FILE", portsPath)
+		}
 	}
 }
 

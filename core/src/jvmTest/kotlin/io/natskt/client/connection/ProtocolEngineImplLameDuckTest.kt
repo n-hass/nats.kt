@@ -64,6 +64,7 @@ class ProtocolEngineImplLameDuckTest {
 			credentials = null,
 			name = null,
 			tlsRequired = false,
+			tlsConfig = io.natskt.client.TlsConfig.Default,
 			noResponders = true,
 			echo = false,
 			supportUtf8Subjects = false,
@@ -121,6 +122,7 @@ class ProtocolEngineImplLameDuckTest {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsConfig: io.natskt.client.TlsConfig,
 		): Transport = transport
 	}
 
