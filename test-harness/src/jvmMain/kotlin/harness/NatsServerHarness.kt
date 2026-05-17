@@ -51,8 +51,6 @@ public class NatsServerHarness private constructor(
 	public val uri: String
 		get() = "nats://127.0.0.1:$port"
 
-	// Connect via DNS rather than IP. iOS Simulator's SecTrust SSL policy is stricter about
-	// IP-based hostnames in cert SANs and rejects what macOS accepts.
 	public val tlsUri: String?
 		get() = if (enableTls) "tls://localhost:$port" else null
 
@@ -142,10 +140,6 @@ public class NatsServerHarness private constructor(
 	}
 
 	private fun generateServerCert() {
-		// Generate a CA and a server cert signed by it, rather than a self-signed leaf.
-		// iOS's SecTrust SSL policy rejects self-signed-leaf-as-anchor configurations
-		// with errSecPolicyDenied (-26276), even when the leaf is added via
-		// SecTrustSetAnchorCertificates. A proper CA → leaf chain validates everywhere.
 		val caKey = tmpDir.resolve("server-ca-key.pem")
 		val caCert = tmpDir.resolve("server-ca-cert.pem")
 		val keyFile = tmpDir.resolve("server-key.pem")
@@ -177,9 +171,6 @@ public class NatsServerHarness private constructor(
 			"-nodes",
 			"-subj",
 			"/CN=natskt Test Server CA",
-			// iOS's SecTrust policy requires a proper CA profile: explicit BasicConstraints CA:TRUE
-			// and keyUsage with keyCertSign. Without these extensions, iOS rejects the anchor with
-			// errSecPolicyDenied even though RFC 5280 permits CAs to omit keyUsage.
 			"-addext",
 			"basicConstraints=critical,CA:TRUE",
 			"-addext",
