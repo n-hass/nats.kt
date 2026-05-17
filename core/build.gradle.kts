@@ -1,7 +1,9 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
 import java.time.Duration
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -126,6 +128,12 @@ kotlin {
 			implementation(projects.nativeTls)
 		}
     }
+}
+
+// Apple Simulator tests must run inside the simulator's launchd context so the test
+// process can reach trustd/securityd.
+tasks.withType<KotlinNativeSimulatorTest>().configureEach {
+	standalone.set(false)
 }
 
 mavenPublishing {
