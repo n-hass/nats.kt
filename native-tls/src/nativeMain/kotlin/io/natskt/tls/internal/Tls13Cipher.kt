@@ -32,7 +32,7 @@ internal class Tls13Cipher private constructor(
 	private var encryptSeq: Long = 0L
 	private var decryptSeq: Long = 0L
 
-	// Separate buffers for encrypt/decrypt — these are called from different coroutines
+	// Separate buffers for encrypt/decrypt - these are called from different coroutines
 	private val encryptNonce = ByteArray(12)
 	private val decryptNonce = ByteArray(12)
 	private val encryptAad = byteArrayOf(TlsRecordType.ApplicationData.code.toByte(), 0x03, 0x03, 0, 0)

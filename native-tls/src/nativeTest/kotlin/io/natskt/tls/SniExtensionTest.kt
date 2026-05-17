@@ -15,7 +15,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * RFC 6066 s3 — Server Name Indication (SNI) extension tests.
+ * RFC 6066 s3 - Server Name Indication (SNI) extension tests.
  *
  * Verifies that the TLS client correctly sends (or omits) the SNI extension
  * based on the configured serverName.
@@ -75,7 +75,7 @@ class SniExtensionTest {
 	@Test
 	fun `omits SNI when serverName is null`() =
 		tlsTest {
-			// Connect to inspector with null serverName — connection will fail (inspector closes)
+			// Connect to inspector with null serverName - connection will fail (inspector closes)
 			runCatching {
 				connectTls(
 					port = TlsTestPorts.clientHelloInspector,

@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * RFC 8446 s6.1 — Connection lifecycle and close notification tests.
+ * RFC 8446 s6.1 - Connection lifecycle and close notification tests.
  *
  * Verifies graceful connection teardown and that connections remain usable
  * across multiple operations after the handshake completes.

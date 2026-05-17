@@ -37,7 +37,7 @@ class CertValidatorLinuxTest {
 		val leaf = gen.generateLeaf(ca, cn = "localhost", sans = "DNS:localhost")
 
 		val store = X509_STORE_new()!!
-		// Don't add CA — store is empty
+		// Don't add CA - store is empty
 		try {
 			assertFailsWith<TlsException> {
 				validateWithStore(listOf(leaf), hostname = null, store = store)
@@ -77,7 +77,7 @@ class CertValidatorLinuxTest {
 		val rootCert = parseDerCert(root.der)
 		try {
 			X509_STORE_add_cert(store, rootCert)
-			// Chain: [leaf] — intermediate missing
+			// Chain: [leaf] - intermediate missing
 			assertFailsWith<TlsException> {
 				validateWithStore(listOf(leaf), hostname = null, store = store)
 			}

@@ -19,7 +19,6 @@ import io.ktor.utils.io.ClosedByteChannelException
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
 import io.natskt.tls.cert.validateCertificateChain
-import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
@@ -112,7 +111,7 @@ internal class TlsHandshake(
 
 		// RFC 8446 s4.1.4: HelloRetryRequest
 		if (isHelloRetryRequest(serverHello)) {
-			// HRR is a TLS 1.3-only message — MUST carry supported_versions=0x0304.
+			// HRR is a TLS 1.3-only message - MUST carry supported_versions=0x0304.
 			if (!isTls13) {
 				throw TlsException("HelloRetryRequest without TLS 1.3 supported_versions")
 			}
@@ -298,7 +297,7 @@ internal class TlsHandshake(
 
 	private fun startAppDataIO() {
 		inputJob =
-			launch(CoroutineName("natskt-tls-input")) {
+			launch {
 				try {
 					while (true) {
 						val rawRecord = rawInput.readTlsRecord()
@@ -317,7 +316,7 @@ internal class TlsHandshake(
 									// RFC 8446 §4.6: parse the post-handshake message type and dispatch.
 									if (decrypted.data.isEmpty()) throw TlsException("TLS 1.3: empty post-handshake message")
 									when (val hsType = decrypted.data[0].toInt() and 0xff) {
-										4 -> {} // NewSessionTicket — resumption not implemented; safe to ignore
+										4 -> {} // NewSessionTicket - resumption not implemented; safe to ignore
 										24 -> throw TlsException("TLS 1.3 KeyUpdate not supported")
 										else -> throw TlsException("Unexpected TLS 1.3 post-handshake message type: $hsType")
 									}
@@ -353,18 +352,21 @@ internal class TlsHandshake(
 						}
 					}
 				} catch (cause: ClosedByteChannelException) {
-					// Transport closed — treat as connection close, not error
+					// Transport closed - treat as connection close, not error
 				} catch (cause: EOFException) {
-					// Transport EOF — treat as connection close, not error
+					// Transport EOF - treat as connection close, not error
 				} catch (cause: Throwable) {
 					appInput.cancel(cause)
 				} finally {
+					// Input loop has terminated
 					appInput.close()
+					appOutput.close()
+					outputJob?.cancel()
 				}
 			}
 
 		outputJob =
-			launch(CoroutineName("natskt-tls-output")) {
+			launch {
 				val buffer = ByteArray(16384)
 				try {
 					while (true) {
@@ -398,7 +400,7 @@ internal class TlsHandshake(
 				rawOutput.writeRecordBytes(TlsRecordType.Alert, alert)
 			}
 		} catch (_: Throwable) {
-			// Connection already broken — hard close
+			// Connection already broken - hard close
 		}
 		close()
 	}
@@ -799,7 +801,7 @@ internal class TlsHandshake(
 		signature: ByteArray,
 		hashAndSign: HashAndSignInfo,
 	) {
-		// RSA-PSS uses hash code 8 ("Intrinsic") — actual digest is encoded in signCode.
+		// RSA-PSS uses hash code 8 ("Intrinsic") - actual digest is encoded in signCode.
 		if (serverPubKey is CertPublicKey.Rsa && hashAndSign.hashCode == 8) {
 			val pssHash =
 				when (hashAndSign.signCode) {

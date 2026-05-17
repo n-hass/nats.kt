@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
 /**
- * RFC 8446 s5, s6 — Error condition and malformed data tests.
+ * RFC 8446 s5, s6 - Error condition and malformed data tests.
  *
  * Verifies that the TLS client correctly rejects malformed or invalid data
  * from the server by raising TlsException. These endpoints send deliberately

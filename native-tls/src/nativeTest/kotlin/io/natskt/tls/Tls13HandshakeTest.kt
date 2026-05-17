@@ -6,11 +6,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * RFC 8446 s4 — TLS 1.3 handshake and cipher suite negotiation tests.
+ * RFC 8446 s4 - TLS 1.3 handshake and cipher suite negotiation tests.
  *
  * Verifies that the client can complete a full TLS 1.3 handshake and correctly
  * negotiate each supported cipher suite. Each cipher-specific test connects to
- * a server endpoint that ONLY supports that cipher suite — success proves the
+ * a server endpoint that ONLY supports that cipher suite - success proves the
  * client negotiated it.
  */
 class Tls13HandshakeTest {
@@ -50,7 +50,7 @@ class Tls13HandshakeTest {
 
 	/**
 	 * RFC 8446 s9.2: TLS_AES_128_GCM_SHA256 (0x1301) is mandatory-to-implement.
-	 * Server only offers this suite — handshake success proves the client supports it.
+	 * Server only offers this suite - handshake success proves the client supports it.
 	 */
 	@Test
 	fun `negotiates TLS_AES_128_GCM_SHA256`() =
@@ -60,7 +60,7 @@ class Tls13HandshakeTest {
 
 	/**
 	 * RFC 8446 sB.4: TLS_AES_256_GCM_SHA384 (0x1302).
-	 * Server only offers this suite — handshake success proves the client supports it.
+	 * Server only offers this suite - handshake success proves the client supports it.
 	 */
 	@Test
 	fun `negotiates TLS_AES_256_GCM_SHA384`() =
@@ -70,7 +70,7 @@ class Tls13HandshakeTest {
 
 	/**
 	 * RFC 8446 sB.4: TLS_CHACHA20_POLY1305_SHA256 (0x1303).
-	 * Server only offers this suite — handshake success proves the client supports it.
+	 * Server only offers this suite - handshake success proves the client supports it.
 	 */
 	@Test
 	fun `negotiates TLS_CHACHA20_POLY1305_SHA256`() =

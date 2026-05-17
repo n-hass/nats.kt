@@ -14,7 +14,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * RFC 8446 s4.1.2 — ClientHello validation.
+ * RFC 8446 s4.1.2 - ClientHello validation.
  *
  * Each test triggers a TLS connection to the ClientHello inspector endpoint (which
  * captures the raw ClientHello and closes the connection), then queries the HTTP
@@ -26,7 +26,7 @@ class ClientHelloValidationTest {
 	 * then query the HTTP API for the parsed result.
 	 */
 	private suspend fun captureClientHello(serverName: String? = "localhost"): Map<String, String> {
-		// Connect to inspector — it captures the ClientHello then closes the connection
+		// Connect to inspector - it captures the ClientHello then closes the connection
 		runCatching {
 			connectTls(
 				port = TlsTestPorts.clientHelloInspector,
@@ -40,7 +40,7 @@ class ClientHelloValidationTest {
 
 	/**
 	 * Simple HTTP GET to the TLS test server's /client-hello endpoint.
-	 * Uses raw TCP via Ktor sockets — no HTTP client library needed.
+	 * Uses raw TCP via Ktor sockets - no HTTP client library needed.
 	 */
 	private suspend fun queryClientHello(): Map<String, String> {
 		val selector = SelectorManager(Dispatchers.IO)

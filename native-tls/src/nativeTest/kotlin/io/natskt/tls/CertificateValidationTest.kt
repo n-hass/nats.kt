@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
 /**
- * RFC 5280 — Certificate validation behavior tests.
+ * RFC 5280 - Certificate validation behavior tests.
  *
  * The TLS test server uses a self-signed certificate that is NOT in the system
  * trust store. This allows testing that:

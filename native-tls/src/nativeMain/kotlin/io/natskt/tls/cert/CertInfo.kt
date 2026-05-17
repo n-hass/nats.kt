@@ -164,7 +164,7 @@ private fun civilToMillis(
 	return days * 86_400_000L + hour * 3_600_000L + minute * 60_000L + second * 1000L
 }
 
-// Howard Hinnant's days_from_civil — days from 1970-01-01 UTC.
+// Howard Hinnant's days_from_civil - days from 1970-01-01 UTC.
 // Implemented locally to avoid pulling in kotlinx-datetime for this single use.
 private fun daysFromCivil(
 	year: Int,

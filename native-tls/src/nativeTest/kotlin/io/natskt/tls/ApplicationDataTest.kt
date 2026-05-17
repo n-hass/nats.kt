@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * RFC 8446 s5 — Application data exchange tests.
+ * RFC 8446 s5 - Application data exchange tests.
  *
  * Verifies that after a TLS handshake, data of various sizes and patterns
  * can be exchanged correctly over the encrypted connection. Tests exercise

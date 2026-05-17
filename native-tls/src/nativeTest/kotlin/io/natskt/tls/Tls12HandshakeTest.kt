@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * RFC 5246 — TLS 1.2 handshake tests.
+ * RFC 5246 - TLS 1.2 handshake tests.
  *
  * Connects to a TLS 1.2-only server endpoint (JDK SSLServerSocket configured for TLSv1.2).
  * Success proves the client correctly implements the TLS 1.2 handshake:

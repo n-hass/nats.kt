@@ -35,7 +35,7 @@ import platform.posix.uint8_tVar
  * Wrap [this] as a CFData and pass it to [block].
  *
  * The pin only spans the [CFDataCreate] call: CFDataCreate copies the bytes into the
- * CFDataRef, so we intentionally `unpin` as soon as it returns — before [block] runs.
+ * CFDataRef, so we intentionally `unpin` as soon as it returns - before [block] runs.
  * After [block] returns, `CFRelease` frees the CFDataRef.
  */
 internal inline fun <R> ByteArray.asCFData(block: (CFDataRef) -> R): R {

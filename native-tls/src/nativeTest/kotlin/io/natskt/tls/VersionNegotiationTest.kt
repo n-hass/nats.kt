@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * RFC 8446 s4.2.1 — TLS version negotiation tests.
+ * RFC 8446 s4.2.1 - TLS version negotiation tests.
  *
  * Verifies that the client correctly negotiates the highest mutually supported
  * TLS version and falls back to TLS 1.2 when TLS 1.3 is not available.
