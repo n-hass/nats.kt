@@ -15,6 +15,7 @@ import io.ktor.network.tls.TlsException
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.ClosedByteChannelException
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
 import io.natskt.tls.cert.validateCertificateChain
@@ -23,6 +24,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
 import kotlinx.io.Buffer
+import kotlinx.io.EOFException
 import kotlinx.io.readByteArray
 import kotlin.coroutines.CoroutineContext
 
@@ -311,7 +313,15 @@ internal class TlsHandshake(
 									appInput.writeFully(decrypted.data)
 									appInput.flush()
 								}
-								TlsRecordType.Handshake -> {} // NewSessionTicket -- ignore
+								TlsRecordType.Handshake -> {
+									// RFC 8446 §4.6: parse the post-handshake message type and dispatch.
+									if (decrypted.data.isEmpty()) throw TlsException("TLS 1.3: empty post-handshake message")
+									when (val hsType = decrypted.data[0].toInt() and 0xff) {
+										4 -> {} // NewSessionTicket — resumption not implemented; safe to ignore
+										24 -> throw TlsException("TLS 1.3 KeyUpdate not supported")
+										else -> throw TlsException("Unexpected TLS 1.3 post-handshake message type: $hsType")
+									}
+								}
 								TlsRecordType.Alert -> {
 									if (decrypted.data.size >= 2) {
 										val alertType = TlsAlertType.byCode(decrypted.data[1].toInt() and 0xff)
@@ -342,9 +352,9 @@ internal class TlsHandshake(
 							}
 						}
 					}
-				} catch (cause: io.ktor.utils.io.ClosedByteChannelException) {
+				} catch (cause: ClosedByteChannelException) {
 					// Transport closed — treat as connection close, not error
-				} catch (cause: kotlinx.io.EOFException) {
+				} catch (cause: EOFException) {
 					// Transport EOF — treat as connection close, not error
 				} catch (cause: Throwable) {
 					appInput.cancel(cause)
