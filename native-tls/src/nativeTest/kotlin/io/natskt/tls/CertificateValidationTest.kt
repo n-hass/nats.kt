@@ -18,7 +18,7 @@ import kotlin.test.assertFailsWith
  */
 class CertificateValidationTest {
 	/**
-	 * RFC 5280 §6: When certificate validation is enabled, the client MUST reject
+	 * RFC 5280 s6: When certificate validation is enabled, the client MUST reject
 	 * certificates from untrusted CAs. The test server uses a self-signed cert
 	 * not in the system trust store, so the handshake should fail.
 	 */

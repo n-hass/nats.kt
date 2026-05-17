@@ -15,7 +15,7 @@ internal suspend fun ByteReadChannel.readTlsRecord(): TlsRecord {
 	try {
 		val typeByte = readByte().toInt() and 0xff
 		val type = TlsRecordType.byCode(typeByte)
-		// RFC 8446 §5.1: legacy_record_version MUST be ignored for all purposes
+		// RFC 8446 s5.1: legacy_record_version MUST be ignored for all purposes
 		readByte() // version high
 		readByte() // version low
 		val lengthHigh = readByte().toInt() and 0xff
@@ -97,7 +97,7 @@ internal fun parseHandshakeMessages(data: ByteArray): List<TlsHandshakeMessage> 
 /**
  * Accumulates raw handshake bytes across TLS records and yields complete messages.
  * Handles both coalescing (multiple messages in one record) and fragmentation
- * (one message split across records) per RFC 5246 §6.2.1.
+ * (one message split across records) per RFC 5246 s6.2.1.
  */
 internal class HandshakeBuffer {
 	private var buf = ByteArray(0)

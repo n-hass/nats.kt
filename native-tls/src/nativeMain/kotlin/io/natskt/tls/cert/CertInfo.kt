@@ -233,7 +233,7 @@ private fun String.parseIpv4Literal(): ByteArray? {
 	return ByteArray(4) { i -> parts[i].toInt().toByte() }
 }
 
-// RFC 6125 §6.4.3: leftmost-only wildcard matching for DNS SANs (no embedded wildcards).
+// RFC 6125 s6.4.3: leftmost-only wildcard matching for DNS SANs (no embedded wildcards).
 private fun matchDnsName(
 	hostname: String,
 	pattern: String,

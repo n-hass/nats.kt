@@ -8,14 +8,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * RFC 8446 §6.1 — Connection lifecycle and close notification tests.
+ * RFC 8446 s6.1 — Connection lifecycle and close notification tests.
  *
  * Verifies graceful connection teardown and that connections remain usable
  * across multiple operations after the handshake completes.
  */
 class ConnectionLifecycleTest {
 	/**
-	 * RFC 8446 §6.1: Each party MUST send a close_notify alert before closing
+	 * RFC 8446 s6.1: Each party MUST send a close_notify alert before closing
 	 * the write side of the connection. The close() method should complete without error.
 	 */
 	@Test
@@ -89,7 +89,7 @@ class ConnectionLifecycleTest {
 		}
 
 	/**
-	 * RFC 8446 §6.1: The server sends close_notify to indicate it will not send
+	 * RFC 8446 s6.1: The server sends close_notify to indicate it will not send
 	 * any more data. The client should receive all data sent before the close_notify
 	 * and then observe the stream end without error.
 	 */

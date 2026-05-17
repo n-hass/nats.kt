@@ -6,14 +6,14 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 /**
- * RFC 8446 §6 — Alert protocol tests.
+ * RFC 8446 s6 — Alert protocol tests.
  *
  * Verifies that the TLS client correctly handles alert messages from the server,
  * including fatal alerts that terminate the connection and unexpected connection closures.
  */
 class AlertProtocolTest {
 	/**
-	 * RFC 8446 §6.2: Upon receiving a fatal alert, the receiver MUST immediately
+	 * RFC 8446 s6.2: Upon receiving a fatal alert, the receiver MUST immediately
 	 * close the connection. The client should raise a TlsException.
 	 *
 	 * The fatal_alert endpoint sends a TLS fatal handshake_failure alert record

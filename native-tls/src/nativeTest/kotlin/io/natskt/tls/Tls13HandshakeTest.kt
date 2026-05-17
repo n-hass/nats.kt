@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * RFC 8446 §4 — TLS 1.3 handshake and cipher suite negotiation tests.
+ * RFC 8446 s4 — TLS 1.3 handshake and cipher suite negotiation tests.
  *
  * Verifies that the client can complete a full TLS 1.3 handshake and correctly
  * negotiate each supported cipher suite. Each cipher-specific test connects to
@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
  */
 class Tls13HandshakeTest {
 	/**
-	 * RFC 8446 §4: A full TLS 1.3 handshake completes successfully and the
+	 * RFC 8446 s4: A full TLS 1.3 handshake completes successfully and the
 	 * connection is usable for application data.
 	 */
 	@Test
@@ -25,7 +25,7 @@ class Tls13HandshakeTest {
 		}
 
 	/**
-	 * RFC 8446 §4: After a successful TLS 1.3 handshake, application data
+	 * RFC 8446 s4: After a successful TLS 1.3 handshake, application data
 	 * can be exchanged bidirectionally.
 	 */
 	@Test
@@ -49,7 +49,7 @@ class Tls13HandshakeTest {
 		}
 
 	/**
-	 * RFC 8446 §9.2: TLS_AES_128_GCM_SHA256 (0x1301) is mandatory-to-implement.
+	 * RFC 8446 s9.2: TLS_AES_128_GCM_SHA256 (0x1301) is mandatory-to-implement.
 	 * Server only offers this suite — handshake success proves the client supports it.
 	 */
 	@Test
@@ -59,7 +59,7 @@ class Tls13HandshakeTest {
 		}
 
 	/**
-	 * RFC 8446 §B.4: TLS_AES_256_GCM_SHA384 (0x1302).
+	 * RFC 8446 sB.4: TLS_AES_256_GCM_SHA384 (0x1302).
 	 * Server only offers this suite — handshake success proves the client supports it.
 	 */
 	@Test
@@ -69,7 +69,7 @@ class Tls13HandshakeTest {
 		}
 
 	/**
-	 * RFC 8446 §B.4: TLS_CHACHA20_POLY1305_SHA256 (0x1303).
+	 * RFC 8446 sB.4: TLS_CHACHA20_POLY1305_SHA256 (0x1303).
 	 * Server only offers this suite — handshake success proves the client supports it.
 	 */
 	@Test
@@ -79,7 +79,7 @@ class Tls13HandshakeTest {
 		}
 
 	/**
-	 * RFC 8446 §4.1.4: The server MAY send a HelloRetryRequest if the client's
+	 * RFC 8446 s4.1.4: The server MAY send a HelloRetryRequest if the client's
 	 * initial key_share does not include an acceptable group. The client MUST then
 	 * send a new ClientHello with an updated key_share for the requested group.
 	 *

@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
 /**
- * RFC 8446 §5, §6 — Error condition and malformed data tests.
+ * RFC 8446 s5, s6 — Error condition and malformed data tests.
  *
  * Verifies that the TLS client correctly rejects malformed or invalid data
  * from the server by raising TlsException. These endpoints send deliberately
@@ -25,7 +25,7 @@ class ErrorConditionsTest {
 		}
 
 	/**
-	 * RFC 8446 §5.1: A TLS record has a 5-byte header. If the server sends only
+	 * RFC 8446 s5.1: A TLS record has a 5-byte header. If the server sends only
 	 * a partial header (3 bytes) then closes the connection, the client should
 	 * detect the truncation and raise a TlsException.
 	 */
@@ -38,7 +38,7 @@ class ErrorConditionsTest {
 		}
 
 	/**
-	 * RFC 8446 §5.1: Implementations MUST NOT send record layer fragments larger than
+	 * RFC 8446 s5.1: Implementations MUST NOT send record layer fragments larger than
 	 * 2^14+256 bytes. A client receiving an oversized record length field should reject it.
 	 */
 	@Test

@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
  */
 class Tls12HandshakeTest {
 	/**
-	 * RFC 5246 §7.3: A full TLS 1.2 handshake completes and the connection is usable.
+	 * RFC 5246 s7.3: A full TLS 1.2 handshake completes and the connection is usable.
 	 */
 	@Test
 	fun `completes TLS 1_2 handshake`() =
@@ -24,7 +24,7 @@ class Tls12HandshakeTest {
 		}
 
 	/**
-	 * RFC 5246 §6.2.3: After a successful TLS 1.2 handshake, application data
+	 * RFC 5246 s6.2.3: After a successful TLS 1.2 handshake, application data
 	 * can be exchanged over the encrypted record layer.
 	 */
 	@Test

@@ -15,14 +15,14 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * RFC 6066 §3 — Server Name Indication (SNI) extension tests.
+ * RFC 6066 s3 — Server Name Indication (SNI) extension tests.
  *
  * Verifies that the TLS client correctly sends (or omits) the SNI extension
  * based on the configured serverName.
  */
 class SniExtensionTest {
 	/**
-	 * RFC 6066 §3: A client that supports SNI SHOULD include the server_name extension
+	 * RFC 6066 s3: A client that supports SNI SHOULD include the server_name extension
 	 * in the ClientHello when a hostname is available.
 	 */
 	@Test
@@ -46,7 +46,7 @@ class SniExtensionTest {
 		}
 
 	/**
-	 * RFC 6066 §3: The hostname in the SNI extension MUST match the server name
+	 * RFC 6066 s3: The hostname in the SNI extension MUST match the server name
 	 * the client is attempting to connect to.
 	 */
 	@Test

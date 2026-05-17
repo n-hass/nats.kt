@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * RFC 8446 §5 — Application data exchange tests.
+ * RFC 8446 s5 — Application data exchange tests.
  *
  * Verifies that after a TLS handshake, data of various sizes and patterns
  * can be exchanged correctly over the encrypted connection. Tests exercise
@@ -25,7 +25,7 @@ class ApplicationDataTest {
 		}
 
 	/**
-	 * RFC 8446 §5.1: The record layer fragments data into records of at most 2^14 (16384) bytes.
+	 * RFC 8446 s5.1: The record layer fragments data into records of at most 2^14 (16384) bytes.
 	 * Sending a 50KB payload forces multiple TLS records. The implementation must correctly
 	 * fragment on send and reassemble on receive.
 	 */

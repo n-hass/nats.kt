@@ -31,7 +31,7 @@ private const val EXT_KEY_SHARE = 51
 private const val EXT_COOKIE = 44
 private const val EXT_EXTENDED_MASTER_SECRET = 0x0017
 
-// RFC 8446 §5: the only legal middlebox-compat ChangeCipherSpec payload is the single byte {0x01}.
+// RFC 8446 s5: the only legal middlebox-compat ChangeCipherSpec payload is the single byte {0x01}.
 private fun requireValidCcs(record: TlsRecord) {
 	if (record.length != 1 || record.data[record.offset].toInt() != 1) {
 		throw TlsException("Invalid ChangeCipherSpec record")
@@ -108,12 +108,21 @@ internal class TlsHandshake(
 		// Read ServerHello (may be HelloRetryRequest)
 		var (serverHello, serverHelloMsg) = receiveAndParseServerHello()
 
-		// RFC 8446 §4.1.4: HelloRetryRequest
-		if (isTls13 && isHelloRetryRequest(serverHello)) {
+		// RFC 8446 s4.1.4: HelloRetryRequest
+		if (isHelloRetryRequest(serverHello)) {
+			// HRR is a TLS 1.3-only message — MUST carry supported_versions=0x0304.
+			if (!isTls13) {
+				throw TlsException("HelloRetryRequest without TLS 1.3 supported_versions")
+			}
+			val hrrCipherSuite = serverHello.cipherSuiteCode
 			handleHelloRetryRequest(serverHello, ch1Record, serverHelloMsg)
 			serverHello = receiveAndParseServerHello().first
 			if (isHelloRetryRequest(serverHello)) {
 				throw TlsException("Server sent second HelloRetryRequest")
+			}
+			// RFC 8446 s4.1.4: the ServerHello after HRR MUST use the cipher_suite from the HRR.
+			if (serverHello.cipherSuiteCode != hrrCipherSuite) {
+				throw TlsException("ServerHello cipher_suite does not match HelloRetryRequest")
 			}
 		}
 
@@ -148,7 +157,7 @@ internal class TlsHandshake(
 			if (version == TlsVersion.TLS13.code) isTls13 = true
 		}
 
-		// RFC 8446 §4.1.3 / §4.1.4: server MUST echo legacy_session_id exactly (TLS 1.3 / HRR).
+		// RFC 8446 s4.1.3 / s4.1.4: server MUST echo legacy_session_id exactly (TLS 1.3 / HRR).
 		// In TLS 1.2 the server may select a different session_id (resumption semantics).
 		if (isTls13 && !serverHello.sessionId.contentEquals(legacySessionId)) {
 			throw TlsException("legacy_session_id_echo does not match")
@@ -156,6 +165,12 @@ internal class TlsHandshake(
 
 		negotiatedSuite = findSuiteByCode(serverHello.cipherSuiteCode)
 			?: throw TlsException("Unsupported cipher suite: 0x${serverHello.cipherSuiteCode.toString(16)}")
+
+		// RFC 8446 sB.4: TLS 1.3 suites live in the 0x13xx namespace; TLS 1.2 suites elsewhere.
+		// Reject a server that mixes them with the negotiated version.
+		if (isTls13 != negotiatedSuite.tls13) {
+			throw TlsException("Cipher suite 0x${serverHello.cipherSuiteCode.toString(16)} not valid for negotiated TLS version")
+		}
 
 		// RFC 7627: check if server supports extended master secret (TLS 1.2 only)
 		if (!isTls13) {
@@ -166,13 +181,13 @@ internal class TlsHandshake(
 	}
 
 	/**
-	 * RFC 8446 §4.1.4: HelloRetryRequest is a ServerHello with server_random
+	 * RFC 8446 s4.1.4: HelloRetryRequest is a ServerHello with server_random
 	 * equal to SHA-256("HelloRetryRequest").
 	 */
 	private fun isHelloRetryRequest(serverHello: TlsServerHello): Boolean = serverHello.serverRandom.contentEquals(HRR_RANDOM)
 
 	/**
-	 * RFC 8446 §4.1.4: Handle HelloRetryRequest.
+	 * RFC 8446 s4.1.4: Handle HelloRetryRequest.
 	 * Replaces the transcript with a synthetic message_hash, regenerates the
 	 * ECDH key pair for the server's requested group, and sends a new ClientHello.
 	 */
@@ -185,21 +200,25 @@ internal class TlsHandshake(
 		val ksExt =
 			hrr.extensions.find { it.type == EXT_KEY_SHARE }
 				?: throw TlsException("HelloRetryRequest missing key_share extension")
+		if (ksExt.data.size < 2) throw TlsException("HelloRetryRequest key_share extension truncated")
 		val requestedGroup = ((ksExt.data[0].toInt() and 0xff) shl 8) or (ksExt.data[1].toInt() and 0xff)
 
-		// RFC 8446 §4.2.2: echo cookie from HRR if present
+		// RFC 8446 s4.2.2: echo cookie from HRR if present. An empty or truncated
+		// cookie extension is illegal.
 		val cookieExt = hrr.extensions.find { it.type == EXT_COOKIE }
-		val cookie =
-			if (cookieExt != null && cookieExt.data.size >= 3) {
+		val cookie: ByteArray? =
+			if (cookieExt != null) {
+				if (cookieExt.data.size < 2) throw TlsException("HelloRetryRequest cookie extension truncated")
 				val r = ByteArrayReader(cookieExt.data)
 				val cookieLen = r.readShort()
+				if (cookieLen == 0) throw TlsException("HelloRetryRequest cookie is empty")
 				if (cookieLen != r.remaining) throw TlsException("HelloRetryRequest cookie length mismatch")
 				r.readBytes(cookieLen)
 			} else {
 				null
 			}
 
-		// RFC 8446 §4.1.4: selected_group must correspond to a group offered in supported_groups
+		// RFC 8446 s4.1.4: selected_group must correspond to a group offered in supported_groups
 		val newCurve =
 			when (requestedGroup.toShort()) {
 				CurveInfo.Secp256r1.code -> EC.Curve.P256
@@ -207,7 +226,13 @@ internal class TlsHandshake(
 				else -> throw TlsException("HelloRetryRequest requested group not in supported_groups: 0x${requestedGroup.toString(16)}")
 			}
 
-		// RFC 8446 §4.4.1: replace transcript with synthetic message_hash.
+		// RFC 8446 s4.1.4: HRR MUST cause CH2 to differ from CH1. If the server requests the
+		// same group we already provided a key share for AND adds no cookie, CH2 == CH1.
+		if (requestedGroup.toShort() == ecdhGroupId && cookie == null) {
+			throw TlsException("HelloRetryRequest requests an already-offered group with no cookie")
+		}
+
+		// RFC 8446 s4.4.1: replace transcript with synthetic message_hash.
 		// Transcript-Hash(CH1, HRR, ... Mn) = Hash(message_hash || HRR || ... || Mn)
 		// where message_hash is a handshake message of type 254 with body = Hash(CH1).
 		val hashAlg = digestAlgorithmForSuite(negotiatedSuite)
@@ -238,7 +263,7 @@ internal class TlsHandshake(
 
 	/**
 	 * Read the next handshake message. Handles both coalescing (multiple messages in one
-	 * record) and fragmentation (one message split across records) per RFC 5246 §6.2.1.
+	 * record) and fragmentation (one message split across records) per RFC 5246 s6.2.1.
 	 */
 	private suspend fun readHandshakeMessage(expectedType: TlsHandshakeType? = null): TlsHandshakeMessage {
 		while (true) {
@@ -291,7 +316,7 @@ internal class TlsHandshake(
 									if (decrypted.data.size >= 2) {
 										val alertType = TlsAlertType.byCode(decrypted.data[1].toInt() and 0xff)
 										if (alertType == TlsAlertType.CloseNotify) return@launch
-										// RFC 8446 §6: all alerts other than close_notify are fatal in TLS 1.3
+										// RFC 8446 s6: all alerts other than close_notify are fatal in TLS 1.3
 										throw TlsException("TLS 1.3 alert from server: $alertType")
 									}
 								}
@@ -476,10 +501,10 @@ internal class TlsHandshake(
 		val appHash = digest.doHash(hashAlg)
 		val appSecrets = ks.computeApplicationSecrets(hsSecrets.handshakeSecret, appHash)
 
-		// Middlebox compatibility CCS (RFC 8446 §D.4): must precede client's encrypted flight
+		// Middlebox compatibility CCS (RFC 8446 sD.4): must precede client's encrypted flight
 		rawOutput.writeRecordBytes(TlsRecordType.ChangeCipherSpec, byteArrayOf(1))
 
-		// RFC 8446 §4.4.2: respond to CertificateRequest with empty Certificate
+		// RFC 8446 s4.4.2: respond to CertificateRequest with empty Certificate
 		if (certRequested) {
 			// TLS 1.3 Certificate: context_len(1 byte: 0) + cert_list_len(3 bytes: 0,0,0)
 			val emptyCertBody = byteArrayOf(0, 0, 0, 0)
@@ -547,7 +572,7 @@ internal class TlsHandshake(
 		val content = ByteArray(64) { 0x20 } + "TLS 1.3, server CertificateVerify".encodeToByteArray() + byteArrayOf(0) + txHash
 		when (serverPubKey) {
 			is CertPublicKey.Ec -> {
-				// RFC 8446 §4.2.3: validate scheme matches key curve
+				// RFC 8446 s4.2.3: validate scheme matches key curve
 				val (expectedCurveOid, d) =
 					when (scheme) {
 						0x0403 -> OID_SECP256R1 to dev.whyoleg.cryptography.algorithms.SHA256
@@ -572,7 +597,7 @@ internal class TlsHandshake(
 				}
 			}
 			is CertPublicKey.Rsa -> {
-				// RFC 8446 §4.4.3: only RSA-PSS schemes permitted for TLS 1.3 CertificateVerify
+				// RFC 8446 s4.4.3: only RSA-PSS schemes permitted for TLS 1.3 CertificateVerify
 				val hash =
 					when (scheme) {
 						0x0804 -> RsaHash.Sha256
@@ -638,7 +663,7 @@ internal class TlsHandshake(
 			}
 		}
 
-		// RFC 5246 §7.4.6: respond to CertificateRequest with empty Certificate
+		// RFC 5246 s7.4.6: respond to CertificateRequest with empty Certificate
 		if (certRequested) {
 			sendHandshakeRecord(TlsHandshakeType.Certificate) {
 				writeByte(0) // cert_list_length high byte
@@ -818,7 +843,7 @@ internal class TlsHandshake(
 		}
 
 	companion object {
-		// RFC 8446 §4.1.4: HelloRetryRequest is a ServerHello with this specific random value
+		// RFC 8446 s4.1.4: HelloRetryRequest is a ServerHello with this specific random value
 		// (SHA-256 of "HelloRetryRequest")
 		private val HRR_RANDOM =
 			byteArrayOf(
@@ -856,7 +881,7 @@ internal class TlsHandshake(
 				0x9C.toByte(),
 			)
 
-		// RFC 8446 §4.1.3 downgrade sentinels
+		// RFC 8446 s4.1.3 downgrade sentinels
 		private val DOWNGRADE_TLS12 = byteArrayOf(0x44, 0x4F, 0x57, 0x4E, 0x47, 0x52, 0x44, 0x01) // "DOWNGRD" + 0x01
 		private val DOWNGRADE_TLS11 = byteArrayOf(0x44, 0x4F, 0x57, 0x4E, 0x47, 0x52, 0x44, 0x00) // "DOWNGRD" + 0x00
 

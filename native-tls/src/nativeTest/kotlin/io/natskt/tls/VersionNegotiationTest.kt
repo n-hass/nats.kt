@@ -5,14 +5,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * RFC 8446 §4.2.1 — TLS version negotiation tests.
+ * RFC 8446 s4.2.1 — TLS version negotiation tests.
  *
  * Verifies that the client correctly negotiates the highest mutually supported
  * TLS version and falls back to TLS 1.2 when TLS 1.3 is not available.
  */
 class VersionNegotiationTest {
 	/**
-	 * RFC 8446 §4.2.1: When both TLS 1.3 and TLS 1.2 are available, the client
+	 * RFC 8446 s4.2.1: When both TLS 1.3 and TLS 1.2 are available, the client
 	 * and server SHOULD negotiate TLS 1.3 as the highest supported version.
 	 *
 	 * The tls_default endpoint supports both TLS 1.2 and 1.3.
@@ -27,7 +27,7 @@ class VersionNegotiationTest {
 		}
 
 	/**
-	 * RFC 8446 §4.2.1 / RFC 5246: When the server only supports TLS 1.2,
+	 * RFC 8446 s4.2.1 / RFC 5246: When the server only supports TLS 1.2,
 	 * the client MUST be able to fall back to TLS 1.2 for backward compatibility.
 	 *
 	 * The tls12_only endpoint only supports TLSv1.2.

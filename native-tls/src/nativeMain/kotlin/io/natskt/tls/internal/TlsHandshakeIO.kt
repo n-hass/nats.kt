@@ -17,7 +17,7 @@ internal fun Sink.writeTlsClientHello(
 	writeShort(TlsVersion.TLS12.code.toShort())
 	write(clientRandom)
 
-	// Session ID: non-empty for TLS 1.3 middlebox compatibility (RFC 8446 §D.4)
+	// Session ID: non-empty for TLS 1.3 middlebox compatibility (RFC 8446 sD.4)
 	if (sessionId != null) {
 		writeByte(sessionId.size.toByte())
 		write(sessionId)
@@ -173,7 +173,7 @@ internal fun buildKeyShareExtension(
 }
 
 /**
- * RFC 8446 §4.2.2: cookie extension (type 44). Echoes the cookie from HelloRetryRequest.
+ * RFC 8446 s4.2.2: cookie extension (type 44). Echoes the cookie from HelloRetryRequest.
  * Format: extension_type(2) || length(2) || cookie_length(2) || cookie
  */
 private fun buildCookieExtension(cookie: ByteArray): ByteArray {
