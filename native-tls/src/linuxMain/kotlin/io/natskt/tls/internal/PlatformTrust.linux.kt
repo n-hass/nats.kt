@@ -21,9 +21,6 @@ import platform.posix.getenv
 
 private val logger = KotlinLogging.logger("PlatformTrust.linux")
 
-// Same probe order as Go's crypto/x509.loadSystemRoots, mkcert, etc. Native linux apps that ship
-// their own openssl can't trust SSL_CTX_set_default_verify_paths — those paths get baked in at
-// openssl build time and rarely match the host distro. Probing is the standard workaround.
 private val certFileCandidates =
 	listOf(
 		"/etc/ssl/certs/ca-certificates.crt", // Debian, Ubuntu, Arch, Alpine
@@ -31,6 +28,7 @@ private val certFileCandidates =
 		"/etc/ssl/ca-bundle.pem", // openSUSE
 		"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
 		"/etc/ssl/cert.pem", // FreeBSD, Alpine
+		"/var/lib/ca-certificates/ca-bundle.pem", // openSUSE
 	)
 
 private val certDirCandidates =

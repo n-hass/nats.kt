@@ -36,6 +36,7 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.toKString
 import platform.posix.ECONNRESET
 import platform.posix.errno
+import kotlin.concurrent.Volatile
 
 private val logger = KotlinLogging.logger("SslEngine")
 
@@ -62,6 +63,7 @@ internal class SslEngine(
 	private val selectorManager: SelectorManager,
 	private val onClose: () -> Unit = {},
 ) {
+	@Volatile
 	private var closed: Boolean = false
 
 	suspend fun handshake() {

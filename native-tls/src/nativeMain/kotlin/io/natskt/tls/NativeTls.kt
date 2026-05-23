@@ -70,9 +70,9 @@ public suspend fun Connection.nativeTls(
  * The dup dance is necessary because Ktor's CIO reader/writer pumps call
  * `shutdown(originalFd, SHUT_RD/SHUT_WR)` via `invokeOnCompletion` when their channels are
  * cancelled. Without isolation that shutdown reaches the underlying file description and
- * subsequent SSL writes fail with `EPIPE`. After [redirectKtorFdToDevNull] the original fd points
- * at `/dev/null`, so the pump-cleanup `shutdown` is a no-op on the wrong file description and the
- * TCP connection (now only referenced by the duped fd) is untouched.
+ * subsequent SSL writes fail with `EPIPE`. After we `dup2` `/dev/null` over `originalFd`, the
+ * pump-cleanup `shutdown` is a no-op on the wrong file description and the TCP connection (now
+ * only referenced by the duped fd) is untouched.
  *
  * Platform-specific trust evaluation (system roots vs. caller-supplied anchors) is delegated to
  * [configurePlatformTrust]; everything else — record I/O, key schedule, version negotiation — is
@@ -93,24 +93,39 @@ internal suspend fun performNativeTlsHandshake(
 	val ownsSelector = selectorManager == null
 	val selector = selectorManager ?: SelectorManager(coroutineContext)
 
+	// Pre-open /dev/null so the race window between `dup` (we now share the socket fd with Ktor's
+	// pumps) and `dup2` (Ktor's view points at /dev/null) collapses to a single `dup2` syscall.
+	// Any pump activity that gets dispatched inside that window can still touch the live socket;
+	// keeping it to one syscall is the tightest we can get without a Ktor API to quiesce the pumps.
+	val devNull = open("/dev/null", O_RDWR)
+	if (devNull < 0) {
+		if (ownsSelector) selector.close()
+		throw TlsException("open(/dev/null) failed errno=$errno")
+	}
+
 	val ownedFd = dup(originalFd)
 	if (ownedFd < 0) {
+		close(devNull)
 		if (ownsSelector) selector.close()
 		throw TlsException("dup(originalFd=$originalFd) failed errno=$errno")
 	}
 
-	try {
-		redirectKtorFdToDevNull(originalFd)
-	} catch (cause: Throwable) {
+	if (dup2(devNull, originalFd) < 0) {
 		close(ownedFd)
+		close(devNull)
 		if (ownsSelector) selector.close()
-		throw cause
+		throw TlsException("dup2(/dev/null -> fd=$originalFd) failed errno=$errno")
 	}
+	close(devNull)
 
-	// With Ktor's view of the fd neutralised, cancelling the pumps is safe — their finally
-	// blocks will call shutdown() on /dev/null and exit cleanly.
+	// Drain the output channel deliberately *after* dup2: any bytes the caller had queued get
+	// pumped to /dev/null rather than leaking on the wire as plaintext. The writer pump's
+	// invokeOnCompletion runs `shutdown(originalFd, SHUT_WR)`, which is now harmless because
+	// originalFd points at /dev/null — not the socket, which only ownedFd still references.
+	// `shutdown` is a file-description operation, so doing this before the dup2 would also
+	// half-close ownedFd and break our subsequent TLS write.
+	connection.output.flushAndClose()
 	connection.input.cancel(null)
-	connection.output.cancel(null)
 
 	val sslSelectable = IsolatedFdSelectable(ownedFd)
 	val ctx =
@@ -172,21 +187,6 @@ internal suspend fun performNativeTlsHandshake(
 		selector.notifyClosed(sslSelectable)
 		if (ownsSelector) selector.close()
 		throw cause
-	}
-}
-
-/**
- * Redirects [ktorFd] to `/dev/null` so subsequent shutdown/close calls Ktor makes on its socket
- * fall on the placeholder instead of the underlying TCP connection (which only our dup'd fd
- * still references).
- */
-private fun redirectKtorFdToDevNull(ktorFd: Int) {
-	val devNull = open("/dev/null", O_RDWR)
-	if (devNull < 0) throw TlsException("open(/dev/null) failed errno=$errno")
-	try {
-		if (dup2(devNull, ktorFd) < 0) throw TlsException("dup2(/dev/null -> fd=$ktorFd) failed errno=$errno")
-	} finally {
-		close(devNull)
 	}
 }
 
