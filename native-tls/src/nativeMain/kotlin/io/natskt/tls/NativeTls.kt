@@ -40,8 +40,10 @@ import kotlinx.cinterop.cstr
 import kotlinx.cinterop.memScoped
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import platform.posix.O_RDWR
 import platform.posix.close
 import platform.posix.dup
@@ -261,13 +263,24 @@ private fun startAppDataPumps(
 		input = appInput,
 		output = appOutput,
 		closer = {
-			try {
-				engine.shutdown()
-			} finally {
-				readJob.cancelAndJoin()
-				writeJob.cancelAndJoin()
-				engine.close()
-				if (ownsSelector) selector.close()
+			// SSL_shutdown is a writer-side operation. OpenSSL allows one reader + one writer
+			// concurrently on the same SSL*, but two concurrent writers is undefined behavior -
+			// so writeJob must be fully joined before SSL_shutdown fires. With a
+			// multi-threaded Dispatchers, i.e. IO, writeJob can otherwise still be inside
+			// SSL_write on a worker thread while the closer runs.
+			// readJob (SSL_read) is safe to leave running across SSL_shutdown and is joined after.
+			//
+			// NonCancellable wraps the whole sequence so an outer cancellation can't skip
+			// writeJob.cancelAndJoin() and leave SSL_free racing an in-flight SSL_write.
+			withContext(NonCancellable) {
+				try {
+					writeJob.cancelAndJoin()
+					engine.shutdown()
+					readJob.cancelAndJoin()
+				} finally {
+					engine.close()
+					if (ownsSelector) selector.close()
+				}
 			}
 		},
 	)
