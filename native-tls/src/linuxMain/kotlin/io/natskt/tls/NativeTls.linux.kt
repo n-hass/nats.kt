@@ -10,8 +10,8 @@ import io.ktor.network.tls.TlsException
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
-import io.natskt.tls.cert.parseDerCert
 import io.natskt.tls.internal.LinuxSslEngine
+import io.natskt.tls.internal.parseDerCert
 import io.natskt.tls.openssl.SSL
 import io.natskt.tls.openssl.SSL_CTX
 import io.natskt.tls.openssl.SSL_CTX_ctrl

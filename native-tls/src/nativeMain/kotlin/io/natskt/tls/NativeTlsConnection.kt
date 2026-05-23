@@ -8,7 +8,5 @@ public class NativeTlsConnection internal constructor(
 	public val output: ByteWriteChannel,
 	private val closer: suspend () -> Unit,
 ) {
-	public suspend fun close() {
-		closer()
-	}
+	public suspend fun close(): Unit = closer()
 }
