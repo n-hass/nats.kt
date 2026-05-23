@@ -19,6 +19,7 @@ public class TlsConfig(
 	public val clientPrivateKeyDer: ByteArray?,
 	public val clientPrivateKeyAlgorithm: TlsPrivateKeyAlgorithm?,
 	public val tlsFirst: Boolean,
+	public val serverName: String?,
 ) {
 	public val hasCustomTrust: Boolean get() = caCertificatesDer.isNotEmpty()
 	public val hasClientCertificate: Boolean get() = clientCertificateChainDer.isNotEmpty() && clientPrivateKeyDer != null
@@ -32,6 +33,7 @@ public class TlsConfig(
 				clientPrivateKeyDer = null,
 				clientPrivateKeyAlgorithm = null,
 				tlsFirst = false,
+				serverName = null,
 			)
 	}
 }

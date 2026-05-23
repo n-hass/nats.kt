@@ -35,6 +35,13 @@ public class TlsConfigBuilder internal constructor() {
 	 */
 	public var tlsFirst: Boolean = false
 
+	/**
+	 * Override the hostname used for SNI and certificate verification. When `null`, the URL host
+	 * is used. Set this to connect by IP or by an alias while still validating against the
+	 * canonical name in the certificate.
+	 */
+	public var serverName: String? = null
+
 	private val caCerts = mutableListOf<ByteArray>()
 	private val clientChain = mutableListOf<ByteArray>()
 	private var clientKey: ByteArray? = null
@@ -102,6 +109,7 @@ public class TlsConfigBuilder internal constructor() {
 			clientPrivateKeyDer = clientKey,
 			clientPrivateKeyAlgorithm = clientKeyAlgorithm,
 			tlsFirst = tlsFirst,
+			serverName = serverName,
 		)
 }
 

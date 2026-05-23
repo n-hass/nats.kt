@@ -38,7 +38,7 @@ public class TcpTransport internal constructor(
 					connection,
 					context,
 					selectorManager,
-					address.url.host,
+					tlsConfig.serverName ?: address.url.host,
 					tlsConfig,
 				)
 			} catch (e: Throwable) {
