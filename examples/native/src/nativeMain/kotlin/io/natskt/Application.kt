@@ -12,7 +12,7 @@ import io.github.oshai.kotlinlogging.KotlinLoggingConfiguration
 
 fun main(): Unit = runBlocking {
 	KotlinLoggingConfiguration.loggerFactory = DirectLoggerFactory
-	KotlinLoggingConfiguration.direct.logLevel = Level.Debug
+	KotlinLoggingConfiguration.direct.logLevel = Level.TRACE
 
     val c = NatsClient {
         server = "nats://localhost:4222"

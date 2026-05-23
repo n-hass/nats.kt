@@ -229,83 +229,92 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connected }
 
 		scope.launch {
-			var out: ParsedOutput?
+			try {
+				var out: ParsedOutput?
 
-			while (!transport!!.incoming.isClosedForRead) {
-				out = parser.parse(transport!!.incoming)
+				while (!transport!!.incoming.isClosedForRead) {
+					out = parser.parse(transport!!.incoming)
 
-				if (out is MessageInternal) {
-					val pending = pendingRequests.remove(out.sid)
-					if (pending != null) {
-						if (pending.continuation.isActive) {
-							pending.continuation.resume(out)
+					if (out is MessageInternal) {
+						val pending = pendingRequests.remove(out.sid)
+						if (pending != null) {
+							if (pending.continuation.isActive) {
+								pending.continuation.resume(out)
+							}
+							continue
 						}
+
+						subscriptions[out.sid]?.emit(out)
 						continue
 					}
 
-					subscriptions[out.sid]?.emit(out)
-					continue
-				}
+					if (out !is ServerOperation) {
+						when (out) {
+							Operation.Pong -> {
+								state.value =
+									state.value.copy(
+										lastPongAt = Clock.System.now().toEpochMilliseconds(),
+										rtt =
+											rttMeasureStart
+												?.let { Clock.System.now() - it }
+												?.inWholeMicroseconds
+												?.toDouble()
+												?.let { it / 1000 },
+									)
+								rttMeasureStart = null
+							}
 
-				if (out !is ServerOperation) {
-					when (out) {
-						Operation.Pong -> {
-							state.value =
-								state.value.copy(
-									lastPongAt = Clock.System.now().toEpochMilliseconds(),
-									rtt =
-										rttMeasureStart
-											?.let { Clock.System.now() - it }
-											?.inWholeMicroseconds
-											?.toDouble()
-											?.let { it / 1000 },
-								)
-							rttMeasureStart = null
-						}
+							Operation.Ping -> {
+								send(Operation.Pong)
+								state.value =
+									state.value.copy(
+										lastPingAt = Clock.System.now().toEpochMilliseconds(),
+									)
+							}
 
-						Operation.Ping -> {
-							send(Operation.Pong)
-							state.value =
-								state.value.copy(
-									lastPingAt = Clock.System.now().toEpochMilliseconds(),
-								)
-						}
+							is Operation.Err -> {
+								val message = (out as Operation.Err).message
+								logger.error { "received a protocol error response: $message" }
+								if (message != null) {
+									state.update { lastError = message }
+								}
+							}
 
-						is Operation.Err -> {
-							val message = (out as Operation.Err).message
-							logger.error { "received a protocol error response: $message" }
-							if (message != null) {
-								state.update { lastError = message }
+							Operation.Ok -> {}
+							Operation.Empty -> {
+								runCatching { stopWriter() }
+								transport?.close()
+								closed.complete(CloseReason.ServerInitiatedClose)
+							}
+
+							else -> {
+								logger.error { "idk: $out" }
 							}
 						}
 
-						Operation.Ok -> {}
-						Operation.Empty -> {
-							runCatching { stopWriter() }
-							transport?.close()
-							closed.complete(CloseReason.ServerInitiatedClose)
-						}
-
-						else -> {
-							logger.error { "idk: $out" }
-						}
+						continue
 					}
 
-					continue
-				}
-
-				if (out is ServerOperation.InfoOp) {
-					serverInfo.emit(out)
-					if (out.ldm == true) {
-						enterLameDuckMode()
-						break
+					if (out is ServerOperation.InfoOp) {
+						serverInfo.emit(out)
+						if (out.ldm == true) {
+							enterLameDuckMode()
+							break
+						}
 					}
 				}
-			}
-			runCatching { stopWriter() }
-			runCatching { transport?.close() }
-			if (!closed.isCompleted) {
-				closed.complete(CloseReason.ServerInitiatedClose)
+			} catch (_: CancellationException) {
+			} catch (t: Throwable) {
+				logger.error(t) { "read loop terminated by exception: ${t.message}" }
+				if (!closed.isCompleted) {
+					closed.complete(CloseReason.IoError(t))
+				}
+			} finally {
+				runCatching { stopWriter() }
+				runCatching { transport?.close() }
+				if (!closed.isCompleted) {
+					closed.complete(CloseReason.ServerInitiatedClose)
+				}
 			}
 		}
 	}
