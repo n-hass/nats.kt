@@ -183,7 +183,7 @@ internal class ProtocolEngineImpl(
 				}
 		}
 
-		val info =
+		var info =
 			when (val parsed = parser.parse(transport!!.incoming)) {
 				is ServerOperation.InfoOp -> parsed
 				else -> {
@@ -211,6 +211,26 @@ internal class ProtocolEngineImpl(
 					closed.complete(CloseReason.IoError(it))
 					return
 				}
+
+			// Transports that reopen the socket (Apple/Network.framework) hand back a fresh
+			// connection whose server will send a new INFO. Read and adopt it before CONNECT.
+			if (transport!!.tlsUpgradeReopened) {
+				info =
+					when (val parsed = parser.parse(transport!!.incoming)) {
+						is ServerOperation.InfoOp -> parsed
+						else -> {
+							closed.complete(CloseReason.ProtocolError("Server did not send INFO after TLS reopen"))
+							runCatching { transport?.close() }
+							return
+						}
+					}
+				serverInfo.value = info
+
+				if (info.ldm == true) {
+					enterLameDuckMode()
+					return
+				}
+			}
 		}
 		val connect =
 			runCatching { buildConnectOp(info) }
