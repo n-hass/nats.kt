@@ -54,7 +54,7 @@ kotlin {
 			implementation(projects.core)
 			implementation(projects.core.common)
 			implementation(projects.internal)
-			implementation(libs.whyoleg.secureRandom)
+			implementation(libs.whyoleg.cryptography.core)
 			implementation(libs.kotlinx.coroutines.core)
 			implementation(libs.kotlinx.serialization.core)
 			implementation(libs.kotlinx.serialization.json)
