@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.dependencies
+
 plugins {
     kotlin("multiplatform") version libs.versions.kotlin.stdlib.get()
 }
@@ -18,15 +20,32 @@ kotlin {
 		compilations["main"].defaultSourceSet {
 			dependencies {
 				implementation("io.github.n-hass:core")
+				implementation("io.github.n-hass:crypto")
 				implementation(libs.kotlinx.coroutines.core)
 				implementation(libs.ktor.client.core)
 				implementation(libs.ktor.client.engine.curl)
 				implementation(libs.ktor.client.websockets)
-        implementation("io.github.n-hass:native-tls")
+				implementation("io.github.n-hass:native-tls")
 			}
 		}
-		compilations["test"].defaultSourceSet {
+	}
+
+	linuxArm64 {
+		binaries {
+			executable {
+				entryPoint = "io.natskt.main"
+			}
+		}
+		// Optional: if you want to use -D flags or similar at runtime
+		compilations["main"].defaultSourceSet {
 			dependencies {
+				implementation("io.github.n-hass:core")
+				implementation("io.github.n-hass:crypto")
+				implementation(libs.kotlinx.coroutines.core)
+				implementation(libs.ktor.client.core)
+				implementation(libs.ktor.client.engine.curl)
+				implementation(libs.ktor.client.websockets)
+				implementation("io.github.n-hass:native-tls")
 			}
 		}
 	}

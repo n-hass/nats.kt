@@ -53,7 +53,6 @@ kotlin {
         commonMain.dependencies {
 			implementation(projects.core)
 			implementation(projects.core.common)
-			implementation(projects.crypto)
 			implementation(projects.internal)
 			implementation(libs.whyoleg.secureRandom)
 			implementation(libs.kotlinx.coroutines.core)

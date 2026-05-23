@@ -23,6 +23,8 @@ fun KotlinMultiplatformExtension.allTargets() {
 		nodejs()
 	}
 
+//	wasmWasi()
+
 	iosArm64()
 	iosSimulatorArm64()
 	macosArm64()

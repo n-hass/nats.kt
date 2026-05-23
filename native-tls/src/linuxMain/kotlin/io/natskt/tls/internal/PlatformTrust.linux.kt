@@ -2,17 +2,42 @@
 
 package io.natskt.tls.internal
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.network.tls.TlsException
 import io.natskt.tls.NativeTlsConfigBuilder
 import io.natskt.tls.openssl.SSL_CTX
+import io.natskt.tls.openssl.SSL_CTX_load_verify_locations
 import io.natskt.tls.openssl.SSL_CTX_set_cert_store
-import io.natskt.tls.openssl.SSL_CTX_set_default_verify_paths
 import io.natskt.tls.openssl.X509_STORE_add_cert
 import io.natskt.tls.openssl.X509_STORE_free
 import io.natskt.tls.openssl.X509_STORE_new
 import io.natskt.tls.openssl.X509_free
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.toKString
+import platform.posix.F_OK
+import platform.posix.access
+import platform.posix.getenv
+
+private val logger = KotlinLogging.logger("PlatformTrust.linux")
+
+// Same probe order as Go's crypto/x509.loadSystemRoots, mkcert, etc. Native linux apps that ship
+// their own openssl can't trust SSL_CTX_set_default_verify_paths — those paths get baked in at
+// openssl build time and rarely match the host distro. Probing is the standard workaround.
+private val certFileCandidates =
+	listOf(
+		"/etc/ssl/certs/ca-certificates.crt", // Debian, Ubuntu, Arch, Alpine
+		"/etc/pki/tls/certs/ca-bundle.crt", // RHEL, Fedora, CentOS
+		"/etc/ssl/ca-bundle.pem", // openSUSE
+		"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+		"/etc/ssl/cert.pem", // FreeBSD, Alpine
+	)
+
+private val certDirCandidates =
+	listOf(
+		"/etc/ssl/certs", // most distros
+		"/etc/pki/tls/certs", // RHEL, Fedora, CentOS
+	)
 
 internal actual fun configurePlatformTrust(
 	ctx: CPointer<SSL_CTX>,
@@ -20,8 +45,16 @@ internal actual fun configurePlatformTrust(
 ): () -> Unit {
 	if (!config.verifyCertificates) return {}
 	if (config.trustAnchorsDer.isEmpty()) {
-		if (SSL_CTX_set_default_verify_paths(ctx) != 1) {
-			throw TlsException("SSL_CTX_set_default_verify_paths failed")
+		val envFile = getenv("SSL_CERT_FILE")?.toKString()?.takeIf { it.isNotEmpty() }
+		val envDir = getenv("SSL_CERT_DIR")?.toKString()?.takeIf { it.isNotEmpty() }
+		val file = envFile ?: certFileCandidates.firstOrNull { access(it, F_OK) == 0 }
+		val dir = envDir ?: certDirCandidates.firstOrNull { access(it, F_OK) == 0 }
+		if (file == null && dir == null) {
+			throw TlsException("no system CA trust store found in standard locations")
+		}
+		logger.trace { "loading trust store file=$file dir=$dir" }
+		if (SSL_CTX_load_verify_locations(ctx, file, dir) != 1) {
+			throw TlsException("SSL_CTX_load_verify_locations(file=$file, dir=$dir) failed")
 		}
 		return {}
 	}

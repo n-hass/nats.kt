@@ -26,7 +26,6 @@ kotlin {
 			implementation(libs.ktor.network.tls)
 			implementation(libs.kotlinx.coroutines.core)
 			implementation(libs.kotlinLogging)
-			implementation(libs.nativebuilds.openssl.libssl)
 		}
 
 		nativeTest.dependencies {

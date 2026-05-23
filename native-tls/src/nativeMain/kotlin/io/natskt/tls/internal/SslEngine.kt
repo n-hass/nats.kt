@@ -21,9 +21,11 @@ import io.natskt.tls.openssl.SSL_ERROR_ZERO_RETURN
 import io.natskt.tls.openssl.SSL_connect
 import io.natskt.tls.openssl.SSL_free
 import io.natskt.tls.openssl.SSL_get_error
+import io.natskt.tls.openssl.SSL_get_verify_result
 import io.natskt.tls.openssl.SSL_read
 import io.natskt.tls.openssl.SSL_shutdown
 import io.natskt.tls.openssl.SSL_write
+import io.natskt.tls.openssl.X509_verify_cert_error_string
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -69,7 +71,13 @@ internal class SslEngine(
 			when (val err = SSL_get_error(ssl, rc)) {
 				SSL_ERROR_WANT_READ -> selectorManager.select(selectable, SelectInterest.READ)
 				SSL_ERROR_WANT_WRITE -> selectorManager.select(selectable, SelectInterest.WRITE)
-				else -> throw TlsException("SSL_connect failed: ${describeError(err)}")
+				else -> {
+					val verifyRc = SSL_get_verify_result(ssl)
+					val verifyReason = X509_verify_cert_error_string(verifyRc)?.toKString() ?: "<unknown>"
+					throw TlsException(
+						"SSL_connect failed: ${describeError(err)} (verify_result=$verifyRc: $verifyReason)",
+					)
+				}
 			}
 		}
 	}

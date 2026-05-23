@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.utils.toSetOrEmpty
+
 plugins {
 	alias(libs.plugins.natskt.kmp)
 }
@@ -8,15 +10,22 @@ kotlin {
 
 	sourceSets {
 		commonMain.dependencies {
-			api(libs.whyoleg.cryptography.provider.optimal)
+			implementation(libs.whyoleg.cryptography.core)
 		}
-
 		jvmMain.dependencies {
 			api(libs.whyoleg.cryptography.provider.jdk.bc)
 		}
-
-		iosMain.dependencies {
+		appleMain.dependencies {
 			api(libs.whyoleg.cryptography.provider.cryptokit)
+		}
+		linuxMain.dependencies {
+			api(libs.whyoleg.cryptography.provider.openssl3.api)
+		}
+		jsMain.dependencies {
+			api(libs.whyoleg.cryptography.provider.webcrypto)
+		}
+		wasmJsMain.dependencies {
+			api(libs.whyoleg.cryptography.provider.webcrypto)
 		}
 	}
 }

@@ -152,7 +152,6 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun send(op: ClientOperation) {
-		logger.trace { "sending ${op::class.simpleName}" }
 		writerCommands?.send(OutboundCommand.Op(op))
 			?: throw ConnectionClosedException("cannot send with no connection open")
 	}
@@ -251,23 +250,25 @@ internal class ProtocolEngineImpl(
 				if (out !is ServerOperation) {
 					when (out) {
 						Operation.Pong -> {
-							state.update {
-								lastPongAt = Clock.System.now().toEpochMilliseconds()
-								rtt =
-									rttMeasureStart
-										?.let { Clock.System.now() - it }
-										?.inWholeMicroseconds
-										?.toDouble()
-										?.let { it / 1000 }
-								rttMeasureStart = null
-							}
+							state.value =
+								state.value.copy(
+									lastPongAt = Clock.System.now().toEpochMilliseconds(),
+									rtt =
+										rttMeasureStart
+											?.let { Clock.System.now() - it }
+											?.inWholeMicroseconds
+											?.toDouble()
+											?.let { it / 1000 },
+								)
+							rttMeasureStart = null
 						}
 
 						Operation.Ping -> {
 							send(Operation.Pong)
-							state.update {
-								lastPingAt = Clock.System.now().toEpochMilliseconds()
-							}
+							state.value =
+								state.value.copy(
+									lastPingAt = Clock.System.now().toEpochMilliseconds(),
+								)
 						}
 
 						is Operation.Err -> {
