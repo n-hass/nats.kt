@@ -9,7 +9,7 @@ import io.ktor.network.sockets.Connection
 import io.ktor.network.tls.TlsException
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readAvailable
-import io.ktor.utils.io.writeFully
+import io.ktor.utils.io.write
 import io.natskt.tls.internal.IsolatedFdSelectable
 import io.natskt.tls.internal.SslEngine
 import io.natskt.tls.internal.configurePlatformTrust
@@ -53,6 +53,10 @@ import platform.posix.open
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger("NativeTls")
+
+// Must match kotlinx-io's `Segment.SIZE`. the maximum minimumCapacity accepted by
+// `Buffer.writableSegment`. Larger values would trip its internal `require`.
+private const val SSL_READ_CHUNK = 8192
 
 public suspend fun Connection.nativeTls(
 	coroutineContext: CoroutineContext,
@@ -227,15 +231,24 @@ private fun startAppDataPumps(
 	val appInput = ByteChannel(autoFlush = true)
 	val appOutput = ByteChannel(autoFlush = true)
 
+	// Hoisted out of the loop so the closure is allocated once per connection, not per iteration.
+	val decryptIntoChannelBuffer: (ByteArray, Int, Int) -> Int = { array, start, end ->
+		engine.readNonBlocking(array, start, end - start)
+	}
+
 	val readJob: Job =
 		scope.launch {
-			val buf = ByteArray(16384)
 			try {
-				while (true) {
-					val n = engine.read(buf, 0, buf.size)
-					if (n <= 0) break
-					appInput.writeFully(buf, 0, n)
-					appInput.flush()
+				readLoop@ while (true) {
+					// Capacity is bounded by `Segment.SIZE` (8192) — kotlinx-io's writableSegment
+					// `require`s minimumCapacity <= Segment.SIZE. SSL_read returns at most the
+					// requested length per call, so we just loop again if more is buffered in OpenSSL.
+					val n = appInput.write(SSL_READ_CHUNK, decryptIntoChannelBuffer)
+					when {
+						n > 0 -> Unit // write() already auto-flushed
+						engine.isReadEof -> break@readLoop
+						else -> engine.awaitReadReady()
+					}
 				}
 			} catch (cause: Throwable) {
 				appInput.cancel(cause)

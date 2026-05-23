@@ -84,40 +84,75 @@ internal class SslEngine(
 		}
 	}
 
+	private var pendingReadInterest: SelectInterest? = null
+	private var readEofObserved: Boolean = false
+
+	/** `true` once a non-blocking read has observed clean SSL EOF (`SSL_ERROR_ZERO_RETURN`) or a
+	 *  syscall-level half-close. The read pump stops on this signal. */
+	val isReadEof: Boolean get() = readEofObserved
+
 	/**
-	 * Reads up to [length] bytes into [dst] starting at [offset]. Returns the number of bytes
-	 * read, or `-1` if the peer closed the TLS session cleanly (`SSL_ERROR_ZERO_RETURN`).
+	 * One non-blocking `SSL_read` attempt into [dst] starting at [offset], up to [length] bytes.
+	 *
+	 * Returns:
+	 * - `> 0`: bytes decrypted into [dst]
+	 * - `0`: either `WANT_READ` / `WANT_WRITE` (caller must [awaitReadReady] before retrying) or
+	 *        a clean EOF (caller checks [isReadEof]); both states are observable on the engine
+	 * - throws [TlsException] on a hard error
+	 *
+	 * Intended to be called inside `UnsafeBufferOperations.writeToTail` so OpenSSL writes the
+	 * decrypted plaintext directly into the consumer channel's tail segment — no intermediate copy.
 	 */
-	suspend fun read(
+	fun readNonBlocking(
 		dst: ByteArray,
 		offset: Int,
 		length: Int,
 	): Int {
-		if (closed) return -1
+		if (closed || readEofObserved) return 0
 		val pinned = dst.pin()
 		try {
 			val ptr = pinned.addressOf(offset).reinterpret<ByteVar>()
-			while (true) {
-				val rc = SSL_read(ssl, ptr, length)
-				if (rc > 0) return rc
-				when (val err = SSL_get_error(ssl, rc)) {
-					SSL_ERROR_ZERO_RETURN -> return -1
-					SSL_ERROR_WANT_READ -> selectorManager.select(selectable, SelectInterest.READ)
-					SSL_ERROR_WANT_WRITE -> selectorManager.select(selectable, SelectInterest.WRITE)
-					SSL_ERROR_SYSCALL -> {
-						// Per the OpenSSL docs: a return of 0 with WANT_NOTHING means the peer
-						// closed without sending close_notify. Treat as EOF.
-						if (rc == 0 || errno == ECONNRESET) return -1
-						throw TlsException("SSL_read syscall failed (errno=$errno): ${describeError(err)}")
-					}
-					else -> throw TlsException("SSL_read failed: ${describeError(err)}")
-				}
+			val rc = SSL_read(ssl, ptr, length)
+			if (rc > 0) {
+				pendingReadInterest = null
+				return rc
 			}
-			@Suppress("UNREACHABLE_CODE")
-			return 0
+			when (val err = SSL_get_error(ssl, rc)) {
+				SSL_ERROR_ZERO_RETURN -> {
+					readEofObserved = true
+					return 0
+				}
+				SSL_ERROR_WANT_READ -> {
+					pendingReadInterest = SelectInterest.READ
+					return 0
+				}
+				SSL_ERROR_WANT_WRITE -> {
+					pendingReadInterest = SelectInterest.WRITE
+					return 0
+				}
+				SSL_ERROR_SYSCALL -> {
+					// Per the OpenSSL docs: rc == 0 with WANT_NOTHING means the peer closed
+					// without sending close_notify. Treat as EOF.
+					if (rc == 0 || errno == ECONNRESET) {
+						readEofObserved = true
+						return 0
+					}
+					throw TlsException("SSL_read syscall failed (errno=$errno): ${describeError(err)}")
+				}
+				else -> throw TlsException("SSL_read failed: ${describeError(err)}")
+			}
 		} finally {
 			pinned.unpin()
 		}
+	}
+
+	/**
+	 * Suspends until the last [readNonBlocking] can make forward progress. No-op if the previous
+	 * read produced bytes or reached EOF.
+	 */
+	suspend fun awaitReadReady() {
+		val interest = pendingReadInterest ?: return
+		selectorManager.select(selectable, interest)
 	}
 
 	suspend fun write(
