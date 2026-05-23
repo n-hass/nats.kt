@@ -36,9 +36,12 @@ import platform.CoreFoundation.CFArrayAppendValue
 import platform.CoreFoundation.CFArrayCreateMutable
 import platform.CoreFoundation.CFErrorRefVar
 import platform.CoreFoundation.CFRelease
+import platform.CoreFoundation.CFStringCreateWithCString
 import platform.CoreFoundation.kCFAllocatorDefault
+import platform.CoreFoundation.kCFStringEncodingUTF8
 import platform.Security.SecCertificateRef
-import platform.Security.SecPolicyCreateBasicX509
+import platform.Security.SecPolicyCreateSSL
+import platform.Security.SecPolicyRef
 import platform.Security.SecTrustCreateWithCertificates
 import platform.Security.SecTrustEvaluateWithError
 import platform.Security.SecTrustRef
@@ -53,13 +56,14 @@ internal actual fun configurePlatformTrust(
 	config: NativeTlsConfigBuilder,
 ): () -> Unit {
 	if (!config.verifyCertificates) return {}
-	val ref = StableRef.create(TrustContext(config.trustAnchorsDer))
+	val ref = StableRef.create(TrustContext(config.trustAnchorsDer, config.serverName))
 	SSL_CTX_set_cert_verify_callback(ctx, secTrustVerifyCallback, ref.asCPointer())
 	return { ref.dispose() }
 }
 
 private class TrustContext(
 	val anchorsDer: List<ByteArray>,
+	val serverName: String?,
 )
 
 private val secTrustVerifyCallback:
@@ -74,7 +78,7 @@ private fun secTrustVerify(
 	// A Kotlin exception escaping into the OpenSSL C frame is undefined behavior; trap and reject.
 	return try {
 		val tctx = arg.asStableRef<TrustContext>().get()
-		evaluateWithSecTrust(storeCtx, tctx.anchorsDer)
+		evaluateWithSecTrust(storeCtx, tctx.anchorsDer, tctx.serverName)
 	} catch (_: Throwable) {
 		0
 	}
@@ -83,6 +87,7 @@ private fun secTrustVerify(
 private fun evaluateWithSecTrust(
 	storeCtx: CPointer<X509_STORE_CTX>,
 	anchorsDer: List<ByteArray>,
+	serverName: String?,
 ): Int {
 	val leaf = X509_STORE_CTX_get0_cert(storeCtx) ?: return 0
 	val untrusted = X509_STORE_CTX_get0_untrusted(storeCtx)
@@ -107,7 +112,7 @@ private fun evaluateWithSecTrust(
 			}
 		}
 
-		val policy = SecPolicyCreateBasicX509() ?: return 0
+		val policy = createSslPolicy(serverName) ?: return 0
 		try {
 			return memScoped {
 				val trustOut = alloc<SecTrustRefVar>()
@@ -132,6 +137,21 @@ private fun evaluateWithSecTrust(
 	} finally {
 		secCerts.forEach { CFRelease(it) }
 		CFRelease(certArray)
+	}
+}
+
+private fun createSslPolicy(serverName: String?): SecPolicyRef? {
+	if (serverName == null) return SecPolicyCreateSSL(true, null)
+	val cfHostname =
+		CFStringCreateWithCString(
+			kCFAllocatorDefault,
+			serverName,
+			kCFStringEncodingUTF8,
+		) ?: return null
+	return try {
+		SecPolicyCreateSSL(true, cfHostname)
+	} finally {
+		CFRelease(cfHostname)
 	}
 }
 
