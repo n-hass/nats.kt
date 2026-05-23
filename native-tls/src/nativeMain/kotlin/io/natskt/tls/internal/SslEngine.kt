@@ -48,9 +48,9 @@ internal class IsolatedFdSelectable(
  * Drives an `SSL*` against a non-blocking POSIX fd, suspending on the supplied [SelectorManager]
  * when OpenSSL signals `SSL_ERROR_WANT_READ` / `SSL_ERROR_WANT_WRITE`.
  *
- * The [selectable] descriptor must be the same fd that was handed to `SSL_set_fd` — i.e. the fd
- * the engine owns. SSL_free closes that fd via the underlying socket BIO; [close] notifies the
- * selector first so it can drop its registration cleanly.
+ * The [selectable] descriptor must be the same fd that was handed to `SSL_set_fd`. The caller is
+ * expected to have applied `BIO_NOCLOSE` to the socket BIO so that `SSL_free` does not also close
+ * the fd — the selector is the sole owner of that close.
  *
  * [onClose] runs after SSL is freed — used by the Apple actual to dispose the `StableRef` that
  * backed the SecTrust verify callback.
@@ -163,8 +163,8 @@ internal class SslEngine(
 	fun close() {
 		if (closed) return
 		closed = true
-		// Tell the selector to drop tracking *before* SSL_free closes the fd — otherwise the
-		// epoll/kqueue entry refers to a closed descriptor.
+		// The BIO was set to BIO_NOCLOSE at construction time, so SSL_free does not touch the fd.
+		// notifyClosed is the sole path that closes it (and tears down the selector registration).
 		selectorManager.notifyClosed(selectable)
 		SSL_free(ssl)
 		SSL_CTX_free(ctx)
