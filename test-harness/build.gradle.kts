@@ -1,31 +1,11 @@
-@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
-
 plugins {
-	alias(libs.plugins.kotlin.multiplatform)
+	alias(libs.plugins.natskt.kmp)
 	alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
 	explicitApi()
-
-	jvm()
-	js {
-		browser()
-		nodejs()
-	}
-
-	wasmJs {
-		browser()
-		nodejs()
-	}
-
-	iosArm64()
-	iosSimulatorArm64()
-
-	linuxX64()
-	linuxArm64()
-
-	macosArm64()
+	allTargets()
 
 	sourceSets {
 		commonMain.dependencies {

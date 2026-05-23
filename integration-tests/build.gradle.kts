@@ -1,5 +1,10 @@
+@file:OptIn(ExperimentalTime::class)
+
+import groovy.json.JsonSlurper
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 plugins {
 	alias(libs.plugins.kotlin.multiplatform)
@@ -66,6 +71,22 @@ tasks.withType<KotlinNativeSimulatorTest>().configureEach {
 	standalone.set(false)
 	doFirst {
 		val deviceName = device.get()
+		val listProc = ProcessBuilder("xcrun", "simctl", "list", "devices", "booted", "-j")
+			.redirectErrorStream(true)
+			.start()
+		val listOutput = listProc.inputStream.bufferedReader().readText()
+		if (listProc.waitFor() != 0) {
+			throw Exception("Failed to query booted iOS Simulators:\n$listOutput")
+		}
+
+		@Suppress("UNCHECKED_CAST")
+		val parsed = JsonSlurper().parseText(listOutput) as Map<String, Any>
+		@Suppress("UNCHECKED_CAST")
+		val devicesByRuntime = parsed["devices"] as Map<String, List<Map<String, Any>>>
+		val alreadyBooted = devicesByRuntime.values.flatten().any { it["udid"] == deviceName }
+		if (alreadyBooted) return@doFirst
+
+		val started = Clock.System.now()
 		val exit = ProcessBuilder("xcrun", "simctl", "bootstatus", deviceName, "-b")
 			.inheritIO()
 			.start()
@@ -73,5 +94,6 @@ tasks.withType<KotlinNativeSimulatorTest>().configureEach {
 		if (exit != 0) {
 			throw GradleException("Failed to boot iOS Simulator '$deviceName' (exit=$exit)")
 		}
+		System.err.println("Started iOS sim $deviceName in ${Clock.System.now() - started}")
 	}
 }

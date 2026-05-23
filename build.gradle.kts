@@ -1,91 +1,20 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import com.diffplug.spotless.LineEnding
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import java.util.*
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
+    // kotlin.multiplatform is declared here so its types are on root's buildscript
+    // classpath (used by the `subprojects { … }` block below). Subprojects apply it via
+    // the `natskt.kmp` convention plugin in build-logic, not directly.
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.spotless) apply false
 	alias(libs.plugins.mavenPublish) apply false
+	id("natskt.harness")
 }
-
-private val isWindowsHost = System.getProperty("os.name").lowercase(Locale.US).contains("windows")
-private val natsHarnessExecutable =
-	layout.projectDirectory
-		.dir("test-harness/nats-server-daemon/build/install/nats-server-daemon/bin")
-		.file(if (isWindowsHost) "nats-server-daemon.bat" else "nats-server-daemon")
-
-private val kotlinJsTestClass =
-	runCatching { Class.forName("org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest") }.getOrNull()
-private val kotlinWasmJsTestClass =
-	runCatching { Class.forName("org.jetbrains.kotlin.gradle.targets.js.testing.KotlinWasmJsTest") }.getOrNull()
-private val kotlinNativeTestClass =
-	runCatching { Class.forName("org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest") }.getOrNull()
-
-private val natsServerDaemonService =
-	gradle.sharedServices.registerIfAbsent("natsServerDaemonService", NatsServerDaemonService::class) {
-		parameters.executable.set(natsHarnessExecutable)
-		parameters.workingDirectory.set(project(projects.testHarness.natsServerDaemon.path).layout.projectDirectory.asFile.toString())
-		parameters.args.set(emptyList())
-		parameters.readyCheckUrl.set("http://127.0.0.1:4500/health")
-		parameters.startupTimeoutSeconds.set(60)
-		parameters.environment.putAll(
-			mapOf(
-				"NATS_HARNESS_HOST" to "127.0.0.1",
-				"NATS_HARNESS_PORT" to "4500",
-			),
-		)
-		maxParallelUsages.set(
-			properties["natskt.test.parallel"]?.toString()?.toInt() ?: 2
-		)
-	}
-
-private val ensureNatsHarness =
-	tasks.register<EnsureNatsHarnessTask>("ensureNatsHarness") {
-		group = "verification"
-		description = "Ensures the NATS test harness daemon is running before tests execute"
-		dependsOn(natsHarnessInstallTaskPath)
-		harnessService = natsServerDaemonService
-		usesService(natsServerDaemonService)
-	}
-private val natsHarnessInstallTaskPath = ":test-harness:nats-server-daemon:installDist"
-
-// --- TLS Test Server ---
-
-private val tlsTestServerExecutable =
-	layout.projectDirectory
-		.dir("test-harness/tls-test-server/build/install/tls-test-server/bin")
-		.file(if (isWindowsHost) "tls-test-server.bat" else "tls-test-server")
-
-private val tlsTestServerService =
-	gradle.sharedServices.registerIfAbsent("tlsTestServerService", NatsServerDaemonService::class) {
-		parameters.executable.set(tlsTestServerExecutable)
-		parameters.workingDirectory.set(project(projects.testHarness.tlsTestServer.path).layout.projectDirectory.asFile.toString())
-		parameters.args.set(emptyList())
-		parameters.readyCheckUrl.set("http://127.0.0.1:4501/health")
-		parameters.startupTimeoutSeconds.set(30)
-		parameters.environment.putAll(
-			mapOf(
-				"TLS_TEST_SERVER_HOST" to "127.0.0.1",
-				"TLS_TEST_SERVER_PORT" to "4501",
-			),
-		)
-		maxParallelUsages.set(1)
-	}
-
-private val ensureTlsTestServer =
-	tasks.register<EnsureNatsHarnessTask>("ensureTlsTestServer") {
-		group = "verification"
-		description = "Ensures the TLS test server is running before native-tls tests execute"
-		dependsOn(tlsTestServerInstallTaskPath)
-		harnessService = tlsTestServerService
-		usesService(tlsTestServerService)
-	}
-private val tlsTestServerInstallTaskPath = ":test-harness:tls-test-server:installDist"
 
 allprojects {
     apply(plugin = "com.diffplug.spotless")
@@ -175,50 +104,4 @@ subprojects {
 			useGpgCmd()
 		}
 	}
-
-	tasks.configureEach {
-		if (!requiresNatsHarness(this, kotlinJsTestClass, kotlinWasmJsTestClass, kotlinNativeTestClass)) {
-			return@configureEach
-		}
-		dependsOn(ensureNatsHarness)
-		usesService(natsServerDaemonService)
-	}
-
-	// Wire native-tls native tests to the TLS test server
-	if (path == ":native-tls") {
-		tasks.configureEach {
-			if (kotlinNativeTestClass?.isInstance(this) != true) return@configureEach
-			dependsOn(ensureTlsTestServer)
-			usesService(tlsTestServerService)
-			val task = this as org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
-			val portsPath = rootProject.file("test-harness/tls-test-server/ports.properties").absolutePath
-			task.environment("TLS_TEST_PORTS_FILE", portsPath)
-			// iOS Simulator tests run via `xcrun simctl spawn`, which does not forward the
-			// launching process's environment into the simulated process. The simctl-honored
-			// way to propagate a var is to set it on the parent with a SIMCTL_CHILD_ prefix;
-			// the prefix is stripped when the child is launched.
-			task.environment("SIMCTL_CHILD_TLS_TEST_PORTS_FILE", portsPath)
-		}
-	}
-}
-
-private fun requiresNatsHarness(
-	task: Task,
-	jsTestClass: Class<*>?,
-	wasmJsTestClass: Class<*>?,
-	nativeTestClass: Class<*>?,
-): Boolean {
-	if (task is Test) {
-		return true
-	}
-	if (jsTestClass?.isInstance(task) == true) {
-		return true
-	}
-	if (wasmJsTestClass?.isInstance(task) == true) {
-		return true
-	}
-	if (nativeTestClass?.isInstance(task) == true) {
-		return true
-	}
-	return false
 }

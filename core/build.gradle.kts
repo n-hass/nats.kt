@@ -4,22 +4,14 @@ import java.time.Duration
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.natskt.kmp)
     alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
     explicitApi()
     applyDefaultHierarchyTemplate()
-
-    jvm()
-
-    iosArm64()
-    iosSimulatorArm64()
-    macosArm64()
-
-    linuxX64()
-    linuxArm64()
+    allTargets()
 
     js {
         browser {
@@ -38,7 +30,6 @@ kotlin {
 		}
     }
     wasmJs {
-        browser()
 		nodejs {
 			testTask {
 				useKarma()
