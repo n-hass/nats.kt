@@ -85,6 +85,29 @@ class TlsConfigIntegrationTest {
 			val result = client.connect()
 			assertTrue(result.isFailure, "expected connect to fail when tlsFirst is required but not set")
 		}
+
+	@OptIn(InternalNatsApi::class)
+	@Test
+	fun `serverName override rejects connection when hostname does not match cert SAN`() =
+		RemoteNatsHarness.runBlocking(enableTls = true) { server ->
+			val serverCertPem = assertNotNull(server.tlsServerCertPem)
+			val client =
+				NatsClient {
+					this.server = server.tlsUri!!
+					transport = TcpTransport
+					tls {
+						caCertificates(serverCertPem)
+						// Chain validates against the supplied anchor, but the SAN
+						// (DNS:localhost,IP:127.0.0.1) doesn't include this name. Verification
+						// must reject the cert on hostname mismatch alone.
+						serverName = "natskt-hostname-mismatch.example"
+					}
+					connectTimeout = 5.seconds
+					maxReconnects = 1
+				}
+			val result = client.connect()
+			assertTrue(result.isFailure, "expected connect to fail on hostname mismatch, got: ${result.getOrNull()}")
+		}
 }
 
 // Self-signed P-256 ECDSA certificate generated for these tests with:
