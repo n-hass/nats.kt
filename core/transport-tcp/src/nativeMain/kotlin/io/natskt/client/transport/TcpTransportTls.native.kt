@@ -30,5 +30,11 @@ internal actual suspend fun performTlsUpgrade(transport: TcpTransport): Transpor
 		)
 	}
 
-	return upgrade(transport.inner, transport.tlsConfig, transport.serverName, transport.context)
+	return upgrade(
+		transport.inner,
+		transport.tlsConfig,
+		transport.serverName,
+		transport.context,
+		transport.selectorManager,
+	)
 }

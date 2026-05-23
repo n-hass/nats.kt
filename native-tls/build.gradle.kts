@@ -27,6 +27,7 @@ kotlin {
 			implementation(libs.kotlinx.coroutines.core)
 			implementation(libs.whyoleg.cryptography.core)
 			implementation(libs.whyoleg.secureRandom)
+			implementation(libs.kotlinLogging)
 		}
 
 		appleMain.dependencies {
@@ -37,8 +38,9 @@ kotlin {
 		}
 
 		linuxMain.dependencies {
-			implementation(libs.whyoleg.cryptography.provider.optimal)
+//			implementation(libs.whyoleg.cryptography.provider.optimal)
 			implementation(libs.whyoleg.cryptography.provider.openssl3.api)
+//			implementation(libs.ensody.openssl.libssl)
 		}
 
 		nativeTest.dependencies {
