@@ -104,6 +104,9 @@ internal class NatsClientImpl(
 			phaseJob.cancel()
 			abortJob.cancel()
 			timeoutJob.cancel()
+			if (result.isFailure) {
+				connectionManager.reconnectJob?.cancel()
+			}
 			result
 		}
 
