@@ -14,6 +14,7 @@ internal class NativeTlsTransportAdapter(
 	private val rawConnection: Connection,
 	private val tls: NativeTlsConnection,
 	override val coroutineContext: CoroutineContext,
+	override val tlsUpgradeReopened: Boolean = false,
 ) : Transport,
 	CoroutineScope {
 	override val isClosed: Boolean get() = rawConnection.socket.isClosed

@@ -1,6 +1,7 @@
 package io.natskt.tls
 
 import io.natskt.tls.internal.NativeTlsTransportAdapter
+import io.natskt.tls.internal.platformTlsUpgradeReopens
 import io.natskt.tls.spi.NativeTlsRegistrar
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -21,6 +22,11 @@ private val registerNativeTls: Unit =
 					verifyCertificates = !tlsConfig.acceptAnyServerCertificate
 					trustAnchorsDer = tlsConfig.caCertificatesDer
 				}
-			NativeTlsTransportAdapter(rawConnection, tls, coroutineContext)
+			NativeTlsTransportAdapter(
+				rawConnection,
+				tls,
+				coroutineContext,
+				tlsUpgradeReopened = platformTlsUpgradeReopens,
+			)
 		}
 	}
