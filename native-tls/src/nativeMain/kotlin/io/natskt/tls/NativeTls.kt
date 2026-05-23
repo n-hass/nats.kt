@@ -8,7 +8,7 @@ import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Connection
 import io.ktor.network.tls.TlsException
 import io.ktor.utils.io.ByteChannel
-import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.read
 import io.ktor.utils.io.write
 import io.natskt.tls.internal.IsolatedFdSelectable
 import io.natskt.tls.internal.SslEngine
@@ -235,6 +235,9 @@ private fun startAppDataPumps(
 	val decryptIntoChannelBuffer: (ByteArray, Int, Int) -> Int = { array, start, end ->
 		engine.readNonBlocking(array, start, end - start)
 	}
+	val writeFromChannelBuffer: suspend (ByteArray, Int, Int) -> Int = { array, start, endExclusive ->
+		engine.write(array, start, endExclusive - start)
+	}
 
 	val readJob: Job =
 		scope.launch {
@@ -259,13 +262,10 @@ private fun startAppDataPumps(
 
 	val writeJob: Job =
 		scope.launch {
-			val buf = ByteArray(16384)
 			try {
 				while (true) {
-					val n = appOutput.readAvailable(buf, 0, buf.size)
+					val n = appOutput.read(writeFromChannelBuffer)
 					if (n == -1) break
-					if (n == 0) continue
-					engine.write(buf, 0, n)
 				}
 			} catch (cause: Throwable) {
 				appOutput.cancel(cause)
