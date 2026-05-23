@@ -38,11 +38,23 @@ internal class RemoteNatsHarnessClient(
 ) {
 	private val serversPath = "${baseUrl.trimEnd('/')}/servers"
 
-	suspend fun createServer(enableJetStream: Boolean): RemoteNatsServerInfo =
+	suspend fun createServer(
+		enableJetStream: Boolean,
+		enableTls: Boolean = false,
+		tlsHandshakeFirst: Boolean = false,
+		tlsRequireClientCert: Boolean = false,
+	): RemoteNatsServerInfo =
 		httpClient
 			.put(serversPath) {
 				contentType(ContentType.Application.Json)
-				setBody(RemoteNatsServerRequest(enableJetStream = enableJetStream))
+				setBody(
+					RemoteNatsServerRequest(
+						enableJetStream = enableJetStream,
+						enableTls = enableTls,
+						tlsHandshakeFirst = tlsHandshakeFirst,
+						tlsRequireClientCert = tlsRequireClientCert,
+					),
+				)
 			}.also {
 				if (!it.status.isSuccess()) throw IllegalStateException("Request failed: ${it.status}")
 			}.body()

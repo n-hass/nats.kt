@@ -38,7 +38,7 @@ class DurationsTest {
 	}
 
 	@Test
-	fun `fractional seconds use the sub-second remainder, not totalNs`() {
+	fun `fractional seconds use the sub-second remainder not totalNs`() {
 		// Earlier versions used totalNs (whole + frac) to build the decimal part, which produced
 		// "1.15s" for 1.5 seconds because trimEnd('0') chewed into the seconds digit.
 		assertEquals("1.5s", (1.seconds + 500.milliseconds).toGoDurationString())

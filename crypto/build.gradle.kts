@@ -1,44 +1,31 @@
-@file:OptIn(ExperimentalWasmDsl::class)
-
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.utils.toSetOrEmpty
 
 plugins {
-	alias(libs.plugins.kotlin.multiplatform)
+	alias(libs.plugins.natskt.kmp)
 }
 
 kotlin {
 	explicitApi()
-
-	jvm()
-	js {
-		browser()
-		nodejs()
-	}
-
-	wasmJs {
-		browser()
-		nodejs()
-	}
-
-	iosArm64()
-	iosSimulatorArm64()
-
-	linuxX64()
-	linuxArm64()
-
-	macosArm64()
+	allTargets()
 
 	sourceSets {
 		commonMain.dependencies {
-			api(libs.whyoleg.cryptography.provider.optimal)
+			implementation(libs.whyoleg.cryptography.core)
 		}
-
 		jvmMain.dependencies {
 			api(libs.whyoleg.cryptography.provider.jdk.bc)
 		}
-
-		iosMain.dependencies {
+		appleMain.dependencies {
 			api(libs.whyoleg.cryptography.provider.cryptokit)
+		}
+		linuxMain.dependencies {
+			api(libs.whyoleg.cryptography.provider.openssl3.api)
+		}
+		jsMain.dependencies {
+			api(libs.whyoleg.cryptography.provider.webcrypto)
+		}
+		wasmJsMain.dependencies {
+			api(libs.whyoleg.cryptography.provider.webcrypto)
 		}
 	}
 }

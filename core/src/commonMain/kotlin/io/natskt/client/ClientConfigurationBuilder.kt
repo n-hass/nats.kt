@@ -145,8 +145,35 @@ public class ClientConfigurationBuilder internal constructor() {
 
 	/**
 	 * Tries to connect with TLS first, and forces the server to use TLS.
+	 *
+	 * When `null` (default), TLS is inferred from the URL scheme (`tls://` or `wss://`).
+	 *
+	 * For finer-grained TLS configuration — custom trust roots, mutual TLS, `tlsFirst`,
+	 * skip-verify — use the [tls] block.
 	 */
 	public var tlsRequired: Boolean? = null
+
+	internal var tlsConfigBuilder: TlsConfigBuilder = TlsConfigBuilder()
+
+	/**
+	 * Configure TLS trust material, client certificates for mutual TLS, and handshake mode.
+	 *
+	 * ```kotlin
+	 * NatsClient {
+	 *   server = "tls://nats.example:4222"
+	 *   tls {
+	 *     caCertificates(privateRootsPem)
+	 *     clientCertificate(certPem, keyPem)
+	 *     tlsFirst = true
+	 *   }
+	 * }
+	 * ```
+	 *
+	 * Multiple invocations merge — each call mutates the same builder.
+	 */
+	public fun tls(block: TlsConfigBuilder.() -> Unit) {
+		tlsConfigBuilder.apply(block)
+	}
 
 	/**
 	 * The transport type to use. Will default to TCP on supported platforms, or a WebSocket transport
@@ -184,6 +211,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 	val inboxPrefix = if (inboxPrefix.endsWith(".")) inboxPrefix else "$inboxPrefix."
 
 	val tls = this.tlsRequired ?: serversList.any { secureProtocols.contains(it.url.protocol.name) }
+	val resolvedTlsConfig = tlsConfigBuilder.build()
 	val finalScope = scope ?: CoroutineScope(connectionCoroutineDispatcher + SupervisorJob() + CoroutineName("NatsClient"))
 	val parallelRequestLimit =
 		maxParallelRequests?.also {
@@ -206,6 +234,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		operationBufferCapacity = operationBufferCapacity,
 		writeBufferLimitBytes = writeBufferLimitBytes,
 		tlsRequired = tls,
+		tlsConfig = resolvedTlsConfig,
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
 		echo = echo,

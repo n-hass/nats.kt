@@ -16,6 +16,7 @@ import io.natskt.api.internal.OperationSerializer
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.api.toPublicApi
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.TlsConfig
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.ClientOperation
@@ -56,6 +57,7 @@ internal class ProtocolEngineImpl(
 	private val credentials: Credentials?,
 	private val name: String?,
 	private val tlsRequired: Boolean,
+	private val tlsConfig: TlsConfig,
 	private val noResponders: Boolean,
 	private val echo: Boolean,
 	private val supportUtf8Subjects: Boolean,
@@ -150,7 +152,6 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun send(op: ClientOperation) {
-		logger.trace { "sending ${op::class.simpleName}" }
 		writerCommands?.send(OutboundCommand.Op(op))
 			?: throw ConnectionClosedException("cannot send with no connection open")
 	}
@@ -159,13 +160,27 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connecting }
 		transport =
 			runCatching {
-				transportFactory.connect(address, scope.coroutineContext)
+				transportFactory.connect(address, scope.coroutineContext, tlsConfig)
 			}.getOrElse {
 				logger.error(it) { "failed to open transport to ${address.url}" }
 				state.update { phase = ConnectionPhase.Failed }
 				closed.complete(CloseReason.IoError(it))
 				return
 			}
+
+		if (tlsConfig.tlsFirst) {
+			logger.trace { "tlsFirst: upgrading connection to TLS before INFO" }
+			transport =
+				runCatching {
+					transport!!.upgradeTLS()
+				}.getOrElse {
+					logger.error(it) { "TLS-first upgrade failed for ${address.url}" }
+					state.update { phase = ConnectionPhase.Failed }
+					runCatching { transport?.close() }
+					closed.complete(CloseReason.IoError(it))
+					return
+				}
+		}
 
 		val info =
 			when (val parsed = parser.parse(transport!!.incoming)) {
@@ -183,9 +198,18 @@ internal class ProtocolEngineImpl(
 			return
 		}
 
-		if ((info.tlsRequired == true) || tlsRequired) {
+		if (!tlsConfig.tlsFirst && ((info.tlsRequired == true) || tlsRequired)) {
 			logger.trace { "upgrading connection to TLS" }
-			transport = transport!!.upgradeTLS()
+			transport =
+				runCatching {
+					transport!!.upgradeTLS()
+				}.getOrElse {
+					logger.error(it) { "TLS upgrade failed for ${address.url}" }
+					state.update { phase = ConnectionPhase.Failed }
+					runCatching { transport?.close() }
+					closed.complete(CloseReason.IoError(it))
+					return
+				}
 		}
 		val connect =
 			runCatching { buildConnectOp(info) }
@@ -205,81 +229,92 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connected }
 
 		scope.launch {
-			var out: ParsedOutput?
+			try {
+				var out: ParsedOutput?
 
-			while (!transport!!.incoming.isClosedForRead) {
-				out = parser.parse(transport!!.incoming)
+				while (!transport!!.incoming.isClosedForRead) {
+					out = parser.parse(transport!!.incoming)
 
-				if (out is MessageInternal) {
-					val pending = pendingRequests.remove(out.sid)
-					if (pending != null) {
-						if (pending.continuation.isActive) {
-							pending.continuation.resume(out)
+					if (out is MessageInternal) {
+						val pending = pendingRequests.remove(out.sid)
+						if (pending != null) {
+							if (pending.continuation.isActive) {
+								pending.continuation.resume(out)
+							}
+							continue
 						}
+
+						subscriptions[out.sid]?.emit(out)
 						continue
 					}
 
-					subscriptions[out.sid]?.emit(out)
-					continue
-				}
-
-				if (out !is ServerOperation) {
-					when (out) {
-						Operation.Pong -> {
-							state.update {
-								lastPongAt = Clock.System.now().toEpochMilliseconds()
-								rtt =
-									rttMeasureStart
-										?.let { Clock.System.now() - it }
-										?.inWholeMicroseconds
-										?.toDouble()
-										?.let { it / 1000 }
+					if (out !is ServerOperation) {
+						when (out) {
+							Operation.Pong -> {
+								state.value =
+									state.value.copy(
+										lastPongAt = Clock.System.now().toEpochMilliseconds(),
+										rtt =
+											rttMeasureStart
+												?.let { Clock.System.now() - it }
+												?.inWholeMicroseconds
+												?.toDouble()
+												?.let { it / 1000 },
+									)
 								rttMeasureStart = null
 							}
-						}
 
-						Operation.Ping -> {
-							send(Operation.Pong)
-							state.update {
-								lastPingAt = Clock.System.now().toEpochMilliseconds()
+							Operation.Ping -> {
+								send(Operation.Pong)
+								state.value =
+									state.value.copy(
+										lastPingAt = Clock.System.now().toEpochMilliseconds(),
+									)
+							}
+
+							is Operation.Err -> {
+								val message = (out as Operation.Err).message
+								logger.error { "received a protocol error response: $message" }
+								if (message != null) {
+									state.update { lastError = message }
+								}
+							}
+
+							Operation.Ok -> {}
+							Operation.Empty -> {
+								runCatching { stopWriter() }
+								transport?.close()
+								closed.complete(CloseReason.ServerInitiatedClose)
+							}
+
+							else -> {
+								logger.error { "idk: $out" }
 							}
 						}
 
-						is Operation.Err -> {
-							val message = (out as Operation.Err).message
-							logger.error { "received a protocol error response: $message" }
-							if (message != null) {
-								state.update { lastError = message }
-							}
-						}
-
-						Operation.Ok -> {}
-						Operation.Empty -> {
-							runCatching { stopWriter() }
-							transport?.close()
-							closed.complete(CloseReason.ServerInitiatedClose)
-						}
-
-						else -> {
-							logger.error { "idk: $out" }
-						}
+						continue
 					}
 
-					continue
-				}
-
-				if (out is ServerOperation.InfoOp) {
-					serverInfo.emit(out)
-					if (out.ldm == true) {
-						enterLameDuckMode()
-						break
+					if (out is ServerOperation.InfoOp) {
+						serverInfo.emit(out)
+						if (out.ldm == true) {
+							enterLameDuckMode()
+							break
+						}
 					}
 				}
-			}
-			runCatching { stopWriter() }
-			runCatching { transport?.close() }
-			if (!closed.isCompleted) {
-				closed.complete(CloseReason.ServerInitiatedClose)
+			} catch (_: CancellationException) {
+			} catch (t: Throwable) {
+				logger.error(t) { "read loop terminated by exception: ${t.message}" }
+				if (!closed.isCompleted) {
+					closed.complete(CloseReason.IoError(t))
+				}
+			} finally {
+				runCatching { stopWriter() }
+				runCatching { transport?.close() }
+				if (!closed.isCompleted) {
+					closed.complete(CloseReason.ServerInitiatedClose)
+				}
 			}
 		}
 	}

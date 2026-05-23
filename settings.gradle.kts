@@ -2,6 +2,7 @@ rootProject.name = "natskt"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         mavenCentral()
         gradlePluginPortal()
@@ -24,10 +25,14 @@ include("core:common")
 include("core:transport-tcp")
 include("core:transport-ws")
 include("crypto")
+include("integration-tests")
 include("internal")
 include("jetstream")
+include("native-tls")
+include("native-tls-spi")
 include("nkeys")
 include("nuid")
 include("platform")
 include("test-harness")
 include("test-harness:nats-server-daemon")
+include("test-harness:tls-test-server")

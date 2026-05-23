@@ -7,6 +7,7 @@ import io.natskt.api.Credentials
 import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.TlsConfig
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.ClientOperation
@@ -31,6 +32,7 @@ internal fun engine(
 		credentials = credentials,
 		name = name,
 		tlsRequired = false,
+		tlsConfig = TlsConfig.Default,
 		noResponders = true,
 		echo = false,
 		supportUtf8Subjects = false,
@@ -46,6 +48,7 @@ internal object FakeTransportFactory : TransportFactory {
 	override suspend fun connect(
 		address: NatsServerAddress,
 		context: CoroutineContext,
+		tlsConfig: TlsConfig,
 	): Transport = throw UnsupportedOperationException("not used in test")
 }
 

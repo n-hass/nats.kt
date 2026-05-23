@@ -71,6 +71,7 @@ class ConnectionManagerImplTest {
 				operationBufferCapacity = 32,
 				writeBufferLimitBytes = 64 * 1024,
 				tlsRequired = false,
+				tlsConfig = io.natskt.client.TlsConfig.Default,
 				noResponders = true,
 				echo = false,
 				supportUtf8Subjects = false,
@@ -91,6 +92,7 @@ class ConnectionManagerImplTest {
 		override suspend fun connect(
 			address: NatsServerAddress,
 			context: CoroutineContext,
+			tlsConfig: io.natskt.client.TlsConfig,
 		): Transport = throw UnsupportedOperationException("not used")
 	}
 }

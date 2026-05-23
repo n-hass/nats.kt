@@ -1,33 +1,13 @@
-@file:OptIn(ExperimentalWasmDsl::class)
-
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.natskt.kmp)
 	alias(libs.plugins.kotlin.serialization)
 	alias(libs.plugins.buildkonfig)
 }
 
 kotlin {
-    jvm()
-    js {
-        browser()
-        nodejs()
-    }
-
-    wasmJs {
-        browser()
-        nodejs()
-    }
-
-    iosArm64()
-    iosSimulatorArm64()
-
-    linuxX64()
-    linuxArm64()
-
-    macosArm64()
+    allTargets()
 
     sourceSets {
         val commonMain by getting {

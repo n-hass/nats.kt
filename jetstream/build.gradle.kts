@@ -4,14 +4,14 @@ import java.time.Duration
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-	alias(libs.plugins.kotlin.multiplatform)
+	alias(libs.plugins.natskt.kmp)
 	alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
     explicitApi()
+    allTargets()
 
-    jvm()
     js {
         browser {
 			testTask {
@@ -49,21 +49,12 @@ kotlin {
 		}
     }
 
-    iosArm64()
-    iosSimulatorArm64()
-
-    linuxX64()
-    linuxArm64()
-
-    macosArm64()
-
     sourceSets {
         commonMain.dependencies {
 			implementation(projects.core)
 			implementation(projects.core.common)
-			implementation(projects.crypto)
 			implementation(projects.internal)
-			implementation(libs.whyoleg.secureRandom)
+			implementation(libs.whyoleg.cryptography.core)
 			implementation(libs.kotlinx.coroutines.core)
 			implementation(libs.kotlinx.serialization.core)
 			implementation(libs.kotlinx.serialization.json)

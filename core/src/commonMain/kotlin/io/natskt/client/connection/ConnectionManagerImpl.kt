@@ -47,7 +47,11 @@ internal class ConnectionManagerImpl(
 
 	private var failureCount = 0
 
-	private var reconnectJob: Job? = null
+	internal var reconnectJob: Job? = null
+		private set
+
+	internal var lastCloseReason: CloseReason? = null
+		private set
 
 	private val parser =
 		OperationSerializerImpl(
@@ -56,6 +60,7 @@ internal class ConnectionManagerImpl(
 		)
 
 	fun start() {
+		lastCloseReason = null
 		reconnectJob =
 			config.scope.launch {
 				while (config.maxReconnects == null || failureCount < config.maxReconnects) {
@@ -71,6 +76,7 @@ internal class ConnectionManagerImpl(
 							credentials = config.credentials,
 							name = config.name,
 							tlsRequired = config.tlsRequired,
+							tlsConfig = config.tlsConfig,
 							noResponders = config.noResponders,
 							echo = config.echo,
 							supportUtf8Subjects = config.supportUtf8Subjects,
@@ -115,6 +121,7 @@ internal class ConnectionManagerImpl(
 					}
 
 					val closed = current.value.closed.await()
+					lastCloseReason = closed
 					logger.debug { "closed. reason: $closed" }
 					eventJob.cancel()
 					when (closed) {
