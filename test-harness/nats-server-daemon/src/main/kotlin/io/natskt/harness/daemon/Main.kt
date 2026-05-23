@@ -72,7 +72,6 @@ private fun Application.harnessRoutes(manager: NatsHarnessManager) {
 					enableJetStream = request.enableJetStream,
 					enableTls = request.enableTls,
 					tlsHandshakeFirst = request.tlsHandshakeFirst,
-					tlsHandshakeFirstAuto = request.tlsHandshakeFirstAuto,
 					tlsRequireClientCert = request.tlsRequireClientCert,
 				)
 			log.info("Created ${handle.id}")
@@ -132,7 +131,6 @@ private class NatsHarnessManager(
 		enableJetStream: Boolean,
 		enableTls: Boolean = false,
 		tlsHandshakeFirst: Boolean = false,
-		tlsHandshakeFirstAuto: Boolean = false,
 		tlsRequireClientCert: Boolean = false,
 	): RemoteNatsServerInfo {
 		val id = Uuid.random().toHexDashString()
@@ -149,7 +147,6 @@ private class NatsHarnessManager(
 						enableJetStream = enableJetStream,
 						enableTls = enableTls,
 						tlsHandshakeFirst = tlsHandshakeFirst,
-						tlsHandshakeFirstAuto = tlsHandshakeFirstAuto,
 						tlsRequireClientCert = tlsRequireClientCert,
 						logId = if (attempt == 0) id else "$id-retry$attempt",
 					)

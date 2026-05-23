@@ -1,8 +1,8 @@
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
-import org.jetbrains.kotlin.konan.target.Family
+import com.ensody.nativebuilds.cinterops
 
 plugins {
 	alias(libs.plugins.kotlin.multiplatform)
+	alias(libs.plugins.nativebuilds)
 }
 
 kotlin {
@@ -25,22 +25,8 @@ kotlin {
 			implementation(libs.ktor.network)
 			implementation(libs.ktor.network.tls)
 			implementation(libs.kotlinx.coroutines.core)
-			implementation(libs.whyoleg.cryptography.core)
-			implementation(libs.whyoleg.secureRandom)
 			implementation(libs.kotlinLogging)
-		}
-
-		appleMain.dependencies {
-			// CryptoKit covers what we use from the cryptography lib (ECDSA, ECDH, AES-GCM,
-			// ChaCha20-Poly1305, HKDF, SHA). RSA-PSS / RSA-PKCS#1 sign-verify and RSA-PKCS#1
-			// encryption are routed through the Security framework (SecKey)
-			implementation(libs.whyoleg.cryptography.provider.cryptokit)
-		}
-
-		linuxMain.dependencies {
-//			implementation(libs.whyoleg.cryptography.provider.optimal)
-			implementation(libs.whyoleg.cryptography.provider.openssl3.api)
-//			implementation(libs.ensody.openssl.libssl)
+			implementation(libs.nativebuilds.openssl.libssl)
 		}
 
 		nativeTest.dependencies {
@@ -49,17 +35,9 @@ kotlin {
 		}
 	}
 
-	targets.withType<KotlinNativeTarget>()
-		.matching { it.konanTarget.family == Family.LINUX }
-		.configureEach {
-			compilations.getByName("main") {
-				cinterops {
-					val opensslX509 by creating {
-						defFile(project.file("src/linuxMain/cinterop/openssl_x509.def"))
-					}
-				}
-			}
-		}
+	cinterops(libs.nativebuilds.openssl.headers) {
+		definitionFile.set(file("src/nativeMain/cinterop/openssl.def"))
+	}
 }
 
 mavenPublishing {
@@ -68,7 +46,6 @@ mavenPublishing {
 
 	pom {
 		name = "NATS Kotlin - Native TLS"
-		description = "TLS 1.2/1.3 implementation for Kotlin/Native over Ktor sockets"
+		description = "TLS 1.2/1.3 over Ktor sockets, backed by OpenSSL with platform trust evaluation"
 	}
 }
-

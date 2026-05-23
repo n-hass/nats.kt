@@ -1,0 +1,8 @@
+package = io.natskt.tls.openssl
+# libssl.a + libcrypto.a are linked via com.ensody.nativebuilds:openssl-headers, which the plugin includes on the linker path when building this .def
+headerFilter = openssl/*
+headers = openssl/ssl.h openssl/err.h openssl/x509v3.h openssl/bio.h openssl/tls1.h
+compilerOpts = -DOPENSSL_NO_DEPRECATED
+
+---
+int SSL_set_fd(SSL *ssl, int fd);

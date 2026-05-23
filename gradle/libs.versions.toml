@@ -13,9 +13,10 @@ kotlinx-serialization = "1.10.0"
 buildkonfig = "0.17.1"
 
 ktor = "3.4.2"
-whyoleg-crypto = "0.6.0"
-ensody-openssl = "3.6.1_1"
 kotlinLogging = "8.0.01"
+whyoleg-crypto = "0.6.0"
+nativebuilds-openssl = "3.6.2"
+nativebuilds-plugin = "0.9.0"
 
 # Testing
 kotest = "6.0.3"
@@ -56,7 +57,8 @@ whyoleg-cryptography-provider-openssl3-api = { module = "dev.whyoleg.cryptograph
 whyoleg-cryptography-provider-openssl3-prebuilt-nativebuilds = { module = "dev.whyoleg.cryptography:cryptography-provider-openssl3-prebuilt-nativebuilds", version.ref = "whyoleg-crypto" }
 whyoleg-cryptography-provider-jdk-bc = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk-bc", version.ref = "whyoleg-crypto" }
 whyoleg-cryptography-provider-cryptokit = { module = "dev.whyoleg.cryptography:cryptography-provider-cryptokit", version.ref = "whyoleg-crypto" }
-ensody-openssl-libssl = { module = "com.ensody.nativebuilds:openssl-libssl", version.ref = "ensody-openssl" }
+nativebuilds-openssl-libssl = { module = "com.ensody.nativebuilds:openssl-libssl", version.ref = "nativebuilds-openssl" }
+nativebuilds-openssl-headers = { module = "com.ensody.nativebuilds:openssl-headers", version.ref = "nativebuilds-openssl" }
 
 # Testing
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
@@ -84,3 +86,4 @@ mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publi
 
 buildkonfig = {id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig"}
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+nativebuilds = { id = "com.ensody.nativebuilds", version.ref = "nativebuilds-plugin" }

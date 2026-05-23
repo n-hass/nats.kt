@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(ExperimentalForeignApi::class)
 
 package io.natskt.tls.internal
 
@@ -12,6 +12,12 @@ import io.natskt.tls.openssl.ERR_get_error
 import io.natskt.tls.openssl.SSL
 import io.natskt.tls.openssl.SSL_CTX
 import io.natskt.tls.openssl.SSL_CTX_free
+import io.natskt.tls.openssl.SSL_ERROR_NONE
+import io.natskt.tls.openssl.SSL_ERROR_SSL
+import io.natskt.tls.openssl.SSL_ERROR_SYSCALL
+import io.natskt.tls.openssl.SSL_ERROR_WANT_READ
+import io.natskt.tls.openssl.SSL_ERROR_WANT_WRITE
+import io.natskt.tls.openssl.SSL_ERROR_ZERO_RETURN
 import io.natskt.tls.openssl.SSL_connect
 import io.natskt.tls.openssl.SSL_free
 import io.natskt.tls.openssl.SSL_get_error
@@ -20,39 +26,39 @@ import io.natskt.tls.openssl.SSL_shutdown
 import io.natskt.tls.openssl.SSL_write
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.pin
-import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.toKString
 import platform.posix.ECONNRESET
 import platform.posix.errno
 
-private val logger = KotlinLogging.logger("LinuxSslEngine")
+private val logger = KotlinLogging.logger("SslEngine")
 
-// OpenSSL error codes — stable across versions (see <openssl/ssl.h>).
-private const val SSL_ERROR_NONE = 0
-private const val SSL_ERROR_SSL = 1
-private const val SSL_ERROR_WANT_READ = 2
-private const val SSL_ERROR_WANT_WRITE = 3
-private const val SSL_ERROR_SYSCALL = 5
-private const val SSL_ERROR_ZERO_RETURN = 6
+/** Selectable wrapping a fd we own outright (dup'd from Ktor's socket). */
+internal class IsolatedFdSelectable(
+	override val descriptor: Int,
+) : Selectable
 
 /**
  * Drives an `SSL*` against a non-blocking POSIX fd, suspending on the supplied [SelectorManager]
  * when OpenSSL signals `SSL_ERROR_WANT_READ` / `SSL_ERROR_WANT_WRITE`.
  *
- * Caller owns the lifecycle of [ssl] and [ctx]; they are freed by [close].
+ * The [selectable] descriptor must be the same fd that was handed to `SSL_set_fd` — i.e. the fd
+ * the engine owns. SSL_free closes that fd via the underlying socket BIO; [close] notifies the
+ * selector first so it can drop its registration cleanly.
  *
- * The fd itself is owned by the Ktor socket. [selectable] is the same `Selectable` that backs the
- * socket so its descriptor is registered with [selectorManager] exactly once.
+ * [onClose] runs after SSL is freed — used by the Apple actual to dispose the `StableRef` that
+ * backed the SecTrust verify callback.
  */
-internal class LinuxSslEngine(
+internal class SslEngine(
 	private val ssl: CPointer<SSL>,
 	private val ctx: CPointer<SSL_CTX>,
 	private val selectable: Selectable,
 	private val selectorManager: SelectorManager,
+	private val onClose: () -> Unit = {},
 ) {
 	private var closed: Boolean = false
 
@@ -139,7 +145,6 @@ internal class LinuxSslEngine(
 		if (rc < 0) {
 			val err = SSL_get_error(ssl, rc)
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-				// Peer hasn't responded yet; that's fine, just move on.
 				logger.trace { "SSL_shutdown returned WANT_*; not waiting for peer close_notify" }
 			} else {
 				logger.debug { "SSL_shutdown returned $rc (${describeError(err)})" }
@@ -150,8 +155,12 @@ internal class LinuxSslEngine(
 	fun close() {
 		if (closed) return
 		closed = true
+		// Tell the selector to drop tracking *before* SSL_free closes the fd — otherwise the
+		// epoll/kqueue entry refers to a closed descriptor.
+		selectorManager.notifyClosed(selectable)
 		SSL_free(ssl)
 		SSL_CTX_free(ctx)
+		onClose()
 	}
 }
 

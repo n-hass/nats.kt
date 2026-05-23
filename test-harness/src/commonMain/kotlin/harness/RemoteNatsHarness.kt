@@ -17,7 +17,6 @@ public object RemoteNatsHarness {
 		enableJetStream: Boolean = true,
 		enableTls: Boolean = false,
 		tlsHandshakeFirst: Boolean = false,
-		tlsHandshakeFirstAuto: Boolean = false,
 		tlsRequireClientCert: Boolean = false,
 		baseUrl: String = defaultBaseUrl(),
 		block: suspend (RemoteNatsServer) -> T,
@@ -28,7 +27,6 @@ public object RemoteNatsHarness {
 				enableJetStream = enableJetStream,
 				enableTls = enableTls,
 				tlsHandshakeFirst = tlsHandshakeFirst,
-				tlsHandshakeFirstAuto = tlsHandshakeFirstAuto,
 				tlsRequireClientCert = tlsRequireClientCert,
 			)
 		println("test using server id: ${serverInfo.id}")
@@ -60,7 +58,6 @@ public fun RemoteNatsHarness.runBlocking(
 	enableJetStream: Boolean = true,
 	enableTls: Boolean = false,
 	tlsHandshakeFirst: Boolean = false,
-	tlsHandshakeFirstAuto: Boolean = false,
 	tlsRequireClientCert: Boolean = false,
 	baseUrl: String = DEFAULT_REMOTE_HARNESS_URL,
 	block: suspend CoroutineScope.(RemoteNatsServer) -> Unit,
@@ -71,7 +68,6 @@ public fun RemoteNatsHarness.runBlocking(
 				enableJetStream = enableJetStream,
 				enableTls = enableTls,
 				tlsHandshakeFirst = tlsHandshakeFirst,
-				tlsHandshakeFirstAuto = tlsHandshakeFirstAuto,
 				tlsRequireClientCert = tlsRequireClientCert,
 				baseUrl = baseUrl,
 			) { server ->
