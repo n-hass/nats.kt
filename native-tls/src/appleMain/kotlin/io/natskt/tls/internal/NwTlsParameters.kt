@@ -16,6 +16,7 @@ import platform.CoreFoundation.CFArrayCreateMutable
 import platform.CoreFoundation.CFErrorRefVar
 import platform.CoreFoundation.CFRelease
 import platform.CoreFoundation.kCFAllocatorDefault
+import platform.Network._nw_parameters_configure_protocol_default_configuration
 import platform.Network.nw_parameters_create_secure_tcp
 import platform.Network.nw_parameters_t
 import platform.Network.nw_protocol_options_t
@@ -88,7 +89,10 @@ internal fun buildSecureTcpParameters(config: NativeTlsConfigBuilder): nw_parame
 		}
 	}
 
-	return nw_parameters_create_secure_tcp(configureTls, null)
+	// Pass NW_PARAMETERS_DEFAULT_CONFIGURATION for the TCP configurator — passing literal NULL
+	// causes `nw_parameters_create_secure_tcp` to return nil. The default sentinel block tells
+	// NW to add TCP with its default settings.
+	return nw_parameters_create_secure_tcp(configureTls, _nw_parameters_configure_protocol_default_configuration)
 		?: throw TlsException("nw_parameters_create_secure_tcp returned null")
 }
 

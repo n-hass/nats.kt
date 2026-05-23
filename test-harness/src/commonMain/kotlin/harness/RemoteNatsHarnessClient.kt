@@ -42,6 +42,7 @@ internal class RemoteNatsHarnessClient(
 		enableJetStream: Boolean,
 		enableTls: Boolean = false,
 		tlsHandshakeFirst: Boolean = false,
+		tlsHandshakeFirstAuto: Boolean = false,
 		tlsRequireClientCert: Boolean = false,
 	): RemoteNatsServerInfo =
 		httpClient
@@ -52,6 +53,7 @@ internal class RemoteNatsHarnessClient(
 						enableJetStream = enableJetStream,
 						enableTls = enableTls,
 						tlsHandshakeFirst = tlsHandshakeFirst,
+						tlsHandshakeFirstAuto = tlsHandshakeFirstAuto,
 						tlsRequireClientCert = tlsRequireClientCert,
 					),
 				)

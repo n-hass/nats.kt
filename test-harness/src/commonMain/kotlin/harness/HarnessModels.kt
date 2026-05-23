@@ -11,6 +11,15 @@ public data class RemoteNatsServerRequest(
 	val enableTls: Boolean = false,
 	@SerialName("tls_handshake_first")
 	val tlsHandshakeFirst: Boolean = false,
+	/**
+	 * When `true`, the server emits `handshake_first: "auto"` instead of `true` / off. In auto
+	 * mode the server inspects the first byte to decide whether to expect a TLS handshake or to
+	 * send a plaintext INFO. Required for testing the Apple `tlsUpgradeReopened` path where the
+	 * client reads INFO on a plaintext connection, closes it, and reopens with TLS to the same
+	 * host:port.
+	 */
+	@SerialName("tls_handshake_first_auto")
+	val tlsHandshakeFirstAuto: Boolean = false,
 	@SerialName("tls_require_client_cert")
 	val tlsRequireClientCert: Boolean = false,
 )

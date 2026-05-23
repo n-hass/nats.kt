@@ -22,6 +22,7 @@ public class NatsServerHarness private constructor(
 	private val enableJetStream: Boolean,
 	private val enableTls: Boolean,
 	private val tlsHandshakeFirst: Boolean,
+	private val tlsHandshakeFirstAuto: Boolean,
 	private val tlsRequireClientCert: Boolean,
 	private val logId: String,
 	fixedPort: Int?,
@@ -106,7 +107,12 @@ public class NatsServerHarness private constructor(
 					} else {
 						""
 					}
-				val handshakeFirstLine = if (tlsHandshakeFirst) "\thandshake_first: true\n" else ""
+				val handshakeFirstLine =
+					when {
+						tlsHandshakeFirstAuto -> "\thandshake_first: \"auto\"\n"
+						tlsHandshakeFirst -> "\thandshake_first: true\n"
+						else -> ""
+					}
 				"""
 				tls {
 					cert_file: "${tmpDir.resolve("server-cert.pem").toAbsolutePath()}"
@@ -370,6 +376,7 @@ public class NatsServerHarness private constructor(
 			enableJetStream: Boolean = true,
 			enableTls: Boolean = false,
 			tlsHandshakeFirst: Boolean = false,
+			tlsHandshakeFirstAuto: Boolean = false,
 			tlsRequireClientCert: Boolean = false,
 			logId: String,
 			fixedPort: Int? = null,
@@ -379,6 +386,7 @@ public class NatsServerHarness private constructor(
 					enableJetStream = enableJetStream,
 					enableTls = enableTls,
 					tlsHandshakeFirst = tlsHandshakeFirst,
+					tlsHandshakeFirstAuto = tlsHandshakeFirstAuto,
 					tlsRequireClientCert = tlsRequireClientCert,
 					logId = logId,
 					fixedPort = fixedPort,
