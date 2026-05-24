@@ -7,7 +7,7 @@ kotlin-apiVersion = "2.2"
 jvmTarget = "17"
 
 # Kotlin
-kotlin-stdlib = "2.3.20"
+kotlin-stdlib = "2.3.21"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.10.0"
 buildkonfig = "0.17.1"
