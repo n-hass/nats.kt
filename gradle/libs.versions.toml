@@ -27,6 +27,7 @@ spotless = "7.2.1"
 ktlint = "1.7.1"
 maven-publish = "0.36.0"
 slf4j-simple = "2.0.17"
+dokka = "2.2.0"
 
 [libraries]
 # Kotlin
@@ -91,3 +92,4 @@ mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publi
 buildkonfig = {id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig"}
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 nativebuilds = { id = "com.ensody.nativebuilds", version.ref = "nativebuilds-plugin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }

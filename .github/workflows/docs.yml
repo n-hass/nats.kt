@@ -2,45 +2,97 @@ name: docs.yml
 on:
     push:
         branches: [main]
+        tags: ['v*']
     pull_request:
         types: [opened, synchronize, reopened]
     workflow_dispatch:
+        inputs:
+            version:
+                description: "Version to publish (e.g. 1.2.3). Leave blank to publish 'dev' from current ref."
+                required: false
+                type: string
+            update_latest:
+                description: "Update the 'latest' alias and default to point at this version"
+                required: false
+                type: boolean
+                default: false
 
 permissions:
-    contents: read
-    pages: write
-    id-token: write
+    contents: write   # mike pushes to the gh-pages branch
 
 concurrency:
-    group: pages
-    cancel-in-progress: true
+    # Serialize deploys to gh-pages so concurrent mike runs don't fight over the ref.
+    # Don't cancel an in-flight deploy partway through.
+    group: docs-${{ github.ref }}
+    cancel-in-progress: false
 
 jobs:
-    build:
+    docs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v5
+              with:
+                  # mike reads & rewrites the gh-pages branch; full history makes that cheap and safe.
+                  fetch-depth: 0
+            - uses: cachix/install-nix-action@v31
             - uses: actions/setup-python@v6
               with:
                   python-version: "3.12"
-            - uses: actions/configure-pages@v6
             - name: Install docs dependencies
               run: pip install -r .github/mkdocs-requirements.txt
-            - name: Build MkDocs site
-              run: mkdocs build --strict
-            - name: Upload Pages artifact
-              uses: actions/upload-pages-artifact@v4
-              with:
-                  path: site
 
-    deploy:
-        if: github.event_name != 'pull_request'
-        needs: build
-        runs-on: ubuntu-latest
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
-        steps:
-            - name: Deploy to GitHub Pages
-              id: deployment
-              uses: actions/deploy-pages@v4
+            - name: Generate API reference (Dokka)
+              run: nix develop .#ci -c gradle :dokkaGenerate --no-daemon
+
+            - name: Stamp current_version in mkdocs.yml
+              # mkdocs-macros substitutes {{ current_version }} from extra.current_version.
+              # For tagged releases we stamp the tag so snippets reflect the version actually being
+              # deployed. PR / main / workflow_dispatch builds leave the committed value alone so
+              # "dev" docs keep showing the in-progress version from main.
+              if: startsWith(github.ref, 'refs/tags/v')
+              env:
+                  RAW_TAG: ${{ github.ref_name }}
+              run: |
+                  VERSION="${RAW_TAG#v}"
+                  sed -i -E "s/^([[:space:]]+)current_version:.*/\1current_version: ${VERSION}/" mkdocs.yml
+                  grep -n "current_version" mkdocs.yml
+
+            - name: Build MkDocs site (validation)
+              if: github.event_name == 'pull_request'
+              run: mkdocs build --strict
+
+            - name: Configure git for mike
+              if: github.event_name != 'pull_request'
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git fetch origin gh-pages --depth=1 || echo "gh-pages does not exist yet; mike will create it"
+
+            - name: Deploy dev (main branch push)
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+              run: mike deploy --push --update-aliases dev
+
+            - name: Deploy tagged release
+              if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+              env:
+                  RAW_TAG: ${{ github.ref_name }}
+              run: |
+                  VERSION="${RAW_TAG#v}"
+                  echo "Deploying docs for version $VERSION"
+                  mike deploy --push --update-aliases "$VERSION" latest
+                  mike set-default --push latest
+
+            - name: Deploy via workflow_dispatch
+              if: github.event_name == 'workflow_dispatch'
+              env:
+                  INPUT_VERSION: ${{ inputs.version }}
+                  INPUT_LATEST: ${{ inputs.update_latest }}
+              run: |
+                  if [ -z "$INPUT_VERSION" ]; then
+                      mike deploy --push --update-aliases dev
+                  elif [ "$INPUT_LATEST" = "true" ]; then
+                      mike deploy --push --update-aliases "$INPUT_VERSION" latest
+                      mike set-default --push latest
+                  else
+                      mike deploy --push --update-aliases "$INPUT_VERSION"
+                  fi

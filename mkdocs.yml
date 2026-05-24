@@ -5,7 +5,10 @@ repo_url: https://github.com/n-hass/nats.kt
 repo_name: n-hass/nats.kt
 docs_dir: docs
 extra:
-  current_version: 1.0.0-rc.1
+  current_version: 0.8.0
+  version:
+    provider: mike
+    default: latest
 theme:
   name: material
   features:
@@ -13,6 +16,17 @@ theme:
     - navigation.sections
     - navigation.top
     - content.code.copy
+validation:
+  # docs/api/ is a Dokka-generated tree; don't validate its files as MkDocs pages
+  # or its internal links.
+  nav:
+    omitted_files: ignore
+    absolute_links: ignore
+    not_found: ignore
+  links:
+    not_found: ignore
+    absolute_links: ignore
+    unrecognized_links: ignore
 markdown_extensions:
   - admonition
   - attr_list
@@ -32,3 +46,4 @@ nav:
   - JetStream: jetstream.md
   - Cryptography: cryptography.md
   - Native TLS: native-tls.md
+  - API Reference: api/index.html

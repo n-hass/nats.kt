@@ -104,7 +104,6 @@ val client = NatsClient {
 
 ## Where To Go Next
 
-- Update `current_version` in `mkdocs.yml` after each release to refresh every versioned docs snippet.
 - [Core Client](core-client.md) covers lifecycle, transports, authentication, and request/reply behavior.
 - [JetStream](jetstream.md) covers streams, consumers, publishes, and key-value buckets.
 - [Examples](https://github.com/n-hass/nats.kt/tree/main/examples) for runnable samples of different things you can do with NATS.kt.

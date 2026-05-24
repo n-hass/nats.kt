@@ -204,6 +204,7 @@ gradle-app.setting
 .venv/
 .venv-docs/
 site/
+docs/api/
 
 ### Gradle Patch ###
 # Java heap dump

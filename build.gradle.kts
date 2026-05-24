@@ -1,10 +1,12 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import com.diffplug.spotless.LineEnding
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
+import java.net.URI
 
 plugins {
     // kotlin.multiplatform is declared here so its types are on root's buildscript
@@ -13,6 +15,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.spotless) apply false
 	alias(libs.plugins.mavenPublish) apply false
+	alias(libs.plugins.dokka)
 	id("natskt.harness")
 }
 
@@ -33,6 +36,7 @@ allprojects {
 
 val mavenPublishId = libs.plugins.mavenPublish.get().pluginId
 val kotlinMultiplatformId = libs.plugins.kotlin.multiplatform.get().pluginId
+val dokkaPluginId = libs.plugins.dokka.get().pluginId
 
 subprojects {
 	group = "io.github.n-hass"
@@ -60,6 +64,18 @@ subprojects {
 							jvmTarget = JvmTarget.fromTarget(libs.versions.jvmTarget.get())
 						}
 					}
+				}
+			}
+		}
+
+		apply(plugin = dokkaPluginId)
+		configure<DokkaExtension> {
+			dokkaSourceSets.configureEach {
+				jdkVersion.set(libs.versions.jdk.get().toInt())
+				sourceLink {
+					localDirectory.set(rootDir)
+					remoteUrl.set(URI("https://github.com/n-hass/nats.kt/blob/main/"))
+					remoteLineSuffix.set("#L")
 				}
 			}
 		}
@@ -103,5 +119,25 @@ subprojects {
 		extensions.getByType<SigningExtension>().apply {
 			useGpgCmd()
 		}
+	}
+}
+
+// API reference (Dokka) — aggregated HTML for all published, public modules.
+// Output lands under docs/api so MkDocs serves it as part of the site.
+dependencies {
+	dokka(projects.core)
+	dokka(projects.core.common)
+	dokka(projects.core.transportTcp)
+	dokka(projects.core.transportWs)
+	dokka(projects.jetstream)
+	dokka(projects.nativeTls)
+	dokka(projects.nkeys)
+	dokka(projects.nuid)
+}
+
+dokka {
+	moduleName.set("NATS.kt")
+	dokkaPublications.html {
+		outputDirectory.set(layout.projectDirectory.dir("docs/api"))
 	}
 }
