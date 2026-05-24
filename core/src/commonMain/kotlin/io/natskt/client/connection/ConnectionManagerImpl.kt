@@ -119,10 +119,6 @@ internal class ConnectionManagerImpl(
 
 					current.value.start()
 
-					if (!current.value.closed.isCompleted) {
-						current.value.ping()
-					}
-
 					val closed = current.value.closed.await()
 					lastCloseReason = closed
 					logger.debug { "closed. reason: $closed" }

@@ -148,13 +148,10 @@ class ProtocolEngineImplWriterTest {
 		)
 
 	private inner class BatchingSerializer : OperationSerializer {
-		private var first = true
+		private val handshake = ArrayDeque<ParsedOutput>(listOf(defaultInfo(), Operation.Pong))
 
 		override suspend fun parse(channel: ByteReadChannel): ParsedOutput {
-			if (first) {
-				first = false
-				return defaultInfo()
-			}
+			handshake.removeFirstOrNull()?.let { return it }
 			while (true) {
 				if (!channel.awaitContent()) return Operation.Empty
 			}
@@ -180,13 +177,10 @@ class ProtocolEngineImplWriterTest {
 	private inner class Utf8Serializer(
 		private val line: String,
 	) : OperationSerializer {
-		private var first = true
+		private val handshake = ArrayDeque<ParsedOutput>(listOf(defaultInfo(), Operation.Pong))
 
 		override suspend fun parse(channel: ByteReadChannel): ParsedOutput {
-			if (first) {
-				first = false
-				return defaultInfo()
-			}
+			handshake.removeFirstOrNull()?.let { return it }
 			while (true) {
 				if (!channel.awaitContent()) return Operation.Empty
 			}
@@ -196,6 +190,7 @@ class ProtocolEngineImplWriterTest {
 			op: ClientOperation,
 			buffer: OperationEncodeBuffer,
 		) {
+			if (op !is ClientOperation.ConnectOp) return
 			buffer.writeUtf8(line)
 			buffer.writeCrLf()
 		}
