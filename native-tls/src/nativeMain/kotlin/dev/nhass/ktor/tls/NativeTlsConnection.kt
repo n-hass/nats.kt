@@ -1,4 +1,4 @@
-package io.natskt.tls
+package dev.nhass.ktor.tls
 
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel

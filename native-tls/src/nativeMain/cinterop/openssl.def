@@ -1,4 +1,4 @@
-package = io.natskt.tls.openssl
+package = dev.nhass.ktor.tls.openssl
 # Headers come from com.ensody.nativebuilds:openssl-headers (via the cinterops DSL above).
 # This module deliberately does NOT declare libssl.a/libcrypto.a as link inputs — consumers
 # must supply their own OpenSSL build (e.g. com.ensody.nativebuilds:openssl-libssl + openssl-libcrypto,

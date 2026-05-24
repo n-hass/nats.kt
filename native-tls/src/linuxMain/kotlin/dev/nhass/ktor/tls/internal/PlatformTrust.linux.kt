@@ -1,17 +1,17 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package io.natskt.tls.internal
+package dev.nhass.ktor.tls.internal
 
+import dev.nhass.ktor.tls.NativeTlsConfig
+import dev.nhass.ktor.tls.openssl.SSL_CTX
+import dev.nhass.ktor.tls.openssl.SSL_CTX_load_verify_locations
+import dev.nhass.ktor.tls.openssl.SSL_CTX_set_cert_store
+import dev.nhass.ktor.tls.openssl.X509_STORE_add_cert
+import dev.nhass.ktor.tls.openssl.X509_STORE_free
+import dev.nhass.ktor.tls.openssl.X509_STORE_new
+import dev.nhass.ktor.tls.openssl.X509_free
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.network.tls.TlsException
-import io.natskt.tls.NativeTlsConfig
-import io.natskt.tls.openssl.SSL_CTX
-import io.natskt.tls.openssl.SSL_CTX_load_verify_locations
-import io.natskt.tls.openssl.SSL_CTX_set_cert_store
-import io.natskt.tls.openssl.X509_STORE_add_cert
-import io.natskt.tls.openssl.X509_STORE_free
-import io.natskt.tls.openssl.X509_STORE_new
-import io.natskt.tls.openssl.X509_free
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.toKString

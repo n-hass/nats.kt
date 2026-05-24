@@ -1,22 +1,22 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package io.natskt.tls.internal
+package dev.nhass.ktor.tls.internal
 
+import dev.nhass.ktor.tls.NativeTlsConfig
+import dev.nhass.ktor.tls.openssl.EVP_PKEY
+import dev.nhass.ktor.tls.openssl.EVP_PKEY_EC
+import dev.nhass.ktor.tls.openssl.EVP_PKEY_RSA
+import dev.nhass.ktor.tls.openssl.EVP_PKEY_free
+import dev.nhass.ktor.tls.openssl.SSL_CTRL_CHAIN_CERT
+import dev.nhass.ktor.tls.openssl.SSL_CTX
+import dev.nhass.ktor.tls.openssl.SSL_CTX_check_private_key
+import dev.nhass.ktor.tls.openssl.SSL_CTX_ctrl
+import dev.nhass.ktor.tls.openssl.SSL_CTX_use_PrivateKey
+import dev.nhass.ktor.tls.openssl.SSL_CTX_use_certificate
+import dev.nhass.ktor.tls.openssl.X509_free
+import dev.nhass.ktor.tls.openssl.d2i_PrivateKey
 import io.ktor.network.tls.TlsException
 import io.natskt.client.TlsPrivateKeyAlgorithm
-import io.natskt.tls.NativeTlsConfig
-import io.natskt.tls.openssl.EVP_PKEY
-import io.natskt.tls.openssl.EVP_PKEY_EC
-import io.natskt.tls.openssl.EVP_PKEY_RSA
-import io.natskt.tls.openssl.EVP_PKEY_free
-import io.natskt.tls.openssl.SSL_CTRL_CHAIN_CERT
-import io.natskt.tls.openssl.SSL_CTX
-import io.natskt.tls.openssl.SSL_CTX_check_private_key
-import io.natskt.tls.openssl.SSL_CTX_ctrl
-import io.natskt.tls.openssl.SSL_CTX_use_PrivateKey
-import io.natskt.tls.openssl.SSL_CTX_use_certificate
-import io.natskt.tls.openssl.X509_free
-import io.natskt.tls.openssl.d2i_PrivateKey
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointerVar

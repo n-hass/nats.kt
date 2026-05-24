@@ -3,7 +3,7 @@
 	kotlinx.cinterop.BetaInteropApi::class,
 )
 
-package io.natskt.tls.internal
+package dev.nhass.ktor.tls.internal
 
 import io.ktor.network.tls.TlsException
 import kotlinx.cinterop.addressOf

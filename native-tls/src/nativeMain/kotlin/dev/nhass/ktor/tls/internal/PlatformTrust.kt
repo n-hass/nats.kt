@@ -1,9 +1,9 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package io.natskt.tls.internal
+package dev.nhass.ktor.tls.internal
 
-import io.natskt.tls.NativeTlsConfig
-import io.natskt.tls.openssl.SSL_CTX
+import dev.nhass.ktor.tls.NativeTlsConfig
+import dev.nhass.ktor.tls.openssl.SSL_CTX
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
 

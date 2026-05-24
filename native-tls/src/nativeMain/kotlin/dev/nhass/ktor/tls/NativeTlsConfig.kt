@@ -1,4 +1,4 @@
-package io.natskt.tls
+package dev.nhass.ktor.tls
 
 import io.natskt.client.TlsPrivateKeyAlgorithm
 

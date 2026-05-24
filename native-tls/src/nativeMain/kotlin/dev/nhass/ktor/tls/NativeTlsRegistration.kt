@@ -1,8 +1,8 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package io.natskt.tls
+package dev.nhass.ktor.tls
 
-import io.natskt.tls.internal.NativeTlsTransportAdapter
+import dev.nhass.ktor.tls.internal.NativeTlsTransportAdapter
 import io.natskt.tls.spi.NativeTlsRegistrar
 import platform.posix.SIGPIPE
 import platform.posix.SIG_IGN

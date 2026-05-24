@@ -3,19 +3,19 @@
 	BetaInteropApi::class,
 )
 
-package io.natskt.tls.internal
+package dev.nhass.ktor.tls.internal
 
-import io.natskt.tls.NativeTlsConfig
-import io.natskt.tls.openssl.OPENSSL_STACK
-import io.natskt.tls.openssl.OPENSSL_sk_num
-import io.natskt.tls.openssl.OPENSSL_sk_value
-import io.natskt.tls.openssl.SSL_CTX
-import io.natskt.tls.openssl.SSL_CTX_set_cert_verify_callback
-import io.natskt.tls.openssl.X509
-import io.natskt.tls.openssl.X509_STORE_CTX
-import io.natskt.tls.openssl.X509_STORE_CTX_get0_cert
-import io.natskt.tls.openssl.X509_STORE_CTX_get0_untrusted
-import io.natskt.tls.openssl.i2d_X509
+import dev.nhass.ktor.tls.NativeTlsConfig
+import dev.nhass.ktor.tls.openssl.OPENSSL_STACK
+import dev.nhass.ktor.tls.openssl.OPENSSL_sk_num
+import dev.nhass.ktor.tls.openssl.OPENSSL_sk_value
+import dev.nhass.ktor.tls.openssl.SSL_CTX
+import dev.nhass.ktor.tls.openssl.SSL_CTX_set_cert_verify_callback
+import dev.nhass.ktor.tls.openssl.X509
+import dev.nhass.ktor.tls.openssl.X509_STORE_CTX
+import dev.nhass.ktor.tls.openssl.X509_STORE_CTX_get0_cert
+import dev.nhass.ktor.tls.openssl.X509_STORE_CTX_get0_untrusted
+import dev.nhass.ktor.tls.openssl.i2d_X509
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
