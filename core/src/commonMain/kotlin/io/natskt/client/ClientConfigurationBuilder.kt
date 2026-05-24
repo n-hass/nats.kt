@@ -1,6 +1,7 @@
 package io.natskt.client
 
 import io.ktor.http.URLBuilder
+import io.ktor.http.parseUrl
 import io.natskt.api.Credentials
 import io.natskt.api.internal.DEFAULT_MAX_CONTROL_LINE_BYTES
 import io.natskt.api.internal.DEFAULT_MAX_PAYLOAD_BYTES
@@ -201,9 +202,9 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 	val serversList =
 		buildList {
 			servers?.forEach {
-				add(parseUrl(it))
+				add(parseNatsUrl(it))
 			}
-			server?.let { add(parseUrl(it)) }
+			server?.let { add(parseNatsUrl(it)) }
 		}.also {
 			if (it.isEmpty()) error("must provide at least one server")
 		}
@@ -245,8 +246,26 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 	)
 }
 
-private fun parseUrl(raw: String): NatsServerAddress =
-	NatsServerAddress(
-		URLBuilder(raw)
-			.build(),
-	)
+private fun parseNatsUrl(raw: String): NatsServerAddress {
+	val base = parseUrl(raw) ?: throw IllegalArgumentException("unparseable URL: $raw")
+
+	if (base.specifiedPort != 0) {
+		return NatsServerAddress(base)
+	}
+
+	val defaultProtocolPort =
+		when (base.protocol.name) {
+			"nats", "tls" -> 4222
+			"ws" -> 80
+			"wss" -> 422
+			else -> 4222
+		}
+
+	val new =
+		URLBuilder(base)
+			.apply {
+				port = defaultProtocolPort
+			}.build()
+
+	return NatsServerAddress(new)
+}
