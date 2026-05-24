@@ -4,7 +4,7 @@ package io.natskt.tls.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.network.tls.TlsException
-import io.natskt.tls.NativeTlsConfigBuilder
+import io.natskt.tls.NativeTlsConfig
 import io.natskt.tls.openssl.SSL_CTX
 import io.natskt.tls.openssl.SSL_CTX_load_verify_locations
 import io.natskt.tls.openssl.SSL_CTX_set_cert_store
@@ -39,7 +39,7 @@ private val certDirCandidates =
 
 internal actual fun configurePlatformTrust(
 	ctx: CPointer<SSL_CTX>,
-	config: NativeTlsConfigBuilder,
+	config: NativeTlsConfig,
 ): () -> Unit {
 	if (!config.verifyCertificates) return {}
 	if (config.trustAnchorsDer.isEmpty()) {

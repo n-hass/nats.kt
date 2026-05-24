@@ -5,7 +5,7 @@
 
 package io.natskt.tls.internal
 
-import io.natskt.tls.NativeTlsConfigBuilder
+import io.natskt.tls.NativeTlsConfig
 import io.natskt.tls.openssl.OPENSSL_STACK
 import io.natskt.tls.openssl.OPENSSL_sk_num
 import io.natskt.tls.openssl.OPENSSL_sk_value
@@ -53,7 +53,7 @@ import platform.posix.uint8_tVar
 
 internal actual fun configurePlatformTrust(
 	ctx: CPointer<SSL_CTX>,
-	config: NativeTlsConfigBuilder,
+	config: NativeTlsConfig,
 ): () -> Unit {
 	if (!config.verifyCertificates) return {}
 	val ref = StableRef.create(TrustContext(config.trustAnchorsDer, config.serverName))
@@ -106,7 +106,7 @@ private fun evaluateWithSecTrust(
 			val n = OPENSSL_sk_num(stack)
 			for (i in 0 until n) {
 				val raw = OPENSSL_sk_value(stack, i) ?: continue
-				val secCert = x509ToSecCertificate(raw.reinterpret<X509>()) ?: continue
+				val secCert = x509ToSecCertificate(raw.reinterpret()) ?: continue
 				secCerts += secCert
 				CFArrayAppendValue(certArray, secCert)
 			}

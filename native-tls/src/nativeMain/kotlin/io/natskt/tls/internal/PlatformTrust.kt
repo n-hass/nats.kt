@@ -2,7 +2,7 @@
 
 package io.natskt.tls.internal
 
-import io.natskt.tls.NativeTlsConfigBuilder
+import io.natskt.tls.NativeTlsConfig
 import io.natskt.tls.openssl.SSL_CTX
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -23,5 +23,5 @@ import kotlinx.cinterop.ExperimentalForeignApi
  */
 internal expect fun configurePlatformTrust(
 	ctx: CPointer<SSL_CTX>,
-	config: NativeTlsConfigBuilder,
+	config: NativeTlsConfig,
 ): () -> Unit

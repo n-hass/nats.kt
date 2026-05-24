@@ -13,6 +13,7 @@ import io.ktor.utils.io.write
 import io.natskt.tls.internal.IsolatedFdSelectable
 import io.natskt.tls.internal.SslEngine
 import io.natskt.tls.internal.configurePlatformTrust
+import io.natskt.tls.internal.configureTcpKeepAlive
 import io.natskt.tls.openssl.BIO_CTRL_SET_CLOSE
 import io.natskt.tls.openssl.BIO_NOCLOSE
 import io.natskt.tls.openssl.BIO_ctrl
@@ -62,7 +63,7 @@ public suspend fun Connection.nativeTls(
 	coroutineContext: CoroutineContext,
 	block: NativeTlsConfigBuilder.() -> Unit = {},
 ): NativeTlsConnection {
-	val config = NativeTlsConfigBuilder().apply(block)
+	val config = NativeTlsConfigBuilder().apply(block).build()
 	return performNativeTlsHandshake(this, coroutineContext, selectorManager = null, config)
 }
 
@@ -86,7 +87,7 @@ internal suspend fun performNativeTlsHandshake(
 	connection: Connection,
 	coroutineContext: CoroutineContext,
 	selectorManager: SelectorManager?,
-	config: NativeTlsConfigBuilder,
+	config: NativeTlsConfig,
 ): NativeTlsConnection {
 	val originalSelectable =
 		connection.socket as? Selectable
@@ -122,12 +123,14 @@ internal suspend fun performNativeTlsHandshake(
 	}
 	close(devNull)
 
+	if (config.soKeepAliveConfig != null) {
+		configureTcpKeepAlive(ownedFd, idleSeconds = config.soKeepAliveConfig.idle, intervalSeconds = config.soKeepAliveConfig.interval, probeCount = config.soKeepAliveConfig.probeCount)
+	}
+
 	// Drain the output channel deliberately *after* dup2: any bytes the caller had queued get
 	// pumped to /dev/null rather than leaking on the wire as plaintext. The writer pump's
 	// invokeOnCompletion runs `shutdown(originalFd, SHUT_WR)`, which is now harmless because
 	// originalFd points at /dev/null — not the socket, which only ownedFd still references.
-	// `shutdown` is a file-description operation, so doing this before the dup2 would also
-	// half-close ownedFd and break our subsequent TLS write.
 	connection.output.flushAndClose()
 	connection.input.cancel(null)
 
@@ -196,7 +199,7 @@ internal suspend fun performNativeTlsHandshake(
 
 private fun configureSsl(
 	ssl: CPointer<SSL>,
-	config: NativeTlsConfigBuilder,
+	config: NativeTlsConfig,
 ) {
 	val mode = if (config.verifyCertificates) SSL_VERIFY_PEER else SSL_VERIFY_NONE
 	SSL_set_verify(ssl, mode, null)

@@ -26,11 +26,12 @@ private val registerNativeTls: Unit =
 				)
 			}
 			val config =
-				NativeTlsConfigBuilder().apply {
-					this.serverName = serverName
-					verifyCertificates = !tlsConfig.acceptAnyServerCertificate
-					trustAnchorsDer = tlsConfig.caCertificatesDer
-				}
+				NativeTlsConfigBuilder()
+					.apply {
+						this.serverName = serverName
+						verifyCertificates = !tlsConfig.acceptAnyServerCertificate
+						trustAnchorsDer = tlsConfig.caCertificatesDer
+					}.build()
 			val tls = performNativeTlsHandshake(rawConnection, coroutineContext, selectorManager, config)
 			NativeTlsTransportAdapter(rawConnection, tls, coroutineContext)
 		}
