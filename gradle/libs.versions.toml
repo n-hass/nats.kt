@@ -10,6 +10,7 @@ jvmTarget = "17"
 kotlin-stdlib = "2.3.21"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.10.0"
+kotlinx-io = "0.9.0"
 buildkonfig = "0.17.1"
 
 ktor = "3.4.2"
@@ -34,6 +35,7 @@ kotlinx-coroutines-coreJs = { module = "org.jetbrains.kotlinx:kotlinx-coroutines
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
 
 # Ktor
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor"}

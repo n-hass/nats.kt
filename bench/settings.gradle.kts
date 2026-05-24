@@ -35,3 +35,5 @@ include("publish:native")
 include("subscribe:java")
 include("subscribe:kotlin-jvm")
 include("subscribe:native")
+
+include("subscribe-java")
