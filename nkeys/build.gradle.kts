@@ -17,6 +17,9 @@ kotlin {
 			implementation(projects.crypto)
 		}
 
+		nativeTest.dependencies {
+			implementation(libs.nativebuilds.openssl.libcrypto)
+		}
 
 		jvmTest.dependencies {
 			implementation("io.nats:nkeys-java:2.1.1")

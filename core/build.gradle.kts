@@ -115,6 +115,8 @@ kotlin {
 
 		nativeTest.dependencies {
 			implementation(projects.nativeTls)
+			implementation(libs.nativebuilds.openssl.libssl)
+			implementation(libs.nativebuilds.openssl.libcrypto)
 		}
     }
 }

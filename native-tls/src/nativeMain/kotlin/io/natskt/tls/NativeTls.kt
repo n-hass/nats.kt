@@ -13,9 +13,8 @@ import io.ktor.utils.io.write
 import io.natskt.tls.internal.IsolatedFdSelectable
 import io.natskt.tls.internal.SslEngine
 import io.natskt.tls.internal.configurePlatformTrust
-import io.natskt.tls.openssl.BIO_CTRL_SET_CLOSE
 import io.natskt.tls.openssl.BIO_NOCLOSE
-import io.natskt.tls.openssl.BIO_ctrl
+import io.natskt.tls.openssl.BIO_new_fd
 import io.natskt.tls.openssl.SSL
 import io.natskt.tls.openssl.SSL_CTRL_SET_MIN_PROTO_VERSION
 import io.natskt.tls.openssl.SSL_CTRL_SET_TLSEXT_HOSTNAME
@@ -26,10 +25,9 @@ import io.natskt.tls.openssl.SSL_VERIFY_NONE
 import io.natskt.tls.openssl.SSL_VERIFY_PEER
 import io.natskt.tls.openssl.SSL_ctrl
 import io.natskt.tls.openssl.SSL_free
-import io.natskt.tls.openssl.SSL_get_rbio
 import io.natskt.tls.openssl.SSL_new
 import io.natskt.tls.openssl.SSL_set1_host
-import io.natskt.tls.openssl.SSL_set_fd
+import io.natskt.tls.openssl.SSL_set_bio
 import io.natskt.tls.openssl.SSL_set_verify
 import io.natskt.tls.openssl.TLS1_2_VERSION
 import io.natskt.tls.openssl.TLSEXT_NAMETYPE_host_name
@@ -162,16 +160,8 @@ internal suspend fun performNativeTlsHandshake(
 		}
 
 	try {
-		if (SSL_set_fd(ssl, ownedFd) != 1) {
-			throw TlsException("SSL_set_fd failed for descriptor $ownedFd")
-		}
-		// SSL_set_fd attaches a socket BIO defaulting to BIO_CLOSE, so SSL_free would close
-		// ownedFd. The selector also closes it (asynchronously, on its worker) when we hand it
-		// the IsolatedFdSelectable. Two closes of the same fd race against fd-number reuse — the
-		// kernel can recycle the number between the calls and the selector ends up closing an
-		// unrelated socket. Hand the close to the selector by neutralising the BIO's close flag.
-		val bio = SSL_get_rbio(ssl) ?: throw TlsException("SSL_get_rbio returned null after SSL_set_fd")
-		BIO_ctrl(bio, BIO_CTRL_SET_CLOSE, BIO_NOCLOSE.toLong(), null)
+		val bio = BIO_new_fd(ownedFd, BIO_NOCLOSE) ?: throw TlsException("BIO_new_fd failed for descriptor $ownedFd")
+		SSL_set_bio(ssl, bio, bio)
 		configureSsl(ssl, config)
 
 		val engine = SslEngine(ssl, ctx, sslSelectable, selector, onClose = trustDisposer)
@@ -180,9 +170,6 @@ internal suspend fun performNativeTlsHandshake(
 
 		return startAppDataPumps(engine, coroutineContext, ownsSelector, selector)
 	} catch (cause: Throwable) {
-		// BIO_NOCLOSE was applied above (or SSL_set_fd never attached a BIO), so SSL_free
-		// will not close ownedFd. Route the close through the selector so any pending
-		// registration is torn down cleanly.
 		SSL_free(ssl)
 		SSL_CTX_free(ctx)
 		trustDisposer()

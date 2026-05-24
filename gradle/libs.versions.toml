@@ -61,6 +61,7 @@ whyoleg-cryptography-provider-openssl3-prebuilt-nativebuilds = { module = "dev.w
 whyoleg-cryptography-provider-jdk-bc = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk-bc", version.ref = "whyoleg-crypto" }
 whyoleg-cryptography-provider-cryptokit = { module = "dev.whyoleg.cryptography:cryptography-provider-cryptokit", version.ref = "whyoleg-crypto" }
 nativebuilds-openssl-libssl = { module = "com.ensody.nativebuilds:openssl-libssl", version.ref = "nativebuilds-openssl" }
+nativebuilds-openssl-libcrypto = { module = "com.ensody.nativebuilds:openssl-libcrypto", version.ref = "nativebuilds-openssl" }
 nativebuilds-openssl-headers = { module = "com.ensody.nativebuilds:openssl-headers", version.ref = "nativebuilds-openssl" }
 
 # Testing
