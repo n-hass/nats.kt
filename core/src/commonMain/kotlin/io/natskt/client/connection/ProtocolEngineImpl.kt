@@ -208,6 +208,7 @@ internal class ProtocolEngineImpl(
 		val info =
 			parsedInfo as? ServerOperation.InfoOp
 				?: run {
+					state.mutate { phase = ConnectionPhase.Failed }
 					closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
 					runCatching { transport?.close() }
 					return
@@ -537,7 +538,7 @@ internal class ProtocolEngineImpl(
 
 	private inline fun MutableStateFlow<ConnectionState>.mutate(block: ConnectionState.() -> Unit) {
 		this@mutate.update {
-			it.apply(block)
+			it.copy().apply(block)
 		}
 		logger.debug { "Connection state change: ${this.value}" }
 	}

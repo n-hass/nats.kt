@@ -40,9 +40,6 @@ public class TlsConfig(
 
 /**
  * Algorithm class for a [TlsConfig.clientPrivateKeyDer] payload.
- *
- * Drives JVM `KeyFactory` selection and may inform Native signature wiring once mTLS is wired
- * into the Kotlin/Native handshake.
  */
 public enum class TlsPrivateKeyAlgorithm {
 	Rsa,

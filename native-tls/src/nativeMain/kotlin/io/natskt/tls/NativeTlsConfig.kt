@@ -35,7 +35,8 @@ public class NativeTlsConfigBuilder {
 		val algorithm = this.clientPrivateKeyAlgorithm
 		if (chain.isNotEmpty() || key != null || algorithm != null) {
 			require(chain.isNotEmpty()) { "clientCertificateChainDer must be non-empty when a client identity is configured" }
-			require(key != null) { "clientPrivateKeyDer must be set when a client identity is configured" }
+			require(chain.all { it.isNotEmpty() }) { "clientCertificateChainDer entries must be non-empty" }
+			require(key != null && key.isNotEmpty()) { "clientPrivateKeyDer must be set and non-empty when a client identity is configured" }
 			require(algorithm != null) { "clientPrivateKeyAlgorithm must be set when a client identity is configured" }
 		}
 		return NativeTlsConfig(

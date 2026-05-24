@@ -52,9 +52,12 @@ class MutualTlsIntegrationTest {
 					}
 					maxReconnects = 1
 				}
-			val result = client.connect()
-			assertTrue(result.isSuccess, "mTLS connect failed: ${result.exceptionOrNull()}")
-			client.disconnect()
+			try {
+				val result = client.connect()
+				assertTrue(result.isSuccess, "mTLS connect failed: ${result.exceptionOrNull()}")
+			} finally {
+				client.disconnect()
+			}
 		}
 
 	@OptIn(InternalNatsApi::class)
