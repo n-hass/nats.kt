@@ -34,6 +34,8 @@ internal fun engine(
 		tlsRequired = false,
 		tlsConfig = TlsConfig.Default,
 		socketKeepAlive = null,
+		pingIntervalMs = null,
+		maxPingsOut = 2,
 		noResponders = true,
 		echo = false,
 		supportUtf8Subjects = false,

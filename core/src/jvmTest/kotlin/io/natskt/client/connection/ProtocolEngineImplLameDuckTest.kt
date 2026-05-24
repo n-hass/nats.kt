@@ -66,6 +66,8 @@ class ProtocolEngineImplLameDuckTest {
 			tlsRequired = false,
 			tlsConfig = io.natskt.client.TlsConfig.Default,
 			socketKeepAlive = null,
+			pingIntervalMs = null,
+			maxPingsOut = 2,
 			noResponders = true,
 			echo = false,
 			supportUtf8Subjects = false,

@@ -21,6 +21,8 @@ internal data class ClientConfiguration(
 	val tlsRequired: Boolean,
 	val tlsConfig: TlsConfig,
 	val socketKeepAlive: SocketKeepAliveConfig?,
+	val pingIntervalMs: Long?,
+	val maxPingsOut: Int,
 	val maxParallelRequests: Int?,
 	val noResponders: Boolean,
 	val echo: Boolean,

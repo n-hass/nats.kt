@@ -78,6 +78,8 @@ internal class ConnectionManagerImpl(
 							tlsRequired = config.tlsRequired,
 							tlsConfig = config.tlsConfig,
 							socketKeepAlive = config.socketKeepAlive,
+							pingIntervalMs = config.pingIntervalMs,
+							maxPingsOut = config.maxPingsOut,
 							noResponders = config.noResponders,
 							echo = config.echo,
 							supportUtf8Subjects = config.supportUtf8Subjects,

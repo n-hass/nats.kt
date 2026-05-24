@@ -19,3 +19,7 @@ public class ProtocolException(
 	message: String? = null,
 	cause: Throwable? = null,
 ) : NatsClientException(message, cause)
+
+public class StaleConnectionException(
+	public val outstandingPings: Int,
+) : NatsClientException("server stopped responding to pings ($outstandingPings outstanding)")

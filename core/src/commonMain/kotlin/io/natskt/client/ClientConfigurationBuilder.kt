@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 public class ClientConfigurationBuilder internal constructor() {
@@ -191,6 +192,24 @@ public class ClientConfigurationBuilder internal constructor() {
 	public var socketKeepAlive: SocketKeepAliveConfig? = null
 
 	/**
+	 * Interval at which the client sends a heartbeat PING to the server. Combined with
+	 * [maxPingsOut], this detects half-open / stale connections within roughly
+	 * `pingInterval * (maxPingsOut + 1)`.
+	 *
+	 * Set to `null` to disable the heartbeat entirely (PINGs sent only when the application
+	 * calls [io.natskt.api.NatsClient.ping] or [io.natskt.api.NatsClient.flush]).
+	 */
+	public var pingInterval: Duration? = 2.minutes
+
+	/**
+	 * Maximum number of unacknowledged PINGs (sent but not yet matched by a PONG) before the
+	 * client treats the connection as stale and surfaces a
+	 * [io.natskt.api.CloseReason.IoError] with a
+	 * [io.natskt.api.StaleConnectionException], triggering reconnect.
+	 */
+	public var maxPingsOut: Int = 2
+
+	/**
 	 * The transport type to use. Will default to TCP on supported platforms, or a WebSocket transport
 	 * with the platforms preferred [Ktor client engine](https://ktor.io/docs/client-engines.html#dependencies)
 	 */
@@ -251,6 +270,8 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		tlsRequired = tls,
 		tlsConfig = resolvedTlsConfig,
 		socketKeepAlive = socketKeepAlive,
+		pingIntervalMs = pingInterval?.inWholeMilliseconds,
+		maxPingsOut = maxPingsOut.coerceAtLeast(1),
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
 		echo = echo,
