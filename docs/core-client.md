@@ -139,9 +139,7 @@ These are the main fields exposed by `ClientConfigurationBuilder`:
 | `maxControlLineBytes` | Maximum supported control line size |
 | `maxPayloadBytes` | Maximum message payload size |
 | `operationBufferCapacity` | Number of pending outgoing operations allowed |
-| `writeBufferLimitBytes` | Buffered byte threshold before flush |
-| `writeFlushInterval` | Maximum write latency ceiling |
 | `maxParallelRequests` | Optional cap for concurrent request/reply calls |
-| `tlsRequired` | Force TLS negotiation |
+| `tlsRequired` | Force TLS negotiation (on Kotlin/Native targets, requires the [`ktor-native-tls`](native-tls.md) module) |
 | `transport` | Transport factory override |
 | `scope` | Custom coroutine scope for client jobs |

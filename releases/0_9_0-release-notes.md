@@ -48,16 +48,18 @@ The KV API has been substantially expanded:
 
 ### Native TLS
 
-A new `natskt-network-tls` module provides TLS 1.2 & 1.3 in `TcpTransport` 
+A new `natskt-native-tls` module provides TLS 1.2 & 1.3 in `TcpTransport`
 on Kotlin/Native targets (Linux, macOS, iOS), where
 the JVM/Ktor CIO TLS engine is unavailable.
 
+The TLS implementation itself uses is using OpenSSL on all platforms.
 Certificate validation uses platform-native trust stores (Apple Security framework
-on Apple targets, OpenSSL on Linux).
+on Apple targets, OpenSSL on Linux). Mutual TLS is supported: client certificates
+configured on the client are passed through to the native socket.
 
 But be warned: this is experimental, and been mostly created by an LLM programming tool.
-Although care has been taken to ensure it functions correctly on the happy-path, there
-are likely correctness and security bugs in there somewhere. Hence; THIS IS AN EXPERIMENT.
+Although it is basically just glue code to OpenSSL and to thread the socket created by ktor
+as an OpenSSL BIO, there are likely some issues somewhere.
 
 ## Core protocol & client
 
@@ -66,8 +68,17 @@ are likely correctness and security bugs in there somewhere. Hence; THIS IS AN E
 - Last server `-ERR` is now surfaced on `ConnectionState`
 - `unsubscribe(maxMessages = …)` is now supported
 - No-responders is now configurable, and **defaults to `true`**
+- `echo` is now configurable on the client
+- Optional client `name` can be set on `CONNECT`
 - UTF-8 subjects can be enabled via client configuration
 - Subject and subject-token validation now aligns with `nats.go`
+- Network-dropout detection: protocol-level PING on an interval, plus TCP
+  socket keepalive in `TcpTransport`, both configurable
+- TLS server name (SNI / certificate verification host) is now configurable
+  independently of the connect URL
+- `connect()` now surfaces IO errors from the handshake instead of silently
+  failing, and the protocol engine catches and propagates IO errors that
+  occur mid-handshake
 
 ## JetStream
 
@@ -105,6 +116,11 @@ The following changes are source-incompatible. Most are small migrations.
 1. **No-responders defaults to `true`.** If you relied on the previous default
    (`false`), set it explicitly in your client configuration.
 
+1. **`ClientConfigurationBuilder` now infers the port from the URL scheme**
+   when one isn't supplied (`nats://` and `tls://` → 4222, `ws://` → 80,
+   `wss://` → 422). Previously a missing port stayed as `0`. If you depended
+   on the old behaviour, set the port explicitly on each server URL.
+
 ## Bug fixes
 
 - TCP transport now maintains a single `SelectorManager` for correct native
@@ -118,10 +134,11 @@ The following changes are source-incompatible. Most are small migrations.
 - Duration serialization errors fixed (TTL headers)
 - TTL header is now serialised as a Go-style duration string (server-compatible)
 - `close()` on a client that was never opened no longer throws
+- Protocol engine now waits for the ping response before emitting `connected`
 
 ## Dependencies & tooling
 
-- Kotlin 2.3.20 (minimum supported Kotlin: 2.2)
+- Kotlin 2.3.21 (minimum supported Kotlin: 2.2)
 - Ktor 3.4.2
 
 ## Thanks

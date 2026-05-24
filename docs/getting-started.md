@@ -29,9 +29,10 @@ The library is built to split for smaller installations when needed.
 
 - The `core` artifact is the minimum required for basic NATS usage.
 - The `jetstream` artifact adds JetStream support.
-- The `crypto` artifact adds support for connecting to NATS servers that require authentication
+- The `crypto` artifact adds support for connecting to NATS servers that require authentication. On Linux native it transitively links a prebuilt `libcrypto`.
+- The `crypto-headless` artifact is the same as `crypto` but does **not** link `libcrypto` on Linux native – use this when another dependency on your classpath (e.g. `ktor-client-curl`) already bundles OpenSSL.
 
-The `platform` artifact is a convenience that includes all 3 of the above, and so is equivalent to: 
+The `platform` artifact is a convenience that includes core, jetstream, and `crypto` (the full one), and so is equivalent to:
 
 ```kotlin
 commonMain.dependencies {
@@ -41,7 +42,17 @@ commonMain.dependencies {
 }
 ```
 
-To read more on the crypto artifact, see [Cryptography](cryptography.md).
+If you need to control OpenSSL linkage on Linux native (e.g. you already have it on the link path through another dependency), swap `natskt-crypto` for `natskt-crypto-headless`:
+
+```kotlin
+commonMain.dependencies {
+    implementation("io.github.n-hass:natskt-core:{{ current_version }}")
+    implementation("io.github.n-hass:natskt-jetstream:{{ current_version }}")
+    implementation("io.github.n-hass:natskt-crypto-headless:{{ current_version }}")
+}
+```
+
+To read more on the crypto artifacts, see [Cryptography](cryptography.md). For TLS on Kotlin/Native targets, see [Native TLS](native-tls.md).
 
 
 ## Connect To A Server

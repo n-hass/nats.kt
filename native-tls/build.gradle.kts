@@ -40,11 +40,11 @@ kotlin {
 }
 
 mavenPublishing {
-	coordinates(artifactId = "natskt-native-tls")
+	coordinates(artifactId = "ktor-native-tls")
 	publishToMavenCentral()
 
 	pom {
-		name = "NATS Kotlin - Native TLS"
+		name = "NATS Kotlin - Native TLS client for Ktor"
 		description = "TLS 1.2/1.3 over Ktor sockets, backed by OpenSSL with platform trust evaluation"
 	}
 }

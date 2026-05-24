@@ -18,7 +18,9 @@ Most consumers only need the first one or two artifacts:
 | `io.github.n-hass:natskt-platform`  | All-in-one dependency to have a working installation    |
 | `io.github.n-hass:natskt-core`      | Core client without JetStream for minimal installations |
 | `io.github.n-hass:natskt-jetstream` | JetStream support with the core client                  |
-| `io.github.n-hass:natskt-crypto`    | Cryptography libraries for KMP used by NATS.kt          |
+| `io.github.n-hass:natskt-crypto`    | Cryptography providers + prebuilt OpenSSL on Linux native |
+| `io.github.n-hass:natskt-crypto-headless` | Cryptography providers only – use when another dependency on your classpath already bundles OpenSSL |
+| `io.github.n-hass:ktor-native-tls`  | TLS upgrade for Ktor sockets on Kotlin/Native targets   |
 
 ## Supported Targets
 
@@ -39,3 +41,4 @@ The JVM artifacts target Java 17 bytecode.
 - Start with [Getting Started](getting-started.md) for installation and a minimal connection example.
 - Use [Core Client](core-client.md) when you need configuration details and transport selection.
 - Use [JetStream](jetstream.md) when you want streams, consumers, or key-value buckets.
+- Use [Native TLS](native-tls.md) when targeting Kotlin/Native (Linux, macOS, iOS) with TLS.

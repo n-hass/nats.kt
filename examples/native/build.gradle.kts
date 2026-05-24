@@ -13,10 +13,9 @@ kotlin {
 			implementation("io.github.n-hass:core")
 			implementation("io.github.n-hass:crypto")
 			implementation("io.github.n-hass:native-tls")
+			implementation(libs.nativebuilds.openssl.libssl)
+			implementation(libs.nativebuilds.openssl.libcrypto)
 			implementation(libs.kotlinx.coroutines.core)
-			implementation(libs.ktor.client.core)
-			implementation(libs.ktor.client.engine.curl)
-			implementation(libs.ktor.client.websockets)
 			implementation(libs.kotlinx.io.core)
 		}
 	}

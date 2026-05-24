@@ -31,3 +31,4 @@ nav:
   - Core Client: core-client.md
   - JetStream: jetstream.md
   - Cryptography: cryptography.md
+  - Native TLS: native-tls.md

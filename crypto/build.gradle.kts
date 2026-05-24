@@ -11,21 +11,10 @@ kotlin {
 	sourceSets {
 		commonMain.dependencies {
 			implementation(libs.whyoleg.cryptography.core)
-		}
-		jvmMain.dependencies {
-			api(libs.whyoleg.cryptography.provider.jdk.bc)
-		}
-		appleMain.dependencies {
-			api(libs.whyoleg.cryptography.provider.cryptokit)
+			api(projects.cryptoHeadless)
 		}
 		linuxMain.dependencies {
-			api(libs.whyoleg.cryptography.provider.openssl3.api)
-		}
-		jsMain.dependencies {
-			api(libs.whyoleg.cryptography.provider.webcrypto)
-		}
-		wasmJsMain.dependencies {
-			api(libs.whyoleg.cryptography.provider.webcrypto)
+			api(libs.whyoleg.cryptography.provider.openssl3.prebuilt.nativebuilds)
 		}
 	}
 }
