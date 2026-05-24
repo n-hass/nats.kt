@@ -1,0 +1,840 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Kotlin Multiplatform client for NATS and JetStream">
+      
+      
+      
+        <link rel="canonical" href="https://n-hass.github.io/nats.kt/dev/native-tls/">
+      
+      
+        <link rel="prev" href="../cryptography/">
+      
+      
+        <link rel="next" href="../api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+    
+    
+      
+        <title>Native TLS - NATS.kt</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#native-tls" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="NATS.kt" class="md-header__button md-logo" aria-label="NATS.kt" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            NATS.kt
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Native TLS
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/n-hass/nats.kt" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    n-hass/nats.kt
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="NATS.kt" class="md-nav__button md-logo" aria-label="NATS.kt" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    NATS.kt
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/n-hass/nats.kt" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    n-hass/nats.kt
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../jetstream/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JetStream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cryptography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cryptography
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native TLS
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Native TLS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openssl-native-libraries-bring-your-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenSSL native libraries: bring your own
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OpenSSL native libraries: bring your own">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-natskt-crypto-and-natskt-crypto-headless-interact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How natskt-crypto and natskt-crypto-headless interact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two failure modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The two failure modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#missing-symbols-link-errors-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing symbols – link errors like:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#duplicate-symbols-link-errors-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Duplicate symbols – link errors like:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quick-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openssl-native-libraries-bring-your-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenSSL native libraries: bring your own
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OpenSSL native libraries: bring your own">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-natskt-crypto-and-natskt-crypto-headless-interact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How natskt-crypto and natskt-crypto-headless interact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two failure modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The two failure modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#missing-symbols-link-errors-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing symbols – link errors like:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#duplicate-symbols-link-errors-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Duplicate symbols – link errors like:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quick-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="native-tls">Native TLS<a class="headerlink" href="#native-tls" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>I tried to hide this complexity from you. I'm sorry. Now the best I can do is give you the options to make your builds not-flakey. </p>
+</blockquote>
+<p>The <code>ktor-native-tls</code> module provides TLS 1.2 and 1.3 for Ktor sockets on Kotlin/Native targets (Linux, macOS, iOS), where the JVM/Ktor CIO TLS engine isn't available. It binds OpenSSL through cinterop and delegates trust evaluation to platform-native APIs (Apple Security framework on Apple targets, OpenSSL on Linux).</p>
+<p>In NATS.kt it slots in under <code>TcpTransport</code> automatically – drop it on the classpath of a Kotlin/Native target and <code>tlsRequired = true</code> (or a <code>tls://</code> URL) just works. It's published as a general Ktor TLS upgrade module, so it can be used outside NATS.kt as well.</p>
+<h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">nativeMain</span><span class="p">.</span><span class="na">dependencies</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.n-hass:natskt-platform:0.8.0&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.n-hass:ktor-native-tls:0.8.0&quot;</span><span class="p">)</span><span class="w"> </span>
+<span class="w">    </span><span class="c1">// libssl is needed on every native target. natskt-platform pulls natskt-crypto, </span>
+<span class="w">    </span><span class="c1">// which on Linux native contributes libcrypto but NOT libssl. Apple targets need it too. </span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;com.ensody.nativebuilds:openssl-libcrypto:3.6.2&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;com.ensody.nativebuilds:openssl-libssl:3.6.2&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Once on the classpath the module self-registers as the TLS upgrader for <code>TcpTransport</code>. There's no API call needed – set <code>tlsRequired = true</code> (or connect to a <code>tls://</code> URL) and the transport will hand the socket off to OpenSSL.</p>
+<p>The OpenSSL libs on the link path are what actually make TLS work. The snippet above is the default for a project whose only OpenSSL-shipping dependency is <code>natskt-crypto</code>. <strong>If you also depend on something else that bundles OpenSSL</strong> (most commonly <code>ktor-client-curl</code>), the snippet above will clash – see <a href="#duplicate-symbols--link-errors-like">Duplicate symbols</a> below.</p>
+<h2 id="openssl-native-libraries-bring-your-own">OpenSSL native libraries: bring your own<a class="headerlink" href="#openssl-native-libraries-bring-your-own" title="Permanent link">&para;</a></h2>
+<p><code>ktor-native-tls</code> only declares the OpenSSL <strong>headers</strong> as a cinterop input. It deliberately does not declare <code>libssl.a</code> / <code>libcrypto.a</code> as link inputs. This is so you can pick the OpenSSL build that works for your project – typically one of:</p>
+<ul>
+<li>A prebuilt OpenSSL via the <code>com.ensody.nativebuilds</code> artifacts the module's headers come from (<code>openssl-libssl</code> + <code>openssl-libcrypto</code>)</li>
+<li>The OpenSSL transitively contributed by <code>natskt-crypto</code> on Linux native – see below</li>
+<li>The OpenSSL transitively contributed by <strong>another</strong> dependency on your classpath that bundles it (e.g. <code>ktor-client-curl</code> ships its own libssl + libcrypto on the native targets it supports)</li>
+<li>A system OpenSSL you wire up yourself through Kotlin/Native linker options</li>
+</ul>
+<p>There's no central registry of which Kotlin/Native artifacts contribute OpenSSL. If you hit a link-time error, <code>gradle :&lt;your-module&gt;:dependencies</code> is the source of truth – see the failure-mode walkthroughs below.</p>
+<h3 id="how-natskt-crypto-and-natskt-crypto-headless-interact">How <code>natskt-crypto</code> and <code>natskt-crypto-headless</code> interact<a class="headerlink" href="#how-natskt-crypto-and-natskt-crypto-headless-interact" title="Permanent link">&para;</a></h3>
+<p>NATS.kt ships two crypto artifacts. The difference matters only at the native link step:</p>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Linux native</th>
+<th>Apple native</th>
+<th>JVM / JS / Wasm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>natskt-crypto</code></td>
+<td>Pulls <code>cryptography-provider-openssl3-prebuilt-nativebuilds</code>, which contributes <code>openssl-libcrypto</code> only – <code>libssl</code> is <strong>not</strong> transitively linked</td>
+<td>CryptoKit only, no OpenSSL libs</td>
+<td>platform provider, no OpenSSL libs</td>
+</tr>
+<tr>
+<td><code>natskt-crypto-headless</code></td>
+<td>Only <code>cryptography-provider-openssl3-api</code> (bindings only), <strong>no</strong> OpenSSL libs</td>
+<td>CryptoKit only, no OpenSSL libs</td>
+<td>platform provider, no OpenSSL libs</td>
+</tr>
+</tbody>
+</table>
+<p><code>natskt-platform</code> includes <code>natskt-crypto</code> (the full one), so platform consumers on Linux native already have <code>libcrypto</code> on the link path – but still need <code>libssl</code> added explicitly for <code>ktor-native-tls</code> to link.</p>
+<p><code>natskt-crypto-headless</code> exists because of external link-path clashes (see <a href="#duplicate-symbols--link-errors-like">Duplicate symbols</a>), not because of anything internal to NATS.kt. Reach for it when another dependency in your build already ships OpenSSL and the duplicates are coming from there.</p>
+<p>If nothing on your link path provides OpenSSL the native link step will fail. If two things provide it the link step will fail differently.</p>
+<h3 id="the-two-failure-modes">The two failure modes<a class="headerlink" href="#the-two-failure-modes" title="Permanent link">&para;</a></h3>
+<h5 id="missing-symbols-link-errors-like"><strong>Missing symbols</strong> – link errors like:<a class="headerlink" href="#missing-symbols-link-errors-like" title="Permanent link">&para;</a></h5>
+<div class="highlight"><pre><span></span><code>Undefined symbols: _SSL_CTX_new, _SSL_new, _BIO_new_fd, _X509_STORE_add_cert, ...
+</code></pre></div>
+<p>Nothing on the link path is providing OpenSSL. Add the prebuilt libraries to the source set that needs them:</p>
+<div class="highlight"><pre><span></span><code><span class="n">nativeMain</span><span class="p">.</span><span class="na">dependencies</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.n-hass:ktor-native-tls:0.8.0&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;com.ensody.nativebuilds:openssl-libssl:3.6.2&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;com.ensody.nativebuilds:openssl-libcrypto:3.6.2&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Use the OpenSSL version that matches/close to the headers <code>ktor-native-tls</code> was built against (currently 3.6.2). Mixing major OpenSSL versions across headers and libs will either fail to link or produce subtle runtime breakage.</p>
+<h5 id="duplicate-symbols-link-errors-like"><strong>Duplicate symbols</strong> – link errors like:<a class="headerlink" href="#duplicate-symbols-link-errors-like" title="Permanent link">&para;</a></h5>
+<div class="highlight"><pre><span></span><code>duplicate symbol &#39;_X509_STORE_add_cert&#39; in: libcrypto.a(x509_lu.o) and libcrypto.a(x509_lu.o)
+duplicate symbol &#39;_EVP_DigestInit_ex&#39; in: libcrypto.a(digest.o) and libcrypto.a(digest.o)
+</code></pre></div>
+<p>Two different dependencies are each contributing their own <code>libcrypto</code> (or, less often, <code>libssl</code>) to the link. There is one common scenario:</p>
+<p><strong>Another dependency on your classpath bundles its own OpenSSL.</strong> The most common case is <code>ktor-client-curl</code>, which ships its own <code>libssl</code> and <code>libcrypto</code> on the native targets it supports. Anything pulling that in (or any other artifact that bundles OpenSSL) collides with both <code>natskt-crypto</code>'s <code>libcrypto</code> and any explicit <code>openssl-libssl</code> / <code>openssl-libcrypto</code> you've added for <code>ktor-native-tls</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">nativeMain</span><span class="p">.</span><span class="na">dependencies</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.n-hass:natskt-core:0.8.0&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.n-hass:natskt-jetstream:0.8.0&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.n-hass:natskt-crypto-headless:0.8.0&quot;</span><span class="p">)</span><span class="w">  </span><span class="c1">// no OpenSSL libs</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.n-hass:ktor-native-tls:0.8.0&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.ktor:ktor-client-curl:&lt;ktor-version&gt;&quot;</span><span class="p">)</span><span class="w">  </span><span class="c1">// brings its own libssl + libcrypto</span>
+<span class="w">    </span><span class="c1">// no explicit openssl-libssl / openssl-libcrypto here – ktor-client-curl provides them</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>This works because <code>ktor-native-tls</code> only needs OpenSSL <strong>symbols</strong> on the link path. It does not care which artifact contributes them, as long as the version is compatible with the headers it was built against (OpenSSL 3.x – Ktor's curl typically ships a compatible version).</p>
+<p><strong><code>natskt-crypto</code> plus an explicit <code>openssl-libcrypto</code></strong> on a source set that applies to Linux will <strong>NOT</strong> cause this, as they use the same <code>com.ensody.nativebuilds</code> artifact. In fact, this resolution compatability is what gives you the ability to pin your own <code>libssl</code> and <code>libcrypto</code> versions from <code>com.ensody.nativebuilds</code> and have the native code link against that.</p>
+<p>Inspect <code>gradle :&lt;your-module&gt;:dependencies</code> and look for any artifact whose name contains <code>openssl</code>, <code>libssl</code> or <code>libcrypto</code>, or any non-natskt dependency that bundles OpenSSL (curl-based engines, gRPC implementations, etc.). If you see more than one source contributing the same lib, that's your duplicate.</p>
+<h3 id="quick-checklist">Quick checklist<a class="headerlink" href="#quick-checklist" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>No external OpenSSL-shipping dependency</strong> (no <code>ktor-client-curl</code>, etc.) <strong>and using <code>natskt-crypto</code> / <code>natskt-platform</code></strong>: Add <strong>both</strong> <code>openssl-libssl</code> and <code>openssl-libcrypto</code> to <code>nativeMain</code>.</li>
+<li><strong>No external OpenSSL-shipping dependency and using <code>natskt-crypto-headless</code></strong>: add <strong>both</strong> <code>openssl-libssl</code> and <code>openssl-libcrypto</code> to <code>nativeMain</code>.</li>
+<li><strong>External dependency already bundles OpenSSL (e.g. <code>ktor-client-curl</code>)</strong>: drop <code>natskt-platform</code>, swap <code>natskt-crypto</code> for <code>natskt-crypto-headless</code> and do <strong>not</strong> add explicit <code>openssl-libssl</code> / <code>openssl-libcrypto</code>. Let the external library be the single source.</li>
+<li><strong>Apple-only target with no Linux</strong>: always add <strong>both</strong> <code>openssl-libssl</code> and <code>openssl-libcrypto</code>. Neither crypto module contributes OpenSSL on Apple.</li>
+</ul>
+<p>If you're unsure what's on the link path, run <code>gradle :&lt;your-module&gt;:dependencies</code> and search for <code>openssl</code>, <code>libssl</code>, <code>libcrypto</code>, and <code>curl</code>. Anything with <code>-prebuilt-nativebuilds</code>, <code>libssl</code>, or <code>libcrypto</code> in the artifact name contributes link inputs; anything ending in <code>-api</code> only contributes Kotlin bindings.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
