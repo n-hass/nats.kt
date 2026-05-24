@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package io.natskt.tls.internal
+package io.natskt.client.transport.internal
 
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.posix.TCP_KEEPALIVE

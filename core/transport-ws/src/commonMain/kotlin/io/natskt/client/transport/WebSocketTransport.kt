@@ -20,6 +20,7 @@ import io.ktor.utils.io.writer
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.SocketKeepAliveConfig
 import io.natskt.client.TlsConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
@@ -50,6 +51,7 @@ public data class WebSocketTransport internal constructor(
 			address: NatsServerAddress,
 			context: CoroutineContext,
 			tlsConfig: TlsConfig,
+			socketKeepAlive: SocketKeepAliveConfig?,
 		): Transport {
 			if (tlsConfig.hasCustomTrust || tlsConfig.acceptAnyServerCertificate || tlsConfig.hasClientCertificate) {
 				logger.warn {

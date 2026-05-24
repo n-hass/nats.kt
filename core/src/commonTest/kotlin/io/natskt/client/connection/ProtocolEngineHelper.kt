@@ -33,6 +33,7 @@ internal fun engine(
 		name = name,
 		tlsRequired = false,
 		tlsConfig = TlsConfig.Default,
+		socketKeepAlive = null,
 		noResponders = true,
 		echo = false,
 		supportUtf8Subjects = false,
@@ -49,6 +50,7 @@ internal object FakeTransportFactory : TransportFactory {
 		address: NatsServerAddress,
 		context: CoroutineContext,
 		tlsConfig: TlsConfig,
+		socketKeepAlive: io.natskt.client.SocketKeepAliveConfig?,
 	): Transport = throw UnsupportedOperationException("not used in test")
 }
 

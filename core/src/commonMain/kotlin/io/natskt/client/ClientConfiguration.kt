@@ -20,6 +20,7 @@ internal data class ClientConfiguration(
 	val writeBufferLimitBytes: Int,
 	val tlsRequired: Boolean,
 	val tlsConfig: TlsConfig,
+	val socketKeepAlive: SocketKeepAliveConfig?,
 	val maxParallelRequests: Int?,
 	val noResponders: Boolean,
 	val echo: Boolean,

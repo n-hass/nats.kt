@@ -77,6 +77,7 @@ internal class ConnectionManagerImpl(
 							name = config.name,
 							tlsRequired = config.tlsRequired,
 							tlsConfig = config.tlsConfig,
+							socketKeepAlive = config.socketKeepAlive,
 							noResponders = config.noResponders,
 							echo = config.echo,
 							supportUtf8Subjects = config.supportUtf8Subjects,

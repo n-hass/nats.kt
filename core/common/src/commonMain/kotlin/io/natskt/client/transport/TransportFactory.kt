@@ -1,6 +1,7 @@
 package io.natskt.client.transport
 
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.SocketKeepAliveConfig
 import io.natskt.client.TlsConfig
 import kotlin.coroutines.CoroutineContext
 
@@ -9,5 +10,6 @@ public interface TransportFactory {
 		address: NatsServerAddress,
 		context: CoroutineContext,
 		tlsConfig: TlsConfig = TlsConfig.Default,
+		socketKeepAlive: SocketKeepAliveConfig? = null,
 	): Transport
 }

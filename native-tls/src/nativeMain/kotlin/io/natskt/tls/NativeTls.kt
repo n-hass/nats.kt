@@ -13,7 +13,6 @@ import io.ktor.utils.io.write
 import io.natskt.tls.internal.IsolatedFdSelectable
 import io.natskt.tls.internal.SslEngine
 import io.natskt.tls.internal.configurePlatformTrust
-import io.natskt.tls.internal.configureTcpKeepAlive
 import io.natskt.tls.openssl.BIO_CTRL_SET_CLOSE
 import io.natskt.tls.openssl.BIO_NOCLOSE
 import io.natskt.tls.openssl.BIO_ctrl
@@ -122,10 +121,6 @@ internal suspend fun performNativeTlsHandshake(
 		throw TlsException("dup2(/dev/null -> fd=$originalFd) failed errno=$errno")
 	}
 	close(devNull)
-
-	if (config.soKeepAliveConfig != null) {
-		configureTcpKeepAlive(ownedFd, idleSeconds = config.soKeepAliveConfig.idle, intervalSeconds = config.soKeepAliveConfig.interval, probeCount = config.soKeepAliveConfig.probeCount)
-	}
 
 	// Drain the output channel deliberately *after* dup2: any bytes the caller had queued get
 	// pumped to /dev/null rather than leaking on the wire as plaintext. The writer pump's

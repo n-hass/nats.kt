@@ -177,6 +177,20 @@ public class ClientConfigurationBuilder internal constructor() {
 	}
 
 	/**
+	 * Enable TCP `SO_KEEPALIVE` on the underlying socket so the OS surfaces dead connections
+	 * (peer crashed, NAT/firewall silently dropped the flow) within roughly
+	 * `idle + interval * probeCount`, instead of the OS default (typically two hours).
+	 *
+	 * `null` (default) leaves keep-alive off. Use [SocketKeepAliveConfig.Default] for a 10s idle
+	 * + 5s interval × 3 probes (~25s detection).
+	 *
+	 * Applies to the TCP transport on JVM and Kotlin/Native. JVM honours the boolean setting
+	 * but per-socket idle/interval tuning depends on the JDK and OS. The WebSocket transport
+	 * and JS/WasmJS targets ignore it.
+	 */
+	public var socketKeepAlive: SocketKeepAliveConfig? = null
+
+	/**
 	 * The transport type to use. Will default to TCP on supported platforms, or a WebSocket transport
 	 * with the platforms preferred [Ktor client engine](https://ktor.io/docs/client-engines.html#dependencies)
 	 */
@@ -236,6 +250,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		writeBufferLimitBytes = writeBufferLimitBytes,
 		tlsRequired = tls,
 		tlsConfig = resolvedTlsConfig,
+		socketKeepAlive = socketKeepAlive,
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
 		echo = echo,

@@ -9,7 +9,9 @@ import io.ktor.network.sockets.isClosed
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.SocketKeepAliveConfig
 import io.natskt.client.TlsConfig
+import io.natskt.client.transport.internal.tuneSocketKeepAlive
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 
@@ -26,14 +28,19 @@ public class TcpTransport internal constructor(
 			address: NatsServerAddress,
 			context: CoroutineContext,
 			tlsConfig: TlsConfig,
+			socketKeepAlive: SocketKeepAliveConfig?,
 		): Transport {
 			val selectorManager = SelectorManager(context)
 			return try {
 				val connection =
 					aSocket(selectorManager)
 						.tcp()
-						.connect(address.url.host, address.url.port) { }
-						.connection()
+						.connect(address.url.host, address.url.port) {
+							if (socketKeepAlive != null) keepAlive = true
+						}.connection()
+				if (socketKeepAlive != null) {
+					tuneSocketKeepAlive(connection, socketKeepAlive)
+				}
 				TcpTransport(
 					connection,
 					context,
