@@ -72,6 +72,9 @@ class ConnectionManagerImplTest {
 				writeBufferLimitBytes = 64 * 1024,
 				tlsRequired = false,
 				tlsConfig = io.natskt.client.TlsConfig.Default,
+				socketKeepAlive = null,
+				pingInterval = null,
+				maxPingsOut = 2,
 				noResponders = true,
 				echo = false,
 				supportUtf8Subjects = false,
@@ -93,6 +96,7 @@ class ConnectionManagerImplTest {
 			address: NatsServerAddress,
 			context: CoroutineContext,
 			tlsConfig: io.natskt.client.TlsConfig,
+			socketKeepAlive: io.natskt.client.SocketKeepAliveConfig?,
 		): Transport = throw UnsupportedOperationException("not used")
 	}
 }

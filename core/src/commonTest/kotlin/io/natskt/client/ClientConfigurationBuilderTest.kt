@@ -14,6 +14,7 @@ private class RecordingTransportFactory : TransportFactory {
 		address: NatsServerAddress,
 		context: CoroutineContext,
 		tlsConfig: TlsConfig,
+		socketKeepAlive: SocketKeepAliveConfig?,
 	): Transport {
 		error("not used in tests")
 	}

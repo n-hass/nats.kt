@@ -4,6 +4,7 @@ import io.natskt.api.Credentials
 import io.natskt.client.transport.TransportFactory
 import io.natskt.internal.NUID
 import kotlinx.coroutines.CoroutineScope
+import kotlin.time.Duration
 
 internal data class ClientConfiguration(
 	val servers: List<NatsServerAddress>,
@@ -20,6 +21,9 @@ internal data class ClientConfiguration(
 	val writeBufferLimitBytes: Int,
 	val tlsRequired: Boolean,
 	val tlsConfig: TlsConfig,
+	val socketKeepAlive: SocketKeepAliveConfig?,
+	val pingInterval: Duration?,
+	val maxPingsOut: Int,
 	val maxParallelRequests: Int?,
 	val noResponders: Boolean,
 	val echo: Boolean,

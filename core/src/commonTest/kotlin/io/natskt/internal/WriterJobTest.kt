@@ -190,6 +190,9 @@ class WriterJobTest {
 			name = null,
 			tlsRequired = false,
 			tlsConfig = io.natskt.client.TlsConfig.Default,
+			socketKeepAlive = null,
+			pingInterval = null,
+			maxPingsOut = 2,
 			noResponders = true,
 			echo = false,
 			supportUtf8Subjects = false,
@@ -264,6 +267,7 @@ class WriterJobTest {
 			address: NatsServerAddress,
 			context: CoroutineContext,
 			tlsConfig: io.natskt.client.TlsConfig,
+			socketKeepAlive: io.natskt.client.SocketKeepAliveConfig?,
 		): Transport = transport
 	}
 

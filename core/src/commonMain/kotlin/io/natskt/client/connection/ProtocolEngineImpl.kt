@@ -11,11 +11,13 @@ import io.natskt.api.ConnectionClosedException
 import io.natskt.api.ConnectionPhase
 import io.natskt.api.ConnectionState
 import io.natskt.api.Credentials
+import io.natskt.api.StaleConnectionException
 import io.natskt.api.internal.InternalNatsApi
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.api.internal.ProtocolEngine
 import io.natskt.api.toPublicApi
 import io.natskt.client.NatsServerAddress
+import io.natskt.client.SocketKeepAliveConfig
 import io.natskt.client.TlsConfig
 import io.natskt.client.transport.Transport
 import io.natskt.client.transport.TransportFactory
@@ -35,10 +37,12 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.concurrent.Volatile
 import kotlin.coroutines.resume
 import kotlin.jvm.JvmInline
 import kotlin.time.Clock
@@ -58,6 +62,9 @@ internal class ProtocolEngineImpl(
 	private val name: String?,
 	private val tlsRequired: Boolean,
 	private val tlsConfig: TlsConfig,
+	private val socketKeepAlive: SocketKeepAliveConfig?,
+	private val pingInterval: Duration?,
+	private val maxPingsOut: Int,
 	private val noResponders: Boolean,
 	private val echo: Boolean,
 	private val supportUtf8Subjects: Boolean,
@@ -71,13 +78,18 @@ internal class ProtocolEngineImpl(
 	private var transport: Transport? = null
 	private var writerCommands: Channel<OutboundCommand>? = null
 	private var writerJob: Job? = null
+	private var pingHeartbeatJob: Job? = null
 
 	private var rttMeasureStart: Instant? = null
+
+	@Volatile
+	private var outstandingPings: Int = 0
 
 	init {
 		closed.invokeOnCompletion {
 			writerCommands?.close()
 			writerJob?.cancel()
+			pingHeartbeatJob?.cancel()
 		}
 	}
 
@@ -160,7 +172,7 @@ internal class ProtocolEngineImpl(
 		state.update { phase = ConnectionPhase.Connecting }
 		transport =
 			runCatching {
-				transportFactory.connect(address, scope.coroutineContext, tlsConfig)
+				transportFactory.connect(address, scope.coroutineContext, tlsConfig, socketKeepAlive)
 			}.getOrElse {
 				logger.error(it) { "failed to open transport to ${address.url}" }
 				state.update { phase = ConnectionPhase.Failed }
@@ -226,6 +238,8 @@ internal class ProtocolEngineImpl(
 		send(connect)
 		flushWriter()
 
+		startPingHeartbeat()
+
 		state.update { phase = ConnectionPhase.Connected }
 
 		scope.launch {
@@ -262,6 +276,7 @@ internal class ProtocolEngineImpl(
 												?.let { it / 1000 },
 									)
 								rttMeasureStart = null
+								outstandingPings = (outstandingPings - 1).coerceAtLeast(0)
 							}
 
 							Operation.Ping -> {
@@ -273,7 +288,7 @@ internal class ProtocolEngineImpl(
 							}
 
 							is Operation.Err -> {
-								val message = (out as Operation.Err).message
+								val message = out.message
 								logger.error { "received a protocol error response: $message" }
 								if (message != null) {
 									state.update { lastError = message }
@@ -320,6 +335,7 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun ping() {
+		outstandingPings++
 		rttMeasureStart = Clock.System.now()
 		send(Operation.Ping)
 	}
@@ -438,6 +454,29 @@ internal class ProtocolEngineImpl(
 					}
 			}
 		}
+	}
+
+	private fun startPingHeartbeat() {
+		val interval = pingInterval ?: return
+		if (pingHeartbeatJob?.isActive == true) return
+		pingHeartbeatJob =
+			scope.launch {
+				while (isActive && !closed.isCompleted) {
+					delay(interval)
+					if (closed.isCompleted) return@launch
+					val current = outstandingPings
+					if (current >= maxPingsOut) {
+						logger.error { "$current outstanding PING(s) exceeds maxPingsOut=$maxPingsOut; closing stale connection" }
+						if (!closed.isCompleted) {
+							closed.complete(CloseReason.IoError(StaleConnectionException(current)))
+						}
+						runCatching { transport?.close() }
+						return@launch
+					}
+					runCatching { ping() }
+						.onFailure { logger.debug(it) { "heartbeat ping failed" } }
+				}
+			}
 	}
 
 	private suspend fun stopWriter() {

@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 public class ClientConfigurationBuilder internal constructor() {
@@ -177,6 +178,38 @@ public class ClientConfigurationBuilder internal constructor() {
 	}
 
 	/**
+	 * Enable TCP `SO_KEEPALIVE` on the underlying socket so the OS surfaces dead connections
+	 * (peer crashed, NAT/firewall silently dropped the flow) within roughly
+	 * `idle + interval * probeCount`, instead of the OS default (typically two hours).
+	 *
+	 * `null` (default) leaves keep-alive off. Use [SocketKeepAliveConfig.Default] for a 10s idle
+	 * + 5s interval × 3 probes (~25s detection).
+	 *
+	 * Applies to the TCP transport on JVM and Kotlin/Native. JVM honours the boolean setting
+	 * but per-socket idle/interval tuning depends on the JDK and OS. The WebSocket transport
+	 * and JS/WasmJS targets ignore it.
+	 */
+	public var socketKeepAlive: SocketKeepAliveConfig? = null
+
+	/**
+	 * Interval at which the client sends a heartbeat PING to the server. Combined with
+	 * [maxPingsOut], this detects half-open / stale connections within roughly
+	 * `pingInterval * (maxPingsOut + 1)`.
+	 *
+	 * Set to `null` to disable the heartbeat entirely (PINGs sent only when the application
+	 * calls [io.natskt.api.NatsClient.ping] or [io.natskt.api.NatsClient.flush]).
+	 */
+	public var pingInterval: Duration? = 2.minutes
+
+	/**
+	 * Maximum number of unacknowledged PINGs (sent but not yet matched by a PONG) before the
+	 * client treats the connection as stale and surfaces a
+	 * [io.natskt.api.CloseReason.IoError] with a
+	 * [io.natskt.api.StaleConnectionException], triggering reconnect.
+	 */
+	public var maxPingsOut: Int = 2
+
+	/**
 	 * The transport type to use. Will default to TCP on supported platforms, or a WebSocket transport
 	 * with the platforms preferred [Ktor client engine](https://ktor.io/docs/client-engines.html#dependencies)
 	 */
@@ -236,6 +269,9 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		writeBufferLimitBytes = writeBufferLimitBytes,
 		tlsRequired = tls,
 		tlsConfig = resolvedTlsConfig,
+		socketKeepAlive = socketKeepAlive,
+		pingInterval = pingInterval?.takeIf { it.isPositive() },
+		maxPingsOut = maxPingsOut.coerceAtLeast(1),
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,
 		echo = echo,
