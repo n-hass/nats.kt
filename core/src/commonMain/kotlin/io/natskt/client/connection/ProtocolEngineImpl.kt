@@ -47,7 +47,6 @@ import kotlin.coroutines.resume
 import kotlin.jvm.JvmInline
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger { }
@@ -64,7 +63,7 @@ internal class ProtocolEngineImpl(
 	private val tlsRequired: Boolean,
 	private val tlsConfig: TlsConfig,
 	private val socketKeepAlive: SocketKeepAliveConfig?,
-	private val pingIntervalMs: Long?,
+	private val pingInterval: Duration?,
 	private val maxPingsOut: Int,
 	private val noResponders: Boolean,
 	private val echo: Boolean,
@@ -289,7 +288,7 @@ internal class ProtocolEngineImpl(
 							}
 
 							is Operation.Err -> {
-								val message = (out as Operation.Err).message
+								val message = out.message
 								logger.error { "received a protocol error response: $message" }
 								if (message != null) {
 									state.update { lastError = message }
@@ -458,13 +457,12 @@ internal class ProtocolEngineImpl(
 	}
 
 	private fun startPingHeartbeat() {
-		val intervalMs = pingIntervalMs ?: return
-		if (intervalMs <= 0) return
+		val interval = pingInterval ?: return
 		if (pingHeartbeatJob?.isActive == true) return
 		pingHeartbeatJob =
 			scope.launch {
 				while (isActive && !closed.isCompleted) {
-					delay(intervalMs.milliseconds)
+					delay(interval)
 					if (closed.isCompleted) return@launch
 					val current = outstandingPings
 					if (current >= maxPingsOut) {

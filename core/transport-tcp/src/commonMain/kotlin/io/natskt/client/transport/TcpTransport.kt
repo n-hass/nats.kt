@@ -39,7 +39,11 @@ public class TcpTransport internal constructor(
 							if (socketKeepAlive != null) keepAlive = true
 						}.connection()
 				if (socketKeepAlive != null) {
-					tuneSocketKeepAlive(connection, socketKeepAlive)
+					try {
+						tuneSocketKeepAlive(connection, socketKeepAlive)
+					} finally {
+						connection.socket.close()
+					}
 				}
 				TcpTransport(
 					connection,

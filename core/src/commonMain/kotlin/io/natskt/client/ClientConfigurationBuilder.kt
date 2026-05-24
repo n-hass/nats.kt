@@ -270,7 +270,7 @@ internal fun ClientConfigurationBuilder.build(): ClientConfiguration {
 		tlsRequired = tls,
 		tlsConfig = resolvedTlsConfig,
 		socketKeepAlive = socketKeepAlive,
-		pingIntervalMs = pingInterval?.inWholeMilliseconds,
+		pingInterval = pingInterval?.takeIf { it.isPositive() },
 		maxPingsOut = maxPingsOut.coerceAtLeast(1),
 		maxParallelRequests = parallelRequestLimit,
 		noResponders = noResponders,

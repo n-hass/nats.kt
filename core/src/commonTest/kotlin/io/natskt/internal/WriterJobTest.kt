@@ -191,7 +191,7 @@ class WriterJobTest {
 			tlsRequired = false,
 			tlsConfig = io.natskt.client.TlsConfig.Default,
 			socketKeepAlive = null,
-			pingIntervalMs = null,
+			pingInterval = null,
 			maxPingsOut = 2,
 			noResponders = true,
 			echo = false,

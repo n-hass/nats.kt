@@ -45,7 +45,7 @@ class ProtocolEngineImplPingHeartbeatTest {
 					tlsRequired = false,
 					tlsConfig = io.natskt.client.TlsConfig.Default,
 					socketKeepAlive = null,
-					pingIntervalMs = 100,
+					pingInterval = 100,
 					maxPingsOut = 2,
 					noResponders = true,
 					echo = false,
