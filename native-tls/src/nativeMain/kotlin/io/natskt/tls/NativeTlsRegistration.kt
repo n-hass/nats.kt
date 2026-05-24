@@ -19,18 +19,17 @@ private val registerNativeTls: Unit =
 		// then surfaces EPIPE via SSL_ERROR_SYSCALL through the normal error path.
 		signal(SIGPIPE, SIG_IGN)
 		NativeTlsRegistrar.upgrader = { rawConnection, tlsConfig, serverName, coroutineContext, selectorManager ->
-			if (tlsConfig.hasClientCertificate) {
-				throw UnsupportedOperationException(
-					"Mutual TLS (clientCertificate) is not yet supported on Kotlin/Native targets. " +
-						"Use a JVM target or a WebSocket transport on a platform whose Ktor engine supports it.",
-				)
-			}
 			val config =
 				NativeTlsConfigBuilder()
 					.apply {
 						this.serverName = serverName
 						verifyCertificates = !tlsConfig.acceptAnyServerCertificate
 						trustAnchorsDer = tlsConfig.caCertificatesDer
+						if (tlsConfig.hasClientCertificate) {
+							clientCertificateChainDer = tlsConfig.clientCertificateChainDer
+							clientPrivateKeyDer = tlsConfig.clientPrivateKeyDer
+							clientPrivateKeyAlgorithm = tlsConfig.clientPrivateKeyAlgorithm
+						}
 					}.build()
 			val tls = performNativeTlsHandshake(rawConnection, coroutineContext, selectorManager, config)
 			NativeTlsTransportAdapter(rawConnection, tls, coroutineContext)

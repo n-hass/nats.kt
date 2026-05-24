@@ -39,8 +39,10 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.resume
@@ -169,13 +171,13 @@ internal class ProtocolEngineImpl(
 	}
 
 	override suspend fun start() {
-		state.update { phase = ConnectionPhase.Connecting }
+		state.mutate { phase = ConnectionPhase.Connecting }
 		transport =
 			runCatching {
 				transportFactory.connect(address, scope.coroutineContext, tlsConfig, socketKeepAlive)
 			}.getOrElse {
 				logger.error(it) { "failed to open transport to ${address.url}" }
-				state.update { phase = ConnectionPhase.Failed }
+				state.mutate { phase = ConnectionPhase.Failed }
 				closed.complete(CloseReason.IoError(it))
 				return
 			}
@@ -187,22 +189,30 @@ internal class ProtocolEngineImpl(
 					transport!!.upgradeTLS()
 				}.getOrElse {
 					logger.error(it) { "TLS-first upgrade failed for ${address.url}" }
-					state.update { phase = ConnectionPhase.Failed }
+					state.mutate { phase = ConnectionPhase.Failed }
 					runCatching { transport?.close() }
 					closed.complete(CloseReason.IoError(it))
 					return
 				}
 		}
 
+		val parsedInfo =
+			runCatching { parser.parse(transport!!.incoming) }
+				.getOrElse {
+					logger.error(it) { "failed to read INFO from ${address.url}" }
+					state.mutate { phase = ConnectionPhase.Failed }
+					runCatching { transport?.close() }
+					closed.complete(CloseReason.IoError(it))
+					return
+				}
 		val info =
-			when (val parsed = parser.parse(transport!!.incoming)) {
-				is ServerOperation.InfoOp -> parsed
-				else -> {
+			parsedInfo as? ServerOperation.InfoOp
+				?: run {
+					state.mutate { phase = ConnectionPhase.Failed }
 					closed.complete(CloseReason.ProtocolError("Server did not open connection with an INFO operation"))
 					runCatching { transport?.close() }
 					return
 				}
-			}
 		serverInfo.value = info
 
 		if (info.ldm == true) {
@@ -217,7 +227,7 @@ internal class ProtocolEngineImpl(
 					transport!!.upgradeTLS()
 				}.getOrElse {
 					logger.error(it) { "TLS upgrade failed for ${address.url}" }
-					state.update { phase = ConnectionPhase.Failed }
+					state.mutate { phase = ConnectionPhase.Failed }
 					runCatching { transport?.close() }
 					closed.complete(CloseReason.IoError(it))
 					return
@@ -227,7 +237,7 @@ internal class ProtocolEngineImpl(
 			runCatching { buildConnectOp(info) }
 				.getOrElse {
 					logger.error(it) { "failed to prepare CONNECT for ${address.url}" }
-					state.update { phase = ConnectionPhase.Failed }
+					state.mutate { phase = ConnectionPhase.Failed }
 					transport?.close()
 					closed.complete(CloseReason.HandshakeRejected)
 					return
@@ -235,12 +245,22 @@ internal class ProtocolEngineImpl(
 
 		startWriter(requireNotNull(transport))
 
-		send(connect)
-		flushWriter()
+		runCatching {
+			send(connect)
+			flushWriter()
+		}.onFailure {
+			logger.error(it) { "failed to send CONNECT to ${address.url}" }
+			state.mutate { phase = ConnectionPhase.Failed }
+			runCatching { stopWriter() }
+			runCatching { transport?.close() }
+			if (!closed.isCompleted) {
+				closed.complete(CloseReason.IoError(it))
+			}
+			return
+		}
 
 		startPingHeartbeat()
-
-		state.update { phase = ConnectionPhase.Connected }
+		val initialPong = CompletableDeferred<Unit>()
 
 		scope.launch {
 			try {
@@ -276,6 +296,7 @@ internal class ProtocolEngineImpl(
 												?.let { it / 1000 },
 									)
 								rttMeasureStart = null
+								initialPong.complete(Unit)
 								outstandingPings = (outstandingPings - 1).coerceAtLeast(0)
 							}
 
@@ -291,7 +312,7 @@ internal class ProtocolEngineImpl(
 								val message = out.message
 								logger.error { "received a protocol error response: $message" }
 								if (message != null) {
-									state.update { lastError = message }
+									state.mutate { lastError = message }
 								}
 							}
 
@@ -322,16 +343,44 @@ internal class ProtocolEngineImpl(
 			} catch (t: Throwable) {
 				logger.error(t) { "read loop terminated by exception: ${t.message}" }
 				if (!closed.isCompleted) {
+					state.mutate { phase = ConnectionPhase.Failed }
 					closed.complete(CloseReason.IoError(t))
 				}
 			} finally {
 				runCatching { stopWriter() }
 				runCatching { transport?.close() }
 				if (!closed.isCompleted) {
+					state.mutate { phase = ConnectionPhase.Closed }
 					closed.complete(CloseReason.ServerInitiatedClose)
 				}
 			}
 		}
+
+		runCatching {
+			rttMeasureStart = Clock.System.now()
+			send(Operation.Ping)
+			flushWriter()
+		}.onFailure {
+			if (!closed.isCompleted) {
+				logger.error(it) { "failed to send initial PING to ${address.url}" }
+				state.mutate { phase = ConnectionPhase.Failed }
+				runCatching { stopWriter() }
+				runCatching { transport?.close() }
+				closed.complete(CloseReason.IoError(it))
+			}
+			return
+		}
+
+		val gotPong =
+			select {
+				initialPong.onAwait { true }
+				closed.onAwait { false }
+			}
+
+		if (!gotPong) {
+			return
+		}
+		state.mutate { phase = ConnectionPhase.Connected }
 	}
 
 	override suspend fun ping() {
@@ -353,13 +402,13 @@ internal class ProtocolEngineImpl(
 
 	override suspend fun close() {
 		val t = transport ?: return
-		state.update {
+		state.mutate {
 			phase = ConnectionPhase.Closing
 		}
 		runCatching { withTimeoutOrNull(5_000) { flushWriter() } }
 		stopWriter()
 		t.close()
-		state.update {
+		state.mutate {
 			phase = ConnectionPhase.Closed
 		}
 		if (!closed.isCompleted) {
@@ -369,7 +418,7 @@ internal class ProtocolEngineImpl(
 
 	private suspend fun enterLameDuckMode() {
 		logger.debug { "server ${address.url} entered lame duck mode" }
-		state.update { phase = ConnectionPhase.LameDuck }
+		state.mutate { phase = ConnectionPhase.LameDuck }
 		if (!closed.isCompleted) {
 			closed.complete(CloseReason.LameDuckMode)
 		}
@@ -487,8 +536,10 @@ internal class ProtocolEngineImpl(
 		writerJob = null
 	}
 
-	private inline fun MutableStateFlow<ConnectionState>.update(block: ConnectionState.() -> Unit) {
-		this.value = this.value.copy().apply(block)
+	private inline fun MutableStateFlow<ConnectionState>.mutate(block: ConnectionState.() -> Unit) {
+		this@mutate.update {
+			it.copy().apply(block)
+		}
 		logger.debug { "Connection state change: ${this.value}" }
 	}
 }

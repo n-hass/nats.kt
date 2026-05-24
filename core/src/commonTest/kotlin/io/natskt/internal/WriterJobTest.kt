@@ -231,13 +231,10 @@ class WriterJobTest {
 		)
 
 	private inner class BatchingSerializer : OperationSerializer {
-		private var first = true
+		private val handshake = ArrayDeque<ParsedOutput>(listOf(defaultInfo(), Operation.Pong))
 
 		override suspend fun parse(channel: ByteReadChannel): ParsedOutput {
-			if (first) {
-				first = false
-				return defaultInfo()
-			}
+			handshake.removeFirstOrNull()?.let { return it }
 			while (true) {
 				if (!channel.awaitContent()) return Operation.Empty
 			}

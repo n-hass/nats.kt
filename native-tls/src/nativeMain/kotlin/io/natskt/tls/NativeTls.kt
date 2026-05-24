@@ -12,6 +12,7 @@ import io.ktor.utils.io.read
 import io.ktor.utils.io.write
 import io.natskt.tls.internal.IsolatedFdSelectable
 import io.natskt.tls.internal.SslEngine
+import io.natskt.tls.internal.configureClientIdentity
 import io.natskt.tls.internal.configurePlatformTrust
 import io.natskt.tls.openssl.BIO_NOCLOSE
 import io.natskt.tls.openssl.BIO_new_fd
@@ -140,6 +141,7 @@ internal suspend fun performNativeTlsHandshake(
 		if (SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MIN_PROTO_VERSION, TLS1_2_VERSION.toLong(), null) != 1L) {
 			throw TlsException("SSL_CTX_ctrl(SET_MIN_PROTO_VERSION) failed")
 		}
+		configureClientIdentity(ctx, config)
 		trustDisposer = configurePlatformTrust(ctx, config)
 	} catch (cause: Throwable) {
 		SSL_CTX_free(ctx)
