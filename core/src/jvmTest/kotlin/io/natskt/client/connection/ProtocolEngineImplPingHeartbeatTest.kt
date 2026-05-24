@@ -26,6 +26,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 class ProtocolEngineImplPingHeartbeatTest {
 	@Test
@@ -45,7 +46,7 @@ class ProtocolEngineImplPingHeartbeatTest {
 					tlsRequired = false,
 					tlsConfig = io.natskt.client.TlsConfig.Default,
 					socketKeepAlive = null,
-					pingInterval = 100,
+					pingInterval = 100.milliseconds,
 					maxPingsOut = 2,
 					noResponders = true,
 					echo = false,
