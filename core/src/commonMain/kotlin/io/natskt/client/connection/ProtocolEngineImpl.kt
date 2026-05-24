@@ -259,9 +259,6 @@ internal class ProtocolEngineImpl(
 		}
 
 		startPingHeartbeat()
-
-		state.update { phase = ConnectionPhase.Connected }
-
 		val initialPong = CompletableDeferred<Unit>()
 
 		scope.launch {
