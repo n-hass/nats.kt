@@ -42,9 +42,7 @@ Gradle:
 
 ```kotlin
 commonMain.dependencies {
-	implementation("io.github.n-hass:natskt-core:0.8.0")
-	// and if you want jetstream:
-	implementation("io.github.n-hass:natskt-jetstream:0.8.0")
+	implementation("io.github.n-hass:natskt-platform:0.9.0")
 }
 ```
 
@@ -91,7 +89,7 @@ NATS.kt is under **active development**.
 | Pull consumer                         |✅ |                              |
 | Push consumer                         |🟠 | Functional, missing server liveness timeout  |
 | Key-Value Store                       |✅ |                              |
-| Object Store                          |❌ |                              |
+| Object Store                          |✅ |                              |
 | **JetStream Management**              |  |                              |
 | Streams                               | ✅ |                              |
 | Consumers                             | ✅ |                              |
@@ -107,18 +105,6 @@ Check out our [examples directory](examples/) for comprehensive usage examples:
 - [Custom Credentials](examples/custom-credentials/) - Providing custom authentication credentials for use with auth-callout
 
 More coming soon!
-
-## 🛡️ Security notice
-
-The upcoming 1.0.0 stable release of NATS.kt will include a new platform-native cryptography library that was not used in pre-release versions (0.1.0 – 0.7.0).
-
-If you are concerned about potential security vulnerabilities when using an un-attested Ed25519 implementation, please use the 1.0.0-rc.1 pre-release:
-
-```kotlin
-commonMain.dependencies {
-	implementation("io.github.n-hass:natskt-platform:1.0.0-rc.1")
-}
-```
 
 ## 📄 License
 
