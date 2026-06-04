@@ -1,0 +1,820 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>StreamConfigurationBuilder</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    NATS.kt
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true" data-filter=":jetstream/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":jetstream/commonMain" data-filter=":jetstream/commonMain">
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    NATS.kt
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="jetstream::io.natskt.jetstream.api.stream/StreamConfigurationBuilder///PointingToDeclaration//443812370">
+  <div class="breadcrumbs"><a href="../../index.html">jetstream</a><span class="delimiter">/</span><a href="../index.html">io.natskt.jetstream.api.stream</a><span class="delimiter">/</span><span class="current">StreamConfigurationBuilder</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Stream</span><wbr><span>Configuration</span><wbr><span><span>Builder</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">StreamConfigurationBuilder</a><span class="source-link-wrapper"><span class="source-link" data-element-type="source-link">(<a href="https://github.com/n-hass/nats.kt/blob/main//jetstream/src/commonMain/kotlin/io/natskt/jetstream/api/stream/StreamConfigurationBuilder.kt#L154">source</a>)</span></span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1660050163%2FProperties%2F443812370" anchor-label="allowAtomicPublish" id="1660050163%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="allow-atomic-publish.html"><span>allow</span><wbr><span>Atomic</span><wbr><span><span>Publish</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1660050163%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="allow-atomic-publish.html">allowAtomicPublish</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="122646302%2FProperties%2F443812370" anchor-label="allowBatched" id="122646302%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="allow-batched.html"><span>allow</span><wbr><span><span>Batched</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="122646302%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="allow-batched.html">allowBatched</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1460006374%2FProperties%2F443812370" anchor-label="allowDirect" id="-1460006374%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="allow-direct.html"><span>allow</span><wbr><span><span>Direct</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1460006374%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="allow-direct.html">allowDirect</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1216715378%2FProperties%2F443812370" anchor-label="allowMessageCounter" id="-1216715378%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="allow-message-counter.html"><span>allow</span><wbr><span>Message</span><wbr><span><span>Counter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1216715378%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="allow-message-counter.html">allowMessageCounter</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1979167630%2FProperties%2F443812370" anchor-label="allowMessageSchedules" id="1979167630%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="allow-message-schedules.html"><span>allow</span><wbr><span>Message</span><wbr><span><span>Schedules</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1979167630%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="allow-message-schedules.html">allowMessageSchedules</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-742623714%2FProperties%2F443812370" anchor-label="allowMessageTtl" id="-742623714%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="allow-message-ttl.html"><span>allow</span><wbr><span>Message</span><wbr><span><span>Ttl</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-742623714%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="allow-message-ttl.html">allowMessageTtl</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="831129097%2FProperties%2F443812370" anchor-label="allowRollupHeaders" id="831129097%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="allow-rollup-headers.html"><span>allow</span><wbr><span>Rollup</span><wbr><span><span>Headers</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="831129097%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="allow-rollup-headers.html">allowRollupHeaders</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="571629510%2FProperties%2F443812370" anchor-label="compression" id="571629510%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="compression.html"><span><span>compression</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="571629510%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="compression.html">compression</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-stream-compression/index.html">StreamCompression</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2144981312%2FProperties%2F443812370" anchor-label="consumerLimits" id="-2144981312%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="consumer-limits.html"><span>consumer</span><wbr><span><span>Limits</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2144981312%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="consumer-limits.html">consumerLimits</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-stream-consumer-limits/index.html">StreamConsumerLimits</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="313627703%2FProperties%2F443812370" anchor-label="denyDelete" id="313627703%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="deny-delete.html"><span>deny</span><wbr><span><span>Delete</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="313627703%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="deny-delete.html">denyDelete</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="737484045%2FProperties%2F443812370" anchor-label="denyPurge" id="737484045%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="deny-purge.html"><span>deny</span><wbr><span><span>Purge</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="737484045%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="deny-purge.html">denyPurge</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="395389424%2FProperties%2F443812370" anchor-label="description" id="395389424%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="description.html"><span><span>description</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="395389424%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="description.html">description</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="382168846%2FProperties%2F443812370" anchor-label="discard" id="382168846%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="discard.html"><span><span>discard</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="382168846%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="discard.html">discard</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-discard-policy/index.html">DiscardPolicy</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1829535747%2FProperties%2F443812370" anchor-label="discardNewPerSubject" id="-1829535747%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="discard-new-per-subject.html"><span>discard</span><wbr><span>New</span><wbr><span>Per</span><wbr><span><span>Subject</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1829535747%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="discard-new-per-subject.html">discardNewPerSubject</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1832175217%2FProperties%2F443812370" anchor-label="duplicateWindow" id="1832175217%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="duplicate-window.html"><span>duplicate</span><wbr><span><span>Window</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1832175217%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="duplicate-window.html">duplicateWindow</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/index.html">Duration</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2060607803%2FProperties%2F443812370" anchor-label="firstSequence" id="2060607803%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="first-sequence.html"><span>first</span><wbr><span><span>Sequence</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2060607803%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="first-sequence.html">firstSequence</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-u-long/index.html">ULong</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-107091181%2FProperties%2F443812370" anchor-label="maxAge" id="-107091181%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="max-age.html"><span>max</span><wbr><span><span>Age</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-107091181%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="max-age.html">maxAge</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/index.html">Duration</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1756394521%2FProperties%2F443812370" anchor-label="maxBytes" id="-1756394521%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="max-bytes.html"><span>max</span><wbr><span><span>Bytes</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1756394521%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="max-bytes.html">maxBytes</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="122068693%2FProperties%2F443812370" anchor-label="maxConsumers" id="122068693%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="max-consumers.html"><span>max</span><wbr><span><span>Consumers</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="122068693%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="max-consumers.html">maxConsumers</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1247126116%2FProperties%2F443812370" anchor-label="maxMessages" id="-1247126116%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="max-messages.html"><span>max</span><wbr><span><span>Messages</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1247126116%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="max-messages.html">maxMessages</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1604131190%2FProperties%2F443812370" anchor-label="maxMessageSize" id="-1604131190%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="max-message-size.html"><span>max</span><wbr><span>Message</span><wbr><span><span>Size</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1604131190%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="max-message-size.html">maxMessageSize</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-244944819%2FProperties%2F443812370" anchor-label="maxMessagesPerSubject" id="-244944819%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="max-messages-per-subject.html"><span>max</span><wbr><span>Messages</span><wbr><span>Per</span><wbr><span><span>Subject</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-244944819%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="max-messages-per-subject.html">maxMessagesPerSubject</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1891437343%2FProperties%2F443812370" anchor-label="metadata" id="1891437343%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="metadata.html"><span><span>metadata</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1891437343%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="metadata.html">metadata</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="28841167%2FProperties%2F443812370" anchor-label="mirror" id="28841167%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="mirror.html"><span><span>mirror</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="28841167%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="mirror.html">mirror</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-stream-source/index.html">StreamSource</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="798352230%2FProperties%2F443812370" anchor-label="mirrorDirect" id="798352230%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="mirror-direct.html"><span>mirror</span><wbr><span><span>Direct</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="798352230%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="mirror-direct.html">mirrorDirect</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-244626493%2FProperties%2F443812370" anchor-label="name" id="-244626493%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="name.html"><span><span>name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-244626493%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="name.html">name</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-161623132%2FProperties%2F443812370" anchor-label="noAck" id="-161623132%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="no-ack.html"><span>no</span><wbr><span><span>Ack</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-161623132%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="no-ack.html">noAck</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="127321269%2FProperties%2F443812370" anchor-label="persistMode" id="127321269%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="persist-mode.html"><span>persist</span><wbr><span><span>Mode</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="127321269%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="persist-mode.html">persistMode</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-persist-mode/index.html">PersistMode</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-102440217%2FProperties%2F443812370" anchor-label="placement" id="-102440217%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="placement.html"><span><span>placement</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-102440217%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="placement.html">placement</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-stream-placement/index.html">StreamPlacement</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="707859731%2FProperties%2F443812370" anchor-label="replicas" id="707859731%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="replicas.html"><span><span>replicas</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="707859731%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="replicas.html">replicas</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="381926960%2FProperties%2F443812370" anchor-label="republish" id="381926960%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="republish.html"><span><span>republish</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="381926960%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="republish.html">republish</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-stream-republish/index.html">StreamRepublish</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1633884366%2FProperties%2F443812370" anchor-label="retention" id="1633884366%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="retention.html"><span><span>retention</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1633884366%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="retention.html">retention</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-retention-policy/index.html">RetentionPolicy</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1036481582%2FProperties%2F443812370" anchor-label="sealed" id="-1036481582%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="sealed.html"><span><span>sealed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1036481582%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="sealed.html">sealed</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="274181428%2FProperties%2F443812370" anchor-label="sources" id="274181428%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="sources.html"><span><span>sources</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="274181428%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="sources.html">sources</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-list/index.html">MutableList</a><span class="token operator">&lt;</span><a href="../../io.natskt.jetstream.api/-stream-source/index.html">StreamSource</a><span class="token operator">&gt;</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-336259119%2FProperties%2F443812370" anchor-label="storage" id="-336259119%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="storage.html"><span><span>storage</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-336259119%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="storage.html">storage</a><span class="token operator">: </span><a href="../../io.natskt.jetstream.api/-storage-type/index.html">StorageType</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1394539251%2FProperties%2F443812370" anchor-label="subjectDeleteMarkerTtl" id="1394539251%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="subject-delete-marker-ttl.html"><span>subject</span><wbr><span>Delete</span><wbr><span>Marker</span><wbr><span><span>Ttl</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1394539251%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="subject-delete-marker-ttl.html">subjectDeleteMarkerTtl</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/index.html">Duration</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1598214009%2FProperties%2F443812370" anchor-label="subjects" id="-1598214009%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="subjects.html"><span><span>subjects</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1598214009%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="subjects.html">subjects</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-list/index.html">MutableList</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="67031481%2FProperties%2F443812370" anchor-label="subjectTransforms" id="67031481%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="subject-transforms.html"><span>subject</span><wbr><span><span>Transforms</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="67031481%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="subject-transforms.html">subjectTransforms</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-list/index.html">MutableList</a><span class="token operator">&lt;</span><a href="../../io.natskt.jetstream.api/-subject-transform/index.html">SubjectTransform</a><span class="token operator">&gt;</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1448197747%2FProperties%2F443812370" anchor-label="templateOwner" id="1448197747%2FProperties%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="template-owner.html"><span>template</span><wbr><span><span>Owner</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1448197747%2FProperties%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="template-owner.html">templateOwner</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1469098518%2FFunctions%2F443812370" anchor-label="consumerLimits" id="-1469098518%2FFunctions%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="consumer-limits.html"><span>consumer</span><wbr><span><span>Limits</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1469098518%2FFunctions%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="consumer-limits.html"><span class="token function">consumerLimits</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">builder<span class="token operator">: </span><a href="../-stream-consumer-limits-builder/index.html">StreamConsumerLimitsBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1690940564%2FFunctions%2F443812370" anchor-label="mirror" id="-1690940564%2FFunctions%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="mirror.html"><span><span>mirror</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1690940564%2FFunctions%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="mirror.html"><span class="token function">mirror</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">builder<span class="token operator">: </span><a href="../-stream-source-builder/index.html">StreamSourceBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="48335172%2FFunctions%2F443812370" anchor-label="placement" id="48335172%2FFunctions%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="placement.html"><span><span>placement</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="48335172%2FFunctions%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="placement.html"><span class="token function">placement</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">builder<span class="token operator">: </span><a href="../-stream-placement-builder/index.html">StreamPlacementBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2090552732%2FFunctions%2F443812370" anchor-label="republish" id="-2090552732%2FFunctions%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="republish.html"><span><span>republish</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2090552732%2FFunctions%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="republish.html"><span class="token function">republish</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">builder<span class="token operator">: </span><a href="../-stream-republish-builder/index.html">StreamRepublishBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="170051216%2FFunctions%2F443812370" anchor-label="source" id="170051216%2FFunctions%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="source.html"><span><span>source</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="170051216%2FFunctions%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="source.html"><span class="token function">source</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">builder<span class="token operator">: </span><a href="../-stream-source-builder/index.html">StreamSourceBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1425898180%2FFunctions%2F443812370" anchor-label="subject" id="1425898180%2FFunctions%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="subject.html"><span><span>subject</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1425898180%2FFunctions%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="subject.html"><span class="token function">subject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">subject<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="928335206%2FFunctions%2F443812370" anchor-label="subjectTransform" id="928335206%2FFunctions%2F443812370" data-filterable-set=":jetstream/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":jetstream/commonMain" data-filterable-set=":jetstream/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="subject-transform.html"><span>subject</span><wbr><span><span>Transform</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="928335206%2FFunctions%2F443812370"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":jetstream/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="subject-transform.html"><span class="token function">subjectTransform</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">builder<span class="token operator">: </span><a href="../-subject-transform-builder/index.html">SubjectTransformBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2026 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
