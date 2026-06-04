@@ -2,26 +2,26 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://n-hass.github.io/nats.kt/dev/</loc>
-         <lastmod>2026-05-25</lastmod>
+         <lastmod>2026-06-04</lastmod>
     </url>
     <url>
          <loc>https://n-hass.github.io/nats.kt/dev/core-client/</loc>
-         <lastmod>2026-05-25</lastmod>
+         <lastmod>2026-06-04</lastmod>
     </url>
     <url>
          <loc>https://n-hass.github.io/nats.kt/dev/cryptography/</loc>
-         <lastmod>2026-05-25</lastmod>
+         <lastmod>2026-06-04</lastmod>
     </url>
     <url>
          <loc>https://n-hass.github.io/nats.kt/dev/getting-started/</loc>
-         <lastmod>2026-05-25</lastmod>
+         <lastmod>2026-06-04</lastmod>
     </url>
     <url>
          <loc>https://n-hass.github.io/nats.kt/dev/jetstream/</loc>
-         <lastmod>2026-05-25</lastmod>
+         <lastmod>2026-06-04</lastmod>
     </url>
     <url>
          <loc>https://n-hass.github.io/nats.kt/dev/native-tls/</loc>
-         <lastmod>2026-05-25</lastmod>
+         <lastmod>2026-06-04</lastmod>
     </url>
 </urlset>
