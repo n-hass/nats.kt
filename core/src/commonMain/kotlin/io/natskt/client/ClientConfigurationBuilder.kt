@@ -293,7 +293,7 @@ private fun parseNatsUrl(raw: String): NatsServerAddress {
 		when (base.protocol.name) {
 			"nats", "tls" -> 4222
 			"ws" -> 80
-			"wss" -> 422
+			"wss" -> 443
 			else -> 4222
 		}
 
