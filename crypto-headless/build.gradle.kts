@@ -26,6 +26,8 @@ kotlin {
 		}
 		wasmJsMain.dependencies {
 			api(libs.whyoleg.cryptography.provider.webcrypto)
+			// YouTrack KT-87116
+			implementation(libs.kotlinx.io.core)
 		}
 	}
 }

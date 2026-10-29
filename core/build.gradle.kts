@@ -1,6 +1,5 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
-import java.time.Duration
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
@@ -32,8 +31,9 @@ kotlin {
     wasmJs {
 		nodejs {
 			testTask {
-				useKarma()
-				timeout = Duration.ofSeconds(15)
+				useMocha {
+					timeout = "15000"
+				}
 			}
 		}
     }
