@@ -6,7 +6,9 @@
     _module.args.common = {
       packages = with pkgs; [
         jdk21
-        gradle_9
+        (pkgs.writeScriptBin "gradle" ''
+          ${toString ./..}/gradlew "$@"
+        '')
 
         nats-server
         natscli

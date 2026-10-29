@@ -229,8 +229,6 @@ docs/api/
 local.properties
 .pre-commit-config.yaml
 
-**/gradlew
-**/gradlew.bat
-**/gradle/wrapper
+**/gradle/wrapper/gradle-wrapper.jar
 
 AGENTS.md
