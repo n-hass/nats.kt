@@ -20,7 +20,7 @@ plugins {
 }
 
 allprojects {
-    apply(plugin = "com.diffplug.spotless")
+    this@allprojects.pluginManager.apply("com.diffplug.spotless")
     val spotless = extensions.getByName("spotless") as SpotlessExtension
     spotless.apply {
         lineEndings = LineEnding.UNIX // configuration cache bug: https://github.com/diffplug/spotless/issues/2431
@@ -42,8 +42,17 @@ subprojects {
 	group = "io.github.n-hass"
 	version = rootProject.ext.properties["natskt.version"].toString()
 
-	apply(plugin = mavenPublishId)
-	apply(plugin = "signing")
+	val publishLibrary = path !in setOf(
+		":architecture",
+		":integration-tests",
+		":test-harness",
+		":test-harness:nats-server-daemon",
+		":test-harness:tls-test-server",
+	)
+	if (publishLibrary) {
+		this@subprojects.pluginManager.apply(mavenPublishId)
+		this@subprojects.pluginManager.apply("signing")
+	}
 
 	plugins.withId(kotlinMultiplatformId) {
 		extensions.findByType<KotlinMultiplatformExtension>()?.apply {
@@ -58,7 +67,7 @@ subprojects {
 			}
 
 			targets.withType<KotlinJvmTarget>().configureEach {
-				val main by compilations.getting {
+				compilations.getByName("main") {
 					compileTaskProvider.configure {
 						compilerOptions {
 							jvmTarget = JvmTarget.fromTarget(libs.versions.jvmTarget.get())
@@ -68,7 +77,7 @@ subprojects {
 			}
 		}
 
-		apply(plugin = dokkaPluginId)
+		this@subprojects.pluginManager.apply(dokkaPluginId)
 		configure<DokkaExtension> {
 			dokkaSourceSets.configureEach {
 				jdkVersion.set(libs.versions.jdk.get().toInt())
@@ -80,6 +89,8 @@ subprojects {
 			}
 		}
 	}
+
+	if (!publishLibrary) return@subprojects
 
 	val doSign = rootProject.ext.properties["natskt.gpgsign"].toString().toBoolean()
 
