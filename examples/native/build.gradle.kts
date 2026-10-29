@@ -6,8 +6,8 @@ plugins {
 
 kotlin {
 	sourceSets {
-		val commonMain by getting
-		val commonTest by getting
+		val commonMain = getByName("commonMain")
+		val commonTest = getByName("commonTest")
 
 		nativeMain.dependencies {
 			implementation("io.github.n-hass:core")

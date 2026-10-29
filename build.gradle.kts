@@ -40,7 +40,7 @@ val dokkaPluginId = libs.plugins.dokka.get().pluginId
 
 subprojects {
 	group = "io.github.n-hass"
-	version = properties["natskt.version"].toString()
+	version = rootProject.ext.properties["natskt.version"].toString()
 
 	apply(plugin = mavenPublishId)
 	apply(plugin = "signing")
@@ -81,7 +81,7 @@ subprojects {
 		}
 	}
 
-	val doSign = properties["natskt.gpgsign"].toString().toBoolean()
+	val doSign = rootProject.ext.properties["natskt.gpgsign"].toString().toBoolean()
 
 	extensions.getByType<MavenPublishBaseExtension>().apply {
 		if (doSign) {

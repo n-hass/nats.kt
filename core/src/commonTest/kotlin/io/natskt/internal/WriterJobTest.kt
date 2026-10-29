@@ -7,7 +7,7 @@ import io.ktor.util.collections.ConcurrentMap
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.readBuffer
 import io.natskt.api.internal.OperationEncodeBuffer
 import io.natskt.api.internal.OperationSerializer
 import io.natskt.client.NatsServerAddress
@@ -295,7 +295,7 @@ class WriterJobTest {
 			block(channel)
 			channel.flush()
 			channel.close()
-			writes.add(channel.readRemaining().readByteArray())
+			writes.add(channel.readBuffer().readByteArray())
 		}
 
 		override suspend fun flush() {

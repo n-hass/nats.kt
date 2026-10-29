@@ -7,16 +7,16 @@ kotlin-apiVersion = "2.2"
 jvmTarget = "17"
 
 # Kotlin
-kotlin-stdlib = "2.3.21"
-kotlinx-coroutines = "1.10.2"
-kotlinx-serialization = "1.10.0"
-kotlinx-io = "0.9.0"
-buildkonfig = "0.17.1"
+kotlin-stdlib = "2.4.21"
+kotlinx-coroutines = "1.11.0"
+kotlinx-serialization = "1.12.0"
+kotlinx-io = "0.9.1"
+buildkonfig = "0.23.0"
 
-ktor = "3.4.2"
-kotlinLogging = "8.0.01"
+ktor = "3.6.0"
+kotlinLogging = "8.0.4"
 whyoleg-crypto = "0.6.0"
-nativebuilds-openssl = "3.6.2"
+nativebuilds-openssl = "3.6.5"
 nativebuilds-plugin = "0.9.0"
 
 # Testing

@@ -40,7 +40,7 @@ val natsServerDaemonService =
 			),
 		)
 		maxParallelUsages.set(
-			properties["natskt.test.parallel"]?.toString()?.toInt() ?: 2,
+			rootProject.ext.properties["natskt.test.parallel"]?.toString()?.toInt() ?: 2,
 		)
 	}
 

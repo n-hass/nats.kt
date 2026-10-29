@@ -7,7 +7,7 @@
       packages = with pkgs; [
         jdk21
         (pkgs.writeScriptBin "gradle" ''
-          ${toString ./..}/gradlew "$@"
+          $(git rev-parse --show-toplevel)/gradlew "$@"
         '')
 
         nats-server
